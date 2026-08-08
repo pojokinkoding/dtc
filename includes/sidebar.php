@@ -11,16 +11,16 @@
                 </a>
             </li>
             <li>
+                <a href="index.php?page=missing_data" class="<?php echo ($page == 'missing_data') ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-border-none"></i> <span>Data Monitoring</span>
+                </a>
+            </li>
+            <li>
                 <a href="index.php?page=dtc_history" class="<?php echo ($page == 'dtc_history') ? 'active' : ''; ?>">
                     <i class="fa-solid fa-clock-rotate-left"></i> <span>DTC History</span>
                 </a>
             </li>
             <?php if (isset($_SESSION['role']) && strtolower(trim($_SESSION['role'])) === 'admin'): ?>
-            <li>
-                <a href="index.php?page=missing_data" class="<?php echo ($page == 'missing_data') ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-border-none"></i> <span>Missing Data Tracker</span>
-                </a>
-            </li>
             <li style="display: none;">
                 <a href="index.php?page=oos_summary" class="<?php echo ($page == 'oos_summary') ? 'active' : ''; ?>">
                     <i class="fa-solid fa-triangle-exclamation"></i> <span>OOS Summary Tracker</span>

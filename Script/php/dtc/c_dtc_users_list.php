@@ -6,7 +6,7 @@ header('Content-Type: application/json');
 try {
     $conn = getDBConnection();
     
-    $sql = "SELECT user_id, username, full_name, role, profile_picture, line_name, section_name FROM dtc_users ORDER BY user_id DESC";
+    $sql = "SELECT user_id, username, full_name, role, profile_picture, line_name, section_name, allowed_sections FROM dtc_users ORDER BY user_id DESC";
     $stmt = $conn->prepare($sql);
     $stmt->execute();
     

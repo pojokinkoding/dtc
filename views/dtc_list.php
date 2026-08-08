@@ -148,6 +148,10 @@
     </div>
 </div>
 
+<?php 
+$currentUserRole = strtolower(trim($_SESSION['role'] ?? ''));
+$isSupervisorRole = (strpos($currentUserRole, 'supervisor') !== false);
+?>
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
     <!-- Filter Tabs -->
     <div class="dtc-filter-tabs" style="display: flex; gap: 10px; flex-wrap: wrap;">
@@ -171,9 +175,11 @@
 
     <div class="header-actions">
         <div class="btn-group-rich" style="display: flex; gap: 8px; align-items: center;">
+            <?php if (!$isSupervisorRole): ?>
             <button id="btn-open-bulk-input-modal" class="btn-rich-primary" title="Input Bulk Pengukuran Running Model Hari Ini" style="height: 36px; padding: 0 14px; display: inline-flex; justify-content: center; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 6px; cursor: pointer; transition: all 0.2s;">
                 <i class="fa-solid fa-list-check"></i> Bulk Input Pengukuran
             </button>
+            <?php endif; ?>
             <?php if (isset($_SESSION['role']) && strtolower(trim($_SESSION['role'])) === 'admin'): ?>
             <button id="btn-generate-month-modal" class="btn-rich-warning" title="Generate Model & Checkpoint Bulan Ini" style="height: 36px; padding: 0 14px; display: inline-flex; justify-content: center; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 6px; cursor: pointer; transition: all 0.2s;">
                 <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Bulan Ini
@@ -187,9 +193,11 @@
                 <i class="fa-solid fa-file-arrow-up"></i>
             </button>
             <?php endif; ?>
+            <?php if (!$isSupervisorRole): ?>
             <button id="btn-add-dtc" class="btn-rich-primary" title="Add Parameter" style="width: 36px; height: 36px; padding: 0; display: inline-flex; justify-content: center; align-items: center;">
                 <i class="fa-solid fa-circle-plus"></i>
             </button>
+            <?php endif; ?>
         </div>
     </div>
 </div>

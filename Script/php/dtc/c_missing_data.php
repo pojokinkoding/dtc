@@ -1,306 +1,236 @@
 <?php
-// c_missing_data.php
+// c_missing_data.php - Missing Data Tracker (Today's Shift & Active Running Models Focus)
 require_once '../../../config/config.php';
 header('Content-Type: application/json');
 
-$month = isset($_GET['month']) ? $_GET['month'] : date('Y-m');
+$prodHour = (int)date('H');
+$prodToday = ($prodHour < 7) ? date('Y-m-d', strtotime('-1 day')) : date('Y-m-d');
+
+$date = isset($_GET['date']) ? $_GET['date'] : $prodToday;
+$month = isset($_GET['month']) ? $_GET['month'] : date('Y-m', strtotime($date));
+
+$nowH = $prodHour;
+$nowM = (int)date('i');
+$todayStr = $prodToday;
+
+if (!function_exists('isSlotPast')) {
+    function isSlotPast($timeStr, $nowH, $nowM) {
+        if (!$timeStr) return false;
+        $tp = explode(':', trim($timeStr));
+        if (count($tp) < 2) return false;
+        $h = (int)$tp[0]; $m = (int)$tp[1];
+        if ($h >= 24) $h = $h - 24;
+
+        // Production day runs from 07:00 AM to 07:00 AM next morning.
+        $slotMinutesFrom7 = ($h < 7 ? $h + 24 : $h) * 60 + $m;
+        $nowMinutesFrom7 = ($nowH < 7 ? $nowH + 24 : $nowH) * 60 + $nowM;
+
+        return $slotMinutesFrom7 <= $nowMinutesFrom7;
+    }
+}
 
 try {
     $conn = getDBConnection();
     
-    // 1. Fetch all active parameters for the month (All sections across the line)
+    // 0. Fetch active running models for this month filtered by IP & User Access SQL
+    $sqlRM = "
+        SELECT line_name, section_name, model_name 
+        FROM dtc_running_models 
+        WHERE target_month = :month AND is_active = 1
+        " . getIPAccessFilterSQL('line_name', 'section_name') . "
+        " . getUserAccessFilterSQL('line_name', 'section_name') . "
+    ";
+    $stmtRM = $conn->prepare($sqlRM);
+    $stmtRM->execute([':month' => $month]);
+    $activeRMs = $stmtRM->fetchAll(PDO::FETCH_ASSOC);
+
+    $runningSet = [];
+    foreach ($activeRMs as $rm) {
+        $k = strtolower(trim($rm['line_name'])) . '|' . strtolower(trim($rm['section_name'])) . '|' . strtolower(trim($rm['model_name']));
+        $runningSet[$k] = true;
+    }
+
+    // 1. Fetch parameters for target month filtered by User & IP access
     $sqlParams = "
-        SELECT p.parameter_id, p.target_month, spec.model_name, spec.item_check_name, spec.sub_item_check_name, spec.data_type, spec.section_name, spec.line_name, spec.process_name,
+        SELECT p.parameter_id, p.target_month,
+               COALESCE(p.model_name, spec.model_name) as model_name,
+               COALESCE(p.item_check_name, spec.item_check_name) as item_check_name,
+               COALESCE(p.sub_item_check_name, spec.sub_item_check_name) as sub_item_check_name,
+               COALESCE(p.data_type, spec.data_type) as data_type,
+               COALESCE(p.section_name, spec.section_name) as section_name,
+               COALESCE(p.line_name, spec.line_name) as line_name,
+               COALESCE(p.process_name, spec.process_name) as process_name,
+               COALESCE(p.measuring_item, spec.measuring_item) as measuring_item,
         (SELECT MAX(CAST(m.sample_sequence AS UNSIGNED)) 
          FROM dtc_measurements m 
          JOIN dtc_inspection_sessions s2 ON m.session_id = s2.session_id 
          WHERE s2.parameter_id = p.parameter_id AND m.sample_value != '') as max_seq
         FROM dtc_master_parameters p
-        JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id
+        LEFT JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id
         WHERE p.target_month = :month
-        ORDER BY spec.line_name, spec.section_name, spec.process_name
+        " . getIPAccessFilterSQL('COALESCE(p.line_name, spec.line_name)', 'COALESCE(p.section_name, spec.section_name)') . "
+        " . getUserAccessFilterSQL('COALESCE(p.line_name, spec.line_name)', 'COALESCE(p.section_name, spec.section_name)') . "
+        ORDER BY COALESCE(p.line_name, spec.line_name), COALESCE(p.section_name, spec.section_name), COALESCE(p.process_name, spec.process_name)
     ";
     $stmtParams = $conn->prepare($sqlParams);
     $stmtParams->execute([':month' => $month]);
     $parameters = $stmtParams->fetchAll(PDO::FETCH_ASSOC);
     
-    // Fetch all time labels for different lines
+    // Fetch time labels per line
     $stmtLabel = $conn->prepare("SELECT setting_key, setting_value FROM dtc_app_settings WHERE setting_key LIKE 'time_matrix_labels_%'");
     $stmtLabel->execute();
-    
     $line_labels = [];
     while ($rowSetting = $stmtLabel->fetch(PDO::FETCH_ASSOC)) {
         $val = is_resource($rowSetting['setting_value']) ? stream_get_contents($rowSetting['setting_value']) : $rowSetting['setting_value'];
         $decoded = json_decode($val, true);
         if ($decoded) {
-            $line_name = str_replace('time_matrix_labels_', '', $rowSetting['setting_key']);
-            $line_labels[$line_name] = $decoded;
+            $ln = str_replace('time_matrix_labels_', '', $rowSetting['setting_key']);
+            $line_labels[$ln] = $decoded;
         }
     }
-    
     $default_labels = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30'];
 
-    // 2. Fetch all checkpoints for Checkpoint Method parameters (Time Check / F/Proof)
-    $sqlCheckpoints = "
-        SELECT checkpoint_id, parameter_id, checkpoint_name, checkpoint_type, sort_order 
-        FROM dtc_checkpoints 
-        ORDER BY parameter_id, sort_order ASC
-    ";
-    $allCheckpoints = $conn->query($sqlCheckpoints)->fetchAll(PDO::FETCH_ASSOC);
-    $paramCheckpoints = [];
-    foreach ($allCheckpoints as $cp) {
-        $pid = $cp['parameter_id'];
-        if (!isset($paramCheckpoints[$pid])) $paramCheckpoints[$pid] = [];
-        $paramCheckpoints[$pid][] = $cp;
-    }
+    // Load checkpoints for qualitative params
+    $stmtHasCp = $conn->query("SELECT DISTINCT parameter_id FROM dtc_checkpoints");
+    $paramsWithCheckpoints = array_flip($stmtHasCp->fetchAll(PDO::FETCH_COLUMN));
 
-    // Fetch parameter-level distinct sample_labels for Time Check / F/Proof
-    $sqlParamTimeLabels = "
-        SELECT s.parameter_id, m.checkpoint_id, m.sample_label
-        FROM dtc_measurements m
-        JOIN dtc_inspection_sessions s ON m.session_id = s.session_id
-        WHERE DATE_FORMAT(s.inspection_date, '%Y-%m') = :month AND m.sample_label != ''
-        GROUP BY s.parameter_id, m.checkpoint_id, m.sample_label
-        ORDER BY m.measurement_id ASC
-    ";
-    $stmtPTL = $conn->prepare($sqlParamTimeLabels);
-    $stmtPTL->execute([':month' => $month]);
-    $param_time_labels = [];
-    $cp_time_labels = [];
-    while ($rowPTL = $stmtPTL->fetch(PDO::FETCH_ASSOC)) {
-        $pid = $rowPTL['parameter_id'];
-        $cpid = intval($rowPTL['checkpoint_id']);
-        $lbl = $rowPTL['sample_label'];
-
-        if (!isset($param_time_labels[$pid])) $param_time_labels[$pid] = [];
-        if (!in_array($lbl, $param_time_labels[$pid])) $param_time_labels[$pid][] = $lbl;
-
-        if ($cpid > 0) {
-            if (!isset($cp_time_labels[$cpid])) $cp_time_labels[$cpid] = [];
-            if (!in_array($lbl, $cp_time_labels[$cpid])) $cp_time_labels[$cpid][] = $lbl;
-        }
-    }
-
-    // 3. Fetch inspection sessions and measurements
+    // Fetch today's inspection sessions
     $sqlSessions = "
-        SELECT s.parameter_id, DATE_FORMAT(s.inspection_date, '%d') as day_of_month, s.is_closed, s.session_id
+        SELECT s.parameter_id, s.is_closed, s.session_id,
+               (SELECT GROUP_CONCAT(m.sample_sequence) FROM dtc_measurements m WHERE m.session_id = s.session_id AND m.sample_value != '') as filled_sequences
         FROM dtc_inspection_sessions s
-        WHERE DATE_FORMAT(s.inspection_date, '%Y-%m') = :month
-        AND s.is_active = 1
+        WHERE DATE(s.inspection_date) = :date_val AND s.is_active = 1
     ";
     $stmtSessions = $conn->prepare($sqlSessions);
-    $stmtSessions->execute([':month' => $month]);
+    $stmtSessions->execute([':date_val' => $date]);
     $sessions = $stmtSessions->fetchAll(PDO::FETCH_ASSOC);
 
-    $sessionInfo = [];
-    $sessionIds = [];
-    $paramSessionsByDay = [];
+    $hasData = [];
     foreach ($sessions as $session) {
-        $sid = $session['session_id'];
         $pid = $session['parameter_id'];
-        $day = intval($session['day_of_month']);
-        $sessionInfo[$sid] = $session;
-        $sessionIds[] = $sid;
-
-        if (!isset($paramSessionsByDay[$pid])) $paramSessionsByDay[$pid] = [];
-        $paramSessionsByDay[$pid][$day] = [
-            'status' => intval($session['is_closed']) === 1 ? 2 : 1,
-            'session_id' => $sid
+        $filled = !empty($session['filled_sequences']) ? explode(',', $session['filled_sequences']) : [];
+        $hasData[$pid] = [
+            'is_closed' => intval($session['is_closed']),
+            'filled' => $filled
         ];
     }
 
-    $filledByCheckpoint = [];
-    $filledByParam = [];
-    if (!empty($sessionIds)) {
-        $inClause = implode(',', array_map('intval', $sessionIds));
-        $sqlMeas = "
-            SELECT m.session_id, m.checkpoint_id, 
-                   GROUP_CONCAT(DISTINCT m.sample_sequence) as filled_seqs,
-                   GROUP_CONCAT(DISTINCT m.sample_label) as filled_labels
-            FROM dtc_measurements m
-            WHERE m.session_id IN ($inClause) AND m.sample_value != ''
-            GROUP BY m.session_id, m.checkpoint_id
-        ";
-        $measRows = $conn->query($sqlMeas)->fetchAll(PDO::FETCH_ASSOC);
-        foreach ($measRows as $mr) {
-            $sid = $mr['session_id'];
-            $cpid = intval($mr['checkpoint_id']);
-            if (!isset($sessionInfo[$sid])) continue;
-            $pid = $sessionInfo[$sid]['parameter_id'];
-            $day = intval($sessionInfo[$sid]['day_of_month']);
-            $isClosed = intval($sessionInfo[$sid]['is_closed']) === 1 ? 2 : 1;
+    $timestamp = strtotime($date);
+    $is_weekend = (date('N', $timestamp) >= 6);
 
-            $fl = !empty($mr['filled_labels']) ? explode(',', $mr['filled_labels']) : [];
-            $fs = !empty($mr['filled_seqs']) ? explode(',', $mr['filled_seqs']) : [];
-
-            if ($cpid > 0) {
-                $filledByCheckpoint[$cpid][$day] = [
-                    'status' => $isClosed,
-                    'filled_labels' => $fl,
-                    'filled_seqs' => $fs
-                ];
-            }
-
-            if (!isset($filledByParam[$pid][$day])) {
-                $filledByParam[$pid][$day] = [
-                    'status' => $isClosed,
-                    'filled_labels' => [],
-                    'filled_seqs' => []
-                ];
-            }
-            $filledByParam[$pid][$day]['filled_labels'] = array_values(array_unique(array_merge($filledByParam[$pid][$day]['filled_labels'], $fl)));
-            $filledByParam[$pid][$day]['filled_seqs'] = array_values(array_unique(array_merge($filledByParam[$pid][$day]['filled_seqs'], $fs)));
-        }
-    }
-    
-    $daysInMonth = (int)date('t', strtotime($month . '-01'));
-    
-    // 4. Format the final output
     $data = [];
+    $daysInMonth = (int)date('t', strtotime($month . '-01'));
+
     foreach ($parameters as $param) {
         $pid = $param['parameter_id'];
-        $dataType = strtoupper(trim($param['data_type']));
-        $isTimeBased = ($dataType === 'TIME CHECK' || $dataType === 'F/PROOF');
         $line_name = $param['line_name'] ?? 'REF 01';
+        $section_name = $param['section_name'] ?? '';
+        $model_name = $param['model_name'] ?? '';
 
-        if ($isTimeBased && !empty($paramCheckpoints[$pid])) {
-            // Expand into 1 row per Checkpoint for precision tracking
-            foreach ($paramCheckpoints[$pid] as $cp) {
-                $cpid = $cp['checkpoint_id'];
-                $cpName = $cp['checkpoint_name'];
-
-                $current_labels = $line_labels[$line_name] ?? ($line_labels['default'] ?? $default_labels);
-                $max_slots = count($current_labels);
-
-                $row = [
-                    'parameter_id' => $pid,
-                    'checkpoint_id' => $cpid,
-                    'line_name' => $param['line_name'],
-                    'section_name' => $param['section_name'],
-                    'process_name' => $param['process_name'],
-                    'model_name' => $param['model_name'],
-                    'item_check_name' => $cpName,
-                    'sub_item_check_name' => $param['item_check_name'],
-                    'data_type' => $param['data_type'],
-                    'slots_per_day' => $max_slots
-                ];
-
-                for ($i = 1; $i <= $daysInMonth; $i++) {
-                    $ts = strtotime($month . '-' . str_pad($i, 2, '0', STR_PAD_LEFT));
-                    $isWeekend = (date('N', $ts) >= 6);
-
-                    if (isset($filledByCheckpoint[$cpid][$i])) {
-                        $status = $filledByCheckpoint[$cpid][$i]['status'];
-                        $filledLbl = $filledByCheckpoint[$cpid][$i]['filled_labels'];
-                        
-                        // If no measurement labels were recorded for this checkpoint, treat as unfilled
-                        if (empty($filledLbl)) {
-                            $row["day_$i"] = $isWeekend ? 3 : 0;
-                            if (!$isWeekend) {
-                                $row["day_{$i}_label"] = $current_labels[0] ?? "S1";
-                                $row["day_{$i}_missing_slots"] = $max_slots;
-                            } else {
-                                $row["day_{$i}_missing_slots"] = 0;
-                            }
-                        } else {
-                            $row["day_$i"] = $status;
-                            $missingCount = 0;
-                            if ($status === 1) {
-                                $missingLabel = '';
-                                for ($seq = 1; $seq <= $max_slots; $seq++) {
-                                    $slotLabel = $current_labels[$seq - 1] ?? "S$seq";
-                                    if (!in_array($slotLabel, $filledLbl)) {
-                                        if ($missingLabel === '') $missingLabel = $slotLabel;
-                                        $missingCount++;
-                                    }
-                                }
-                                $row["day_{$i}_label"] = $missingLabel;
-                            }
-                            $row["day_{$i}_missing_slots"] = $missingCount;
-                        }
-                    } else {
-                        $row["day_$i"] = $isWeekend ? 3 : 0;
-                        if (!$isWeekend) {
-                            $row["day_{$i}_label"] = $current_labels[0] ?? "S1";
-                            $row["day_{$i}_missing_slots"] = $max_slots;
-                        } else {
-                            $row["day_{$i}_missing_slots"] = 0;
-                        }
-                    }
-                }
-                $data[] = $row;
+        // Filter out non-running models if active running models exist
+        if (!empty($runningSet)) {
+            $k = strtolower(trim($line_name)) . '|' . strtolower(trim($section_name)) . '|' . strtolower(trim($model_name));
+            if (!isset($runningSet[$k])) {
+                continue;
             }
-        } else {
-            // Standard 1 row per parameter for CTP / CTQ
-            $current_labels = $line_labels[$line_name] ?? $default_labels;
-            $param_max_seq = intval($param['max_seq']);
-            $max_slots = ($param_max_seq > 0) ? $param_max_seq : count($current_labels);
-
-            $row = [
-                'parameter_id' => $pid,
-                'checkpoint_id' => 0,
-                'line_name' => $param['line_name'],
-                'section_name' => $param['section_name'],
-                'process_name' => $param['process_name'],
-                'model_name' => $param['model_name'],
-                'item_check_name' => $param['item_check_name'],
-                'sub_item_check_name' => $param['sub_item_check_name'],
-                'data_type' => $param['data_type'],
-                'slots_per_day' => $max_slots
-            ];
-
-            for ($i = 1; $i <= $daysInMonth; $i++) {
-                $ts = strtotime($month . '-' . str_pad($i, 2, '0', STR_PAD_LEFT));
-                $isWeekend = (date('N', $ts) >= 6);
-
-                if (isset($filledByParam[$pid][$i])) {
-                    $status = $filledByParam[$pid][$i]['status'];
-                    $filledSeq = $filledByParam[$pid][$i]['filled_seqs'];
-                    
-                    if (empty($filledSeq)) {
-                        $row["day_$i"] = $isWeekend ? 3 : 0;
-                        if (!$isWeekend) {
-                            $row["day_{$i}_label"] = $current_labels[0] ?? "S1";
-                            $row["day_{$i}_missing_slots"] = $max_slots;
-                        } else {
-                            $row["day_{$i}_missing_slots"] = 0;
-                        }
-                    } else {
-                        $row["day_$i"] = $status;
-                        $missingCount = 0;
-                        if ($status === 1) {
-                            $missingLabel = '';
-                            for ($seq = 1; $seq <= $max_slots; $seq++) {
-                                if (!in_array((string)$seq, $filledSeq)) {
-                                    if ($missingLabel === '') $missingLabel = $current_labels[$seq - 1] ?? "S$seq";
-                                    $missingCount++;
-                                }
-                            }
-                            $row["day_{$i}_label"] = $missingLabel;
-                        }
-                        $row["day_{$i}_missing_slots"] = $missingCount;
-                    }
-                } else {
-                    $row["day_$i"] = $isWeekend ? 3 : 0;
-                    if (!$isWeekend) {
-                        $row["day_{$i}_label"] = $current_labels[0] ?? "S1";
-                        $row["day_{$i}_missing_slots"] = $max_slots;
-                    } else {
-                        $row["day_{$i}_missing_slots"] = 0;
-                    }
-                }
-            }
-            $data[] = $row;
         }
+
+        // Qualitative rule: skip if no checkpoints
+        $measuringItem = strtolower(trim($param['measuring_item'] ?? 'quantitative'));
+        if ($measuringItem === 'qualitative' && !isset($paramsWithCheckpoints[$pid])) {
+            continue;
+        }
+
+        $current_line_labels = $line_labels[$line_name] ?? $default_labels;
+        $param_max_seq = intval($param['max_seq']);
+        $param_allowed_slots = ($param_max_seq > 0) ? $param_max_seq : count($current_line_labels);
+
+        $is_closed = 0;
+        $filled = [];
+        if (isset($hasData[$pid])) {
+            $is_closed = $hasData[$pid]['is_closed'];
+            $filled = $hasData[$pid]['filled'];
+        }
+
+        $slots = [];
+        $overdueCount = 0;
+        $filledCount = 0;
+        $expectedCount = 0;
+
+        for ($seq = 1; $seq <= 11; $seq++) {
+            if ($seq > $param_allowed_slots) {
+                $status = 4;
+            } else if ($is_closed == 1) {
+                $status = 2;
+                $filledCount++;
+                $expectedCount++;
+            } else if (in_array((string)$seq, $filled)) {
+                $status = 1;
+                $filledCount++;
+                $expectedCount++;
+            } else {
+                $slotTime = $current_line_labels[$seq - 1] ?? null;
+                $isPast = ($date < $todayStr) || ($date == $todayStr && isSlotPast($slotTime, $nowH, $nowM));
+                $expectedCount++;
+                if ($isPast) {
+                    $status = 0;
+                    $overdueCount++;
+                } else if ($is_weekend) {
+                    $status = 3;
+                } else {
+                    $status = 0;
+                }
+            }
+            $slots[] = $status;
+        }
+
+        $row = [
+            'parameter_id' => $pid,
+            'line_name' => $line_name,
+            'section_name' => $section_name,
+            'process_name' => $param['process_name'],
+            'model_name' => $model_name,
+            'item_check_name' => $param['item_check_name'],
+            'sub_item_check_name' => $param['sub_item_check_name'],
+            'data_type' => $param['data_type'],
+            'slots_per_day' => $param_allowed_slots,
+            'is_closed' => $is_closed,
+            'slots' => $slots,
+            'overdue_slots_today' => $overdueCount,
+            'filled_slots_today' => $filledCount,
+            'expected_slots_today' => $expectedCount,
+            'time_labels' => array_slice($current_line_labels, 0, $param_allowed_slots)
+        ];
+
+        // For backward compatibility with monthly grid structure:
+        for ($d = 1; $d <= $daysInMonth; $d++) {
+            $dayStr = str_pad($d, 2, '0', STR_PAD_LEFT);
+            $targetDateStr = $month . '-' . $dayStr;
+            if ($targetDateStr === $date) {
+                $row['day_' . $d] = ($is_closed == 1 ? 2 : (count($filled) > 0 ? 1 : 0));
+                $row['day_' . $d . '_missing_slots'] = $overdueCount;
+            } else if ($targetDateStr > $todayStr) {
+                $row['day_' . $d] = 3;
+                $row['day_' . $d . '_missing_slots'] = 0;
+            } else {
+                $row['day_' . $d] = 0;
+                $row['day_' . $d . '_missing_slots'] = 0;
+            }
+        }
+
+        $data[] = $row;
     }
-    
+
     echo json_encode([
         'status' => 'success',
+        'date' => $date,
         'month' => $month,
+        'today_formatted' => date('d M Y', strtotime($date)),
+        'is_weekend' => $is_weekend,
         'days_count' => $daysInMonth,
         'data' => $data
     ]);
-    
+
 } catch (Exception $e) {
     echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
 }

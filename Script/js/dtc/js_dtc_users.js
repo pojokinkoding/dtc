@@ -23,7 +23,10 @@ $(document).ready(function() {
                     if (data === 'Admin') {
                         bg = 'rgba(239, 68, 68, 0.2)';
                         color = '#ef4444';
-                    } else if (data === 'Supervisor') {
+                    } else if (data === 'Management') {
+                        bg = 'rgba(168, 85, 247, 0.2)';
+                        color = '#c084fc';
+                    } else if (data && data.startsWith('Supervisor')) {
                         bg = 'rgba(245, 158, 11, 0.2)';
                         color = '#f59e0b';
                     } else if (data === 'Foreman') {
@@ -75,10 +78,25 @@ $(document).ready(function() {
     const modal = document.getElementById('modal-user');
     const form = document.getElementById('form-user');
     
+    function toggleSupervisorSectionView() {
+        let role = $('#role').val();
+        if (role === 'Supervisor') {
+            $('#supervisor-sections-group').slideDown(200);
+            $('#single-section-group').hide();
+        } else {
+            $('#supervisor-sections-group').slideUp(200);
+            $('#single-section-group').show();
+        }
+    }
+
+    $('#role').on('change', toggleSupervisorSectionView);
+
     // Open Add Modal
     $('#btn-add-user').click(function() {
         form.reset();
         $('#user_id').val('');
+        $('.cb-supervisor-section').prop('checked', false);
+        toggleSupervisorSectionView();
         $('#modal-title').text('Add User');
         $('#password').prop('required', true);
         $('#password-hint').hide();
@@ -180,6 +198,18 @@ $(document).ready(function() {
         $('#role').val(rowData.role);
         $('#line_name').val(rowData.line_name || '');
         $('#section_name').val(rowData.section_name || '');
+        
+        $('.cb-supervisor-section').prop('checked', false);
+        if (rowData.allowed_sections) {
+            let secArr = rowData.allowed_sections.split(',').map(s => s.trim().toLowerCase());
+            $('.cb-supervisor-section').each(function() {
+                if (secArr.includes($(this).val().toLowerCase())) {
+                    $(this).prop('checked', true);
+                }
+            });
+        }
+        
+        toggleSupervisorSectionView();
         
         $('#password').prop('required', false).val('');
         $('#password-hint').show();

@@ -205,12 +205,17 @@ $(document).ready(function () {
 
                 // Duplicate content for seamless marquee loop
                 let content = dateTag + buildSegments() + divider + dateTag + buildSegments();
-                $('#dtc-summary-ticker-text').html(content);
+                let $tickerEl = $('#dtc-summary-ticker-text');
+                $tickerEl.html(content);
 
-                // Adjust marquee speed based on content length
-                let charLen = res.models.length * 120;
-                let speed = Math.max(20, Math.min(55, charLen / 8));
-                $('#dtc-summary-ticker-text').css('animation-duration', speed + 's');
+                // Calculate constant scroll speed (pixels per second) regardless of data volume
+                // Target speed: ~60px/s for comfortable, relaxed reading
+                setTimeout(function () {
+                    let totalPixelWidth = ($tickerEl[0] && $tickerEl[0].scrollWidth) ? $tickerEl[0].scrollWidth : 2000;
+                    let targetPxPerSecond = 60; // Constant comfortable reading speed (60 px/s)
+                    let durationSeconds = Math.max(25, Math.round(totalPixelWidth / targetPxPerSecond));
+                    $tickerEl.css('animation-duration', durationSeconds + 's');
+                }, 50);
             }
         });
     }
@@ -223,9 +228,12 @@ $(document).ready(function () {
     window.missingCounts = { 'All': 0, 'CTQ': 0, 'CTP': 0, 'Time Check': 0, 'F/Proof': 0 };
 
     function loadMissingCounts() {
+        let line = $('#filter-line').val() || '';
+        let section = $('#filter-section').val() || '';
         $.ajax({
             url: 'Script/php/dtc/c_missing_data_daily.php',
             type: 'GET',
+            data: { line: line, section: section },
             dataType: 'json',
             success: function (res) {
                 if (res.status === 'success') {

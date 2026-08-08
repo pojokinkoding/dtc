@@ -1,4 +1,7 @@
 $(document).ready(function () {
+    // 0. Load dropdown options for Line, Section, and Item Check
+    loadSelectOptions();
+
     // Fetch month dropdown options for History
     $.ajax({
         url: 'Script/php/dtc/c_dtc_list.php?action=get_months',
@@ -150,11 +153,14 @@ $(document).ready(function () {
                     $('#filter-section').html(filterOpts);
                 }
                 if (res.lines) {
-                    let filterOpts = '<option value="">All Lines</option>';
+                    let filterOpts = res.lines.length > 1 ? '<option value="">All Lines</option>' : '';
                     res.lines.forEach(l => {
                         filterOpts += `<option value="${l.line_name}">${l.line_name}</option>`;
                     });
                     $('#filter-line').html(filterOpts);
+                    if (res.lines.length === 1) {
+                        $('#filter-line').val(res.lines[0].line_name);
+                    }
                 }
 
                 applyUrlFilters();

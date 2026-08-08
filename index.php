@@ -19,6 +19,9 @@ switch ($page) {
     case 'dtc_list':
         require_once 'views/dtc_list.php';
         break;
+    case 'missing_data':
+        require_once 'views/dtc_missing_data.php';
+        break;
     case 'dtc_history':
         require_once 'views/dtc_history.php';
         break;
@@ -33,13 +36,11 @@ switch ($page) {
         require_once 'views/docs.php';
         break;
     case 'master_spec':
-    case 'missing_data':
     case 'oos_summary':
     case 'settings':
     case 'users':
         if (isset($_SESSION['role']) && strtolower(trim($_SESSION['role'])) === 'admin') {
             if ($page === 'master_spec') require_once 'views/dtc_master_spec.php';
-            if ($page === 'missing_data') require_once 'views/dtc_missing_data.php';
             if ($page === 'oos_summary') require_once 'views/dtc_oos_summary.php';
             if ($page === 'settings') require_once 'views/dtc_settings.php';
             if ($page === 'users') require_once 'views/dtc_users.php';

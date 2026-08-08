@@ -610,43 +610,38 @@ $(document).ready(function () {
             success: function (trendData) {
                 const monthLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-                let series = [];
+                let zstSeriesData = [];
+                let zltSeriesData = [];
+                let hasData = false;
 
-                // Check if there is any actual data
-                let hasActual = trendData.zst_actual && trendData.zst_actual.some(v => v !== null);
+                for (let i = 0; i < 12; i++) {
+                    let actualZst = (trendData.zst_actual && trendData.zst_actual[i] !== null && trendData.zst_actual[i] !== undefined) ? trendData.zst_actual[i] : null;
+                    let forecastZst = (trendData.zst_forecast && trendData.zst_forecast[i] !== null && trendData.zst_forecast[i] !== undefined) ? trendData.zst_forecast[i] : null;
+                    let isForecastZst = (actualZst === null) && (forecastZst !== null);
+                    let valZst = (actualZst !== null) ? actualZst : forecastZst;
 
-                let displayLabels = monthLabels;
-                if (hasActual) {
-                    let lastIndex = -1;
-                    for (let i = 0; i < 12; i++) {
-                        if (trendData.zst_actual[i] !== null) lastIndex = i;
-                    }
-                    if (lastIndex >= 0) {
-                        trendData.zst_actual = trendData.zst_actual.slice(0, lastIndex + 1);
-                        trendData.zlt_actual = trendData.zlt_actual.slice(0, lastIndex + 1);
-                        displayLabels = monthLabels.slice(0, lastIndex + 1);
-                    }
-
-                    series.push({
-                        type: "column",
-                        data: trendData.zst_actual,
-                        name: "ZST (Actual)",
-                        color: "#10b981",
-                        opacity: 1
+                    zstSeriesData.push({
+                        val: valZst,
+                        isForecast: isForecastZst
                     });
-                    series.push({
-                        type: "column",
-                        data: trendData.zlt_actual,
-                        name: "ZLT (Actual)",
-                        color: "#f59e0b",
-                        opacity: 1
+
+                    let actualZlt = (trendData.zlt_actual && trendData.zlt_actual[i] !== null && trendData.zlt_actual[i] !== undefined) ? trendData.zlt_actual[i] : null;
+                    let forecastZlt = (trendData.zlt_forecast && trendData.zlt_forecast[i] !== null && trendData.zlt_forecast[i] !== undefined) ? trendData.zlt_forecast[i] : null;
+                    let isForecastZlt = (actualZlt === null) && (forecastZlt !== null);
+                    let valZlt = (actualZlt !== null) ? actualZlt : forecastZlt;
+
+                    zltSeriesData.push({
+                        val: valZlt,
+                        isForecast: isForecastZlt
                     });
+
+                    if (valZst !== null || valZlt !== null) {
+                        hasData = true;
+                    }
                 }
 
-                // No forecast logic
-
-                // If no actual data at all, show empty state
-                if (!hasActual) {
+                // If no data at all, show empty state
+                if (!hasData) {
                     $("#chart-ztrend").html('<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#64748b;font-size:12px;"><i class="fa-solid fa-chart-line" style="margin-right:6px;opacity:0.5;"></i> Belum ada data trend untuk tahun ini</div>');
                     if ($("#trend-insight-box").length) {
                         $("#trend-insight-box").html('<span style="color:#cbd5e1; font-style:normal;"><i class="fa-solid fa-circle-info" style="color:#38bdf8; margin-right:6px;"></i> Belum ada data trend untuk tahun ini.</span>');
@@ -654,49 +649,115 @@ $(document).ready(function () {
                     return;
                 }
 
-                // Update Trend Insight UI
+                // Update Trend Insight UI & AI Insight Box automatically
                 let conclusionDiv = $("#trend-insight-box");
                 if (conclusionDiv.length && trendData.forecast_conclusion) {
                     let cText = trendData.forecast_conclusion;
                     if (cText.includes('Kritis')) {
-                        conclusionDiv.css({ 'background-color': 'rgba(239, 68, 68, 0.1)', 'color': '#ef4444', 'border': '1px solid rgba(239, 68, 68, 0.3)' });
+                        conclusionDiv.css({ 'background-color': 'rgba(239, 68, 68, 0.12)', 'color': '#f87171', 'border': '1px solid rgba(239, 68, 68, 0.3)' });
                     } else if (cText.includes('Waspada')) {
-                        conclusionDiv.css({ 'background-color': 'rgba(245, 158, 11, 0.1)', 'color': '#f59e0b', 'border': '1px solid rgba(245, 158, 11, 0.3)' });
+                        conclusionDiv.css({ 'background-color': 'rgba(245, 158, 11, 0.12)', 'color': '#fbbf24', 'border': '1px solid rgba(245, 158, 11, 0.3)' });
                     } else if (cText.includes('Positif') || cText.includes('Stabil')) {
-                        conclusionDiv.css({ 'background-color': 'rgba(16, 185, 129, 0.1)', 'color': '#10b981', 'border': '1px solid rgba(16, 185, 129, 0.3)' });
+                        conclusionDiv.css({ 'background-color': 'rgba(16, 185, 129, 0.12)', 'color': '#34d399', 'border': '1px solid rgba(16, 185, 129, 0.3)' });
                     } else {
-                        conclusionDiv.css({ 'background-color': 'rgba(59, 130, 246, 0.1)', 'color': '#3b82f6', 'border': '1px solid rgba(59, 130, 246, 0.3)' });
+                        conclusionDiv.css({ 'background-color': 'rgba(59, 130, 246, 0.12)', 'color': '#60a5fa', 'border': '1px solid rgba(59, 130, 246, 0.3)' });
                     }
-                    conclusionDiv.html(cText);
-                } else if (conclusionDiv.length) {
-                    conclusionDiv.html('Data tidak cukup untuk menyimpulkan tren.');
+                    conclusionDiv.html(`<div style="display:flex; align-items:flex-start; gap:8px;">${cText}</div>`);
                 }
+
+                if ($("#ai-insight-box").length && trendData.ai_forecast_text) {
+                    $("#ai-insight-box").html(`<div style="display:flex; align-items:center; gap:8px; width:100%; font-size:12px;">${trendData.ai_forecast_text}</div>`).css({ 'color': '#f8fafc', 'font-style': 'normal', 'background-color': 'rgba(139, 92, 246, 0.12)', 'border': '1px solid rgba(139, 92, 246, 0.3)' });
+                }
+
+                let lastDataMonthIdx = -1;
+                for (let i = 0; i < 12; i++) {
+                    if (zstSeriesData[i].val !== null || zltSeriesData[i].val !== null) {
+                        lastDataMonthIdx = i;
+                    }
+                }
+
+                let displayCategories = monthLabels;
+                if (lastDataMonthIdx >= 0 && lastDataMonthIdx < 11) {
+                    displayCategories = monthLabels.slice(0, lastDataMonthIdx + 1);
+                    zstSeriesData = zstSeriesData.slice(0, lastDataMonthIdx + 1);
+                    zltSeriesData = zltSeriesData.slice(0, lastDataMonthIdx + 1);
+                }
+
+                let series = [
+                    {
+                        type: "column",
+                        name: "ZST",
+                        field: "val",
+                        data: zstSeriesData,
+                        color: function (point) {
+                            return (point.dataItem && point.dataItem.isForecast) ? "#38bdf8" : "#10b981";
+                        },
+                        tooltip: {
+                            visible: true,
+                            template: function (e) {
+                                if (e.value === null || e.value === undefined) return "";
+                                let tag = (e.dataItem && e.dataItem.isForecast) ? " (AI Forecast)" : " (Actual)";
+                                return "ZST" + tag + ": <b>" + kendo.toString(e.value, "n2") + "</b>";
+                            }
+                        }
+                    },
+                    {
+                        type: "column",
+                        name: "ZLT",
+                        field: "val",
+                        data: zltSeriesData,
+                        color: function (point) {
+                            return (point.dataItem && point.dataItem.isForecast) ? "#c084fc" : "#f59e0b";
+                        },
+                        tooltip: {
+                            visible: true,
+                            template: function (e) {
+                                if (e.value === null || e.value === undefined) return "";
+                                let tag = (e.dataItem && e.dataItem.isForecast) ? " (AI Forecast)" : " (Actual)";
+                                return "ZLT" + tag + ": <b>" + kendo.toString(e.value, "n2") + "</b>";
+                            }
+                        }
+                    }
+                ];
+
+                let allVals = [];
+                zstSeriesData.forEach(d => { if (d.val !== null && !isNaN(d.val)) allVals.push(d.val); });
+                zltSeriesData.forEach(d => { if (d.val !== null && !isNaN(d.val)) allVals.push(d.val); });
+
+                let maxVal = allVals.length > 0 ? Math.max(...allVals) : 6;
+                let axisMax = Math.max(6, Math.ceil(maxVal + 0.5));
 
                 $("#chart-ztrend").kendoChart({
                     theme: "sass",
                     chartArea: { background: "transparent" },
                     series: series,
-                    seriesDefaults: { gap: 0.3 },
+                    seriesDefaults: { gap: 0.2, spacing: 0.1 },
                     categoryAxis: {
-                        categories: displayLabels,
+                        categories: displayCategories,
                         labels: { color: "#94a3b8", font: "9px 'Inter', sans-serif" }
                     },
                     valueAxis: {
+                        min: 0,
+                        max: axisMax,
                         labels: { color: "#94a3b8", font: "9px 'Inter', sans-serif" },
-                        majorUnit: 40,
-                        plotBands: [{ from: 0, to: 3, color: "rgba(239, 68, 68, 0.1)" }]
+                        plotBands: [{ from: 0, to: 3, color: "rgba(239, 68, 68, 0.15)" }]
                     },
                     legend: {
-                        visible: true,
-                        position: "bottom",
-                        labels: { color: "#94a3b8", font: "11px Inter, sans-serif" }
-                    },
-                    tooltip: {
-                        visible: true,
-                        shared: true,
-                        format: "{0:n2}"
+                        visible: false
                     }
                 });
+
+                // Add Custom Colored Legend Below Chart to clearly distinguish Actual vs AI Forecast
+                let customLegendHtml = `
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 16px; margin-top: 8px; font-size: 11px; color: #94a3b8;">
+                        <span style="display: inline-flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: #10b981; border-radius: 2px;"></span> ZST (Actual)</span>
+                        <span style="display: inline-flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: #f59e0b; border-radius: 2px;"></span> ZLT (Actual)</span>
+                        <span style="display: inline-flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: #38bdf8; border-radius: 2px;"></span> ZST (AI Forecast)</span>
+                        <span style="display: inline-flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: #c084fc; border-radius: 2px;"></span> ZLT (AI Forecast)</span>
+                    </div>
+                `;
+                $("#chart-ztrend").parent().find('.custom-ztrend-legend').remove();
+                $("#chart-ztrend").after(`<div class="custom-ztrend-legend">${customLegendHtml}</div>`);
             },
             error: function (err) {
                 console.error("Failed to fetch ztrend data", err);

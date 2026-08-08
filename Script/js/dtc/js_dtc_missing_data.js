@@ -550,11 +550,11 @@ $(document).ready(function () {
             let isRef01 = lineName.toUpperCase().includes('REF 01') || lineName.toUpperCase().includes('REF1');
             let lineBadgeBg = isRef01 ? 'linear-gradient(135deg, #3b82f6, #1d4ed8)' : 'linear-gradient(135deg, #06b6d4, #0e7490)';
 
-            let lineStatusBadge = '<span style="background:rgba(16,185,129,0.25); color:#34d399; padding:5px 14px; border-radius:10px; font-size:13px; font-weight:900; border:1px solid rgba(16,185,129,0.4);"><i class="fa-solid fa-circle-check"></i> CONTROL OK</span>';
+            let lineStatusBadge = '<span style="background:rgba(16,185,129,0.25); color:#34d399; padding:3px 10px; border-radius:6px; font-size:11px; font-weight:900; border:1px solid rgba(16,185,129,0.4);"><i class="fa-solid fa-circle-check"></i> CONTROL OK</span>';
             if (pctOverdue > 10 || pctUnclosed > 30) {
-                lineStatusBadge = '<span style="background:rgba(239,68,68,0.25); color:#f87171; padding:5px 14px; border-radius:10px; font-size:13px; font-weight:900; border:1px solid rgba(239,68,68,0.4);" class="blinking-outline"><i class="fa-solid fa-triangle-exclamation"></i> CRITICAL OVERDUE</span>';
+                lineStatusBadge = '<span style="background:rgba(239,68,68,0.25); color:#f87171; padding:3px 10px; border-radius:6px; font-size:11px; font-weight:900; border:1px solid rgba(239,68,68,0.4);" class="blinking-outline"><i class="fa-solid fa-triangle-exclamation"></i> CRITICAL OVERDUE</span>';
             } else if (pctOverdue > 5 || pctUnclosed > 15) {
-                lineStatusBadge = '<span style="background:rgba(245,158,11,0.25); color:#fbbf24; padding:5px 14px; border-radius:10px; font-size:13px; font-weight:900; border:1px solid rgba(245,158,11,0.4);"><i class="fa-solid fa-circle-exclamation"></i> NEEDS ATTENTION</span>';
+                lineStatusBadge = '<span style="background:rgba(245,158,11,0.25); color:#fbbf24; padding:3px 10px; border-radius:6px; font-size:11px; font-weight:900; border:1px solid rgba(245,158,11,0.4);"><i class="fa-solid fa-circle-exclamation"></i> NEEDS ATTENTION</span>';
             }
 
             let allCards = items;
@@ -569,45 +569,45 @@ $(document).ready(function () {
             if (totalPages > 1) {
                 let dotsHtml = '';
                 for (let p = 0; p < totalPages; p++) {
-                    let activeStyle = (p === curPage) ? 'background:#38bdf8; width:20px;' : 'background:rgba(255,255,255,0.3); width:8px;';
-                    dotsHtml += `<button class="card-dot-btn" data-line="${lineName}" data-page="${p}" style="height:8px; ${activeStyle} border-radius:4px; border:none; padding:0; margin:0 2px; cursor:pointer; transition:all 0.3s ease;"></button>`;
+                    let activeStyle = (p === curPage) ? 'background:#38bdf8; width:16px;' : 'background:rgba(255,255,255,0.3); width:6px;';
+                    dotsHtml += `<button class="card-dot-btn" data-line="${lineName}" data-page="${p}" style="height:6px; ${activeStyle} border-radius:3px; border:none; padding:0; margin:0 2px; cursor:pointer; transition:all 0.3s ease;"></button>`;
                 }
                 pageControlsHtml = `
-                <div style="display:flex; align-items:center; gap:8px; background:rgba(0,0,0,0.4); padding:4px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.15);">
-                    <button class="btn-card-prev" data-line="${lineName}" style="background:transparent; border:none; color:#cbd5e1; font-size:13px; cursor:pointer; padding:2px 6px;" title="Previous Slide (6x2)"><i class="fa-solid fa-chevron-left"></i></button>
+                <div style="display:flex; align-items:center; gap:6px; background:rgba(0,0,0,0.4); padding:3px 8px; border-radius:6px; border:1px solid rgba(255,255,255,0.15);">
+                    <button class="btn-card-prev" data-line="${lineName}" style="background:transparent; border:none; color:#cbd5e1; font-size:11px; cursor:pointer; padding:1px 4px;" title="Previous Slide (6x2)"><i class="fa-solid fa-chevron-left"></i></button>
                     <div style="display:flex; align-items:center;">${dotsHtml}</div>
-                    <button class="btn-card-next" data-line="${lineName}" style="background:transparent; border:none; color:#cbd5e1; font-size:13px; cursor:pointer; padding:2px 6px;" title="Next Slide (6x2)"><i class="fa-solid fa-chevron-right"></i></button>
-                    <span style="font-size:11px; color:#94a3b8; font-weight:700; margin-left:4px;">Pg ${curPage + 1}/${totalPages}</span>
+                    <button class="btn-card-next" data-line="${lineName}" style="background:transparent; border:none; color:#cbd5e1; font-size:11px; cursor:pointer; padding:1px 4px;" title="Next Slide (6x2)"><i class="fa-solid fa-chevron-right"></i></button>
+                    <span style="font-size:10px; color:#94a3b8; font-weight:700; margin-left:2px;">Pg ${curPage + 1}/${totalPages}</span>
                 </div>`;
             }
 
             html += `
-            <div style="margin-bottom: 22px;">
-                <!-- Line Monitoring Header -->
-                <div style="background: rgba(15, 23, 42, 0.95); border-left: 5px solid ${isRef01 ? '#3b82f6' : '#06b6d4'}; border-radius: 10px; padding: 10px 18px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1);">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <span style="background: ${lineBadgeBg}; color: #fff; padding: 6px 16px; border-radius: 8px; font-weight: 900; font-size: 17px; letter-spacing: 0.8px; box-shadow: 0 3px 10px rgba(0,0,0,0.3);">
-                            <i class="fa-solid fa-industry" style="margin-right: 8px;"></i> LINE ${lineName}
+            <div style="margin-bottom: 16px;">
+                <!-- Line Monitoring Header (Compact & Sleek) -->
+                <div style="background: rgba(15, 23, 42, 0.95); border-left: 4px solid ${isRef01 ? '#3b82f6' : '#06b6d4'}; border-radius: 8px; padding: 6px 14px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1);">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="background: ${lineBadgeBg}; color: #fff; padding: 3px 10px; border-radius: 6px; font-weight: 800; font-size: 13px; letter-spacing: 0.5px; box-shadow: 0 2px 6px rgba(0,0,0,0.25);">
+                            <i class="fa-solid fa-industry" style="margin-right: 6px;"></i> LINE ${lineName}
                         </span>
-                        <span style="color: #cbd5e1; font-size: 14px; font-weight: 700;">
-                            <strong style="color: #f8fafc; font-size: 16px;">${lineParams}</strong> Active Params &bull; <strong style="color: #f8fafc; font-size: 16px;">${items.length}</strong> Sections
+                        <span style="color: #cbd5e1; font-size: 12px; font-weight: 600;">
+                            <strong style="color: #f8fafc; font-size: 13px;">${lineParams}</strong> Active Params &bull; <strong style="color: #f8fafc; font-size: 13px;">${items.length}</strong> Sections
                         </span>
                     </div>
 
-                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                         ${pageControlsHtml}
-                        <div style="background: rgba(245, 158, 11, 0.18); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24; padding: 5px 14px; border-radius: 8px; font-size: 13px; font-weight: 800;" title="Line Total Unclosed">
-                            <i class="fa-solid fa-folder-open" style="margin-right: 4px;"></i> Unclosed: <span style="font-weight:900; font-size:15px;">${pctUnclosed}%</span> (${lineUnclosedSess.toLocaleString()}/${lineExpSess.toLocaleString()})
+                        <div style="background: rgba(245, 158, 11, 0.18); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 800;" title="Line Total Unclosed">
+                            <i class="fa-solid fa-folder-open" style="margin-right: 4px;"></i> Unclosed: <span style="font-weight:900; font-size:12px;">${pctUnclosed}%</span> (${lineUnclosedSess.toLocaleString()}/${lineExpSess.toLocaleString()})
                         </div>
-                        <div style="background: rgba(239, 68, 68, 0.18); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; padding: 5px 14px; border-radius: 8px; font-size: 13px; font-weight: 800;" title="Line Total Overdue">
-                            <i class="fa-solid fa-clock-rotate-left" style="margin-right: 4px;"></i> Overdue: <span style="font-weight:900; font-size:15px;">${pctOverdue}%</span> (${lineOverdueSlots.toLocaleString()}/${lineExpSlots.toLocaleString()})
+                        <div style="background: rgba(239, 68, 68, 0.18); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 800;" title="Line Total Overdue">
+                            <i class="fa-solid fa-clock-rotate-left" style="margin-right: 4px;"></i> Overdue: <span style="font-weight:900; font-size:12px;">${pctOverdue}%</span> (${lineOverdueSlots.toLocaleString()}/${lineExpSlots.toLocaleString()})
                         </div>
                         ${lineStatusBadge}
                     </div>
-                </div>
+                </div>`;
 
-                <!-- Section Grid Tiles (Strict 6x2 Fixed Grid Layout) -->
-                <div class="section-grid-6x2">`;
+                // Section Grid Tiles (Strict 6x2 Fixed Grid Layout)
+                html += `<div class="section-grid-6x2">`;
 
             displayItems.forEach(item => {
                 let overdueTextColor = '#34d399';
@@ -635,16 +635,21 @@ $(document).ready(function () {
 
                 html += `
                 <div class="section-card-clickable ${tileClass}" data-line="${item.line_name}" data-section="${item.section_name}" title="Klik untuk lihat data ${item.line_name} - ${item.section_name} di DTC List" style="background: rgba(15, 23, 42, 0.95); border: ${tileBorder}; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 6px 20px rgba(0,0,0,0.5); position: relative; overflow: hidden; animation: fadeIn 0.4s ease; cursor: pointer;">
-                    <!-- Top Section Card Header -->
-                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 6px; margin-bottom: 8px;">
-                        <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
-                            <span style="background: ${lineTagBg}; color: ${lineTagColor}; border: 1px solid ${lineTagBorder}; font-size: 11px; font-weight: 900; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.5px; white-space: nowrap;">${item.line_name}</span>
-                            <span style="color: #ffffff; font-size: 15px; font-weight: 900; letter-spacing: 0.2px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${item.section_name}">${item.section_name}</span>
+                    <!-- Top Section Card Header (Line Badge & Actions) -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 6px; margin-bottom: 6px;">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="background: ${lineTagBg}; color: ${lineTagColor}; border: 1px solid ${lineTagBorder}; font-size: 11px; font-weight: 900; padding: 2px 8px; border-radius: 4px; letter-spacing: 0.5px; white-space: nowrap;">${item.line_name}</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                            <button type="button" class="btn-download-section-report" data-line="${item.line_name}" data-section="${item.section_name}" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; cursor: pointer;" title="Download Laporan Performance Bulanan ${item.section_name}"><i class="fa-solid fa-file-excel"></i> Export</button>
                             ${(item.pct_overdue > 0 || item.pct_unclosed > 0) ? `<button type="button" class="btn-push-alert" data-line="${item.line_name}" data-section="${item.section_name}" data-overdue="${item.pct_overdue}" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; cursor: pointer;" title="Push Follow-up Alert ke Foreman"><i class="fa-solid fa-bell"></i> Alert</button>` : `<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;"><i class="fa-solid fa-circle-check"></i> OK</span>`}
                             <span class="live-dot-pulse" style="width: 8px; height: 8px; border-radius: 50%; background: ${dotColor}; display: inline-block;"></span>
                         </div>
+                    </div>
+
+                    <!-- Prominent Full-Width Section Name Title (Above Overdue Box) -->
+                    <div style="font-size: 14px; font-weight: 900; color: #f8fafc; margin-bottom: 6px; text-align: center; background: rgba(255,255,255,0.06); padding: 4px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${item.section_name}">
+                        <i class="fa-solid fa-layer-group" style="color: #38bdf8; margin-right: 5px; font-size: 12px;"></i>${item.section_name}
                     </div>
 
                     <!-- Main Overdue Rate KPI Display -->
@@ -689,25 +694,38 @@ $(document).ready(function () {
     }
 
     function renderDetailMatrixTable(data, daysCount, month) {
+        let hasTodaySlots = data.length > 0 && Array.isArray(data[0].slots);
+        let defaultTimeLabels = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30'];
+
         let html = `
             <div style="width:100%; overflow-x:auto; padding-bottom:10px;">
             <table id="missing-data-table" class="display responsive nowrap" style="width:100%">
                 <thead>
                     <tr>
-                        <th style="min-width: 250px;">Parameter</th>
+                        <th style="min-width: 250px;">Parameter (Running Model)</th>
         `;
 
-        for (let i = 1; i <= daysCount; i++) {
-            let dateStr = `${month}-${String(i).padStart(2, '0')}`;
-            let d = new Date(dateStr);
-            let dayName = isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { weekday: 'short' });
-            let isWeekend = (d.getDay() === 0 || d.getDay() === 6);
-            let headerStyle = isWeekend ? 'color: var(--danger);' : '';
+        if (hasTodaySlots) {
+            for (let s = 1; s <= 11; s++) {
+                let lbl = defaultTimeLabels[s - 1] || `S${s}`;
+                html += `<th class="day-col" title="Shift Slot ${s} (${lbl})" style="color: #60a5fa; font-size:11px;">
+                            S${s}<br>
+                            <span style="font-size: 10px; font-weight: normal; opacity: 0.9;">${lbl}</span>
+                         </th>`;
+            }
+        } else {
+            for (let i = 1; i <= daysCount; i++) {
+                let dateStr = `${month}-${String(i).padStart(2, '0')}`;
+                let d = new Date(dateStr);
+                let dayName = isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { weekday: 'short' });
+                let isWeekend = (d.getDay() === 0 || d.getDay() === 6);
+                let headerStyle = isWeekend ? 'color: var(--danger);' : '';
 
-            html += `<th class="day-col" title="${i} ${month}" style="${headerStyle}">
-                        ${i}<br>
-                        <span style="font-size: 10px; font-weight: normal; opacity: 0.8;">${dayName}</span>
-                     </th>`;
+                html += `<th class="day-col" title="${i} ${month}" style="${headerStyle}">
+                            ${i}<br>
+                            <span style="font-size: 10px; font-weight: normal; opacity: 0.8;">${dayName}</span>
+                         </th>`;
+            }
         }
 
         html += `
@@ -722,7 +740,7 @@ $(document).ready(function () {
             html += `
                 <td>
                     <div style="font-weight: 600; color: var(--accent);">${row.item_check_name}${subName} <span style="font-size:10px; color:var(--text-muted); font-weight:normal;">[${row.data_type}]</span></div>
-                    <div style="font-size: 11px; color: #e2e8f0; font-weight: 500; margin-top: 2px; margin-bottom: 3px;">Model: ${row.model_name || '-'}</div>
+                    <div style="font-size: 11px; color: #e2e8f0; font-weight: 500; margin-top: 2px; margin-bottom: 3px;"><i class="fa-solid fa-cube" style="color: #f59e0b; margin-right: 4px;"></i> ${row.model_name || '-'}</div>
                     <div style="font-size: 11px; color: var(--text-muted);">
                         <span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 1px 4px; border-radius: 3px; margin-right: 4px;">${row.line_name}</span>
                         <span style="background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 1px 4px; border-radius: 3px; margin-right: 4px;">${row.section_name}</span>
@@ -731,51 +749,86 @@ $(document).ready(function () {
                 </td>
             `;
 
-            for (let i = 1; i <= daysCount; i++) {
-                let status = row[`day_${i}`];
-                let timeLabel = row[`day_${i}_label`] || '';
-                let blockClass, blockTitle, blockIcon;
+            if (hasTodaySlots) {
+                let slotsArr = row.slots || [];
+                let tLabels = row.time_labels || defaultTimeLabels;
+                for (let s = 1; s <= 11; s++) {
+                    let status = slotsArr[s - 1] !== undefined ? slotsArr[s - 1] : 4;
+                    let slotTime = tLabels[s - 1] || defaultTimeLabels[s - 1] || '';
+                    let blockClass, blockTitle, blockIcon;
 
-                if (status === 3) {
-                    blockClass = 'block-weekend';
-                    blockTitle = 'Weekend / Off';
-                    blockIcon = '<i class="fa-solid fa-minus" style="color: #94a3b8; font-size: 10px; line-height: 22px;"></i>';
-                } else if (status === 2) {
-                    blockClass = 'block-closed';
-                    blockTitle = 'Closed';
-                    blockIcon = '<i class="fa-solid fa-lock" style="color: #fff; font-size: 10px; line-height: 22px;"></i>';
-                } else if (status === 1) {
-                    blockClass = 'block-filled';
-                    blockTitle = 'Draft (Next: ' + timeLabel + ')';
-                    blockIcon = timeLabel ? `<span style="font-size: 9px; color: white; font-weight: bold; line-height: 22px; letter-spacing: -0.5px;">${timeLabel}</span>` : '<i class="fa-solid fa-pen" style="color: #fff; font-size: 10px; line-height: 22px;"></i>';
-                } else {
-                    blockClass = 'block-empty';
-                    blockTitle = 'Missing (Next: ' + timeLabel + ')';
-                    blockIcon = timeLabel ? `<span style="font-size: 9px; color: white; font-weight: bold; line-height: 22px; letter-spacing: -0.5px;">${timeLabel}</span>` : '<i class="fa-solid fa-xmark" style="color: #fff; font-size: 12px; line-height: 22px;"></i>';
-                }
-
-                let dateParam = `${month}-${String(i).padStart(2, '0')}`;
-                if ((status === 0 || status === 1) && timeLabel) {
-                    let timeParts = timeLabel.match(/^(\d{1,2}):(\d{2})$/);
-                    if (timeParts) {
-                        let targetDateTime = new Date(`${dateParam}T${timeParts[1].padStart(2, '0')}:${timeParts[2]}:00`);
-                        if (!isNaN(targetDateTime.getTime()) && targetDateTime < new Date()) {
-                            blockClass += ' blinking-outline';
-                        }
+                    if (status === 4) {
+                        blockClass = 'block-na';
+                        blockTitle = 'N/A (Exceeds max slots)';
+                        blockIcon = '<i class="fa-solid fa-ban" style="color: #64748b; font-size: 10px; line-height: 22px;"></i>';
+                    } else if (status === 2) {
+                        blockClass = 'block-closed';
+                        blockTitle = 'Shift Session Closed';
+                        blockIcon = '<i class="fa-solid fa-lock" style="color: #fff; font-size: 10px; line-height: 22px;"></i>';
+                    } else if (status === 1) {
+                        blockClass = 'block-filled';
+                        blockTitle = 'Filled (Recorded)';
+                        blockIcon = '<i class="fa-solid fa-check" style="color: #fff; font-size: 11px; line-height: 22px;"></i>';
+                    } else if (status === 3) {
+                        blockClass = 'block-weekend';
+                        blockTitle = 'Weekend / Future Slot (' + slotTime + ')';
+                        blockIcon = `<span style="font-size: 9px; color: #94a3b8; font-weight: bold; line-height: 22px;">${slotTime}</span>`;
+                    } else {
+                        // Status 0: Missing / Overdue
+                        blockClass = 'block-empty blinking-outline';
+                        blockTitle = 'Overdue / Belum Terisi (' + slotTime + ')';
+                        blockIcon = `<span style="font-size: 9px; color: white; font-weight: bold; line-height: 22px;">${slotTime}</span>`;
                     }
-                }
 
-                let link = `index.php?page=dtc_detail&param_id=${row.parameter_id}&month=${month}&auto_add=${dateParam}`;
-                html += `
-                    <td class="day-col">
-                        <a href="${link}" style="text-decoration:none;">
-                            <div class="block-cell ${blockClass}">
-                                ${blockIcon}
-                                <span class="block-tooltip">Day ${i} - ${blockTitle}</span>
-                            </div>
-                        </a>
-                    </td>
-                `;
+                    let link = `index.php?page=dtc_detail&param_id=${row.parameter_id}&month=${month}`;
+                    html += `
+                        <td class="day-col">
+                            <a href="${link}" style="text-decoration:none;">
+                                <div class="block-cell ${blockClass}">
+                                    ${blockIcon}
+                                    <span class="block-tooltip">Slot ${s} (${slotTime}) - ${blockTitle}</span>
+                                </div>
+                            </a>
+                        </td>
+                    `;
+                }
+            } else {
+                for (let i = 1; i <= daysCount; i++) {
+                    let status = row[`day_${i}`];
+                    let timeLabel = row[`day_${i}_label`] || '';
+                    let blockClass, blockTitle, blockIcon;
+
+                    if (status === 3) {
+                        blockClass = 'block-weekend';
+                        blockTitle = 'Weekend / Off';
+                        blockIcon = '<i class="fa-solid fa-minus" style="color: #94a3b8; font-size: 10px; line-height: 22px;"></i>';
+                    } else if (status === 2) {
+                        blockClass = 'block-closed';
+                        blockTitle = 'Closed';
+                        blockIcon = '<i class="fa-solid fa-lock" style="color: #fff; font-size: 10px; line-height: 22px;"></i>';
+                    } else if (status === 1) {
+                        blockClass = 'block-filled';
+                        blockTitle = 'Draft (Next: ' + timeLabel + ')';
+                        blockIcon = timeLabel ? `<span style="font-size: 9px; color: white; font-weight: bold; line-height: 22px; letter-spacing: -0.5px;">${timeLabel}</span>` : '<i class="fa-solid fa-pen" style="color: #fff; font-size: 10px; line-height: 22px;"></i>';
+                    } else {
+                        blockClass = 'block-empty';
+                        blockTitle = 'Missing (Next: ' + timeLabel + ')';
+                        blockIcon = timeLabel ? `<span style="font-size: 9px; color: white; font-weight: bold; line-height: 22px; letter-spacing: -0.5px;">${timeLabel}</span>` : '<i class="fa-solid fa-xmark" style="color: #fff; font-size: 12px; line-height: 22px;"></i>';
+                    }
+
+                    let dateParam = `${month}-${String(i).padStart(2, '0')}`;
+                    let link = `index.php?page=dtc_detail&param_id=${row.parameter_id}&month=${month}&auto_add=${dateParam}`;
+                    html += `
+                        <td class="day-col">
+                            <a href="${link}" style="text-decoration:none;">
+                                <div class="block-cell ${blockClass}">
+                                    ${blockIcon}
+                                    <span class="block-tooltip">Day ${i} - ${blockTitle}</span>
+                                </div>
+                            </a>
+                        </td>
+                    `;
+                }
             }
 
             html += `</tr>`;
@@ -860,12 +913,6 @@ $(document).ready(function () {
     });
 
     // Event Listeners
-    $('#filter_month').on('change', function () {
-        $('#filter_line_name').html('<option value="">-- All Lines --</option>');
-        $('#filter_section_name').html('<option value="">-- All Sections --</option>');
-        reloadData(false);
-    });
-
     $('#filter_line_name, #filter_section_name').on('change', function () {
         applyFilters();
     });
@@ -988,6 +1035,184 @@ $(document).ready(function () {
 
         if (params.length > 0) url += `&` + params.join('&');
         window.location.href = url;
+    });
+
+    // Monthly Station Performance Report Modal & Download Handlers
+    let activeExportSection = '';
+    let activeExportLine = '';
+
+    function openMonthlyPerfModal(section = '', line = '') {
+        activeExportSection = section;
+        activeExportLine = line;
+
+        let month = $('#report_month').val() || new Date().toISOString().slice(0, 7);
+        let titleText = section ? `Laporan Performance Bulanan - ${line} (${section})` : `Laporan Performance Bulanan (Semua Stasiun)`;
+        $('#perf-modal-title').text(titleText);
+        $('#perf-modal-info').text(`Report Month: ${month} | Station Scope: ${section || 'All Assigned Stations'}`);
+        $('#modal-monthly-performance').css('display', 'flex');
+
+        $('#perf-modal-body').html('<div style="text-align: center; padding: 40px; color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin fa-2x"></i><p style="margin-top: 10px;">Generating performance report preview...</p></div>');
+
+        $.ajax({
+            url: 'Script/php/dtc/c_missing_data_monthly_report.php',
+            type: 'GET',
+            data: { month: month, section_name: section, line_name: line, format: 'json' },
+            dataType: 'json',
+            success: function(res) {
+                if (res.status === 'success' && res.data) {
+                    renderPerfModalBody(res);
+                } else {
+                    $('#perf-modal-body').html(`<div style="color: var(--danger); text-align: center; padding: 20px;">Failed to generate preview: ${res.message || 'Unknown error'}</div>`);
+                }
+            },
+            error: function() {
+                $('#perf-modal-body').html('<div style="color: var(--danger); text-align: center; padding: 20px;">Failed to connect to report server.</div>');
+            }
+        });
+    }
+
+    function renderPerfModalBody(res) {
+        let html = '';
+        let sections = res.data || [];
+
+        if (sections.length === 0) {
+            html = '<div style="text-align:center; padding:30px; color:var(--text-muted);">Tidak ada data stasiun pada bulan ini.</div>';
+        } else {
+            sections.forEach(sec => {
+                let rateVal = sec.monthly_compliance_rate !== undefined ? sec.monthly_compliance_rate : 100;
+                let rateColor = rateVal >= 90 ? '#34d399' : '#f87171';
+
+                html += `
+                <div style="background: rgba(15,23,42,0.8); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px; margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; margin-bottom: 10px;">
+                        <div>
+                            <span style="background: rgba(59,130,246,0.2); color: #60a5fa; padding: 2px 8px; border-radius: 4px; font-weight: 800; font-size: 11px;">LINE ${sec.line_name}</span>
+                            <span style="font-size: 16px; font-weight: 800; color: #38bdf8; margin-left: 8px;">${sec.section_name}</span>
+                        </div>
+                        <div style="display: flex; gap: 12px; align-items: center; font-size: 12px;">
+                            <span style="color: #cbd5e1;">Compliance Bulanan: <strong style="color: ${rateColor}; font-size: 16px; font-weight: 900;">${rateVal}%</strong></span>
+                            <span style="color: #cbd5e1;">Hari Tidak Full: <strong style="color: #f87171; font-size: 15px;">${sec.total_days_incomplete} Hari</strong></span>
+                        </div>
+                    </div>
+
+                    <!-- Summary KPI Cards Row -->
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px;">
+                        <div style="background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px; text-align: center; border: 1px solid rgba(255,255,255,0.08);">
+                            <div style="font-size: 10px; color: #94a3b8; font-weight: 700;">TOTAL EXPECTED SLOTS</div>
+                            <div style="font-size: 18px; font-weight: 900; color: #f8fafc;">${(sec.total_expected_month || 0).toLocaleString()}</div>
+                        </div>
+                        <div style="background: rgba(16,185,129,0.1); padding: 8px; border-radius: 6px; text-align: center; border: 1px solid rgba(16,185,129,0.2);">
+                            <div style="font-size: 10px; color: #34d399; font-weight: 700;">TOTAL SLOTS DIISI</div>
+                            <div style="font-size: 18px; font-weight: 900; color: #34d399;">${(sec.total_filled_month || 0).toLocaleString()}</div>
+                        </div>
+                        <div style="background: rgba(239,68,68,0.1); padding: 8px; border-radius: 6px; text-align: center; border: 1px solid rgba(239,68,68,0.2);">
+                            <div style="font-size: 10px; color: #f87171; font-weight: 700;">SLOTS KOSONG</div>
+                            <div style="font-size: 18px; font-weight: 900; color: #f87171;">${(sec.total_missing_month || 0).toLocaleString()}</div>
+                        </div>
+                        <div style="background: rgba(56,189,248,0.1); padding: 8px; border-radius: 6px; text-align: center; border: 1px solid rgba(56,189,248,0.2);">
+                            <div style="font-size: 10px; color: #38bdf8; font-weight: 700;">PERSENTASE COMPLIANCE</div>
+                            <div style="font-size: 18px; font-weight: 900; color: ${rateColor};">${rateVal}%</div>
+                        </div>
+                    </div>
+
+                    <div style="font-size: 12px; font-weight: 700; color: #94a3b8; margin-bottom: 6px;">1. Persentase Pengisian Time Check Harian (% Daily Filling)</div>
+                    <div style="overflow-x: auto; margin-bottom: 12px;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: center;">
+                            <thead>
+                                <tr style="background: rgba(30,41,59,0.9); color: #94a3b8;">
+                                    <th style="padding: 6px; border: 1px solid rgba(255,255,255,0.1);">Tanggal</th>
+                                    <th style="padding: 6px; border: 1px solid rgba(255,255,255,0.1);">Expected</th>
+                                    <th style="padding: 6px; border: 1px solid rgba(255,255,255,0.1);">Filled</th>
+                                    <th style="padding: 6px; border: 1px solid rgba(255,255,255,0.1);">Completion Rate (%)</th>
+                                    <th style="padding: 6px; border: 1px solid rgba(255,255,255,0.1);">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+
+                Object.keys(sec.days || {}).sort().forEach(dStr => {
+                    let d = sec.days[dStr];
+                    let bgStr = d.is_weekend ? 'rgba(255,255,255,0.03)' : (d.is_full ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.15)');
+                    let rateColor = d.is_full ? '#34d399' : '#f87171';
+                    let statusLabel = d.is_weekend ? 'Weekend' : (d.is_full ? '<span style="color:#34d399; font-weight:800;">FULL (100%)</span>' : '<span style="color:#f87171; font-weight:800;">INCOMPLETE</span>');
+
+                    html += `
+                        <tr style="background: ${bgStr};">
+                            <td style="padding: 5px; border: 1px solid rgba(255,255,255,0.05); font-weight: 700;">${dStr}</td>
+                            <td style="padding: 5px; border: 1px solid rgba(255,255,255,0.05);">${d.expected_slots}</td>
+                            <td style="padding: 5px; border: 1px solid rgba(255,255,255,0.05);">${d.filled_slots}</td>
+                            <td style="padding: 5px; border: 1px solid rgba(255,255,255,0.05); font-weight: 800; color: ${rateColor};">${d.completion_rate}%</td>
+                            <td style="padding: 5px; border: 1px solid rgba(255,255,255,0.05);">${statusLabel}</td>
+                        </tr>`;
+                });
+
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div style="font-size: 12px; font-weight: 700; color: #f87171; margin-top: 10px; margin-bottom: 6px;">2. Rincian Item Check / Parameter yang Tidak Diisi (Slot Kosong)</div>`;
+
+                let missedDates = Object.keys(sec.missed_items_by_date || {}).sort();
+                if (missedDates.length > 0) {
+                    html += `
+                    <div style="max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.3); border: 1px solid rgba(239,68,68,0.2); border-radius: 6px; padding: 8px;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                            <thead>
+                                <tr style="color: #f87171; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                    <th style="padding: 4px;">Tanggal</th>
+                                    <th style="padding: 4px;">Model</th>
+                                    <th style="padding: 4px;">Process</th>
+                                    <th style="padding: 4px;">Item Check Name</th>
+                                    <th style="padding: 4px; text-align: center;">Slot Kosong</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+                    missedDates.forEach(dStr => {
+                        (sec.missed_items_by_date[dStr] || []).forEach(item => {
+                            html += `
+                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                    <td style="padding: 4px; font-weight: 700; color: #cbd5e1;">${dStr}</td>
+                                    <td style="padding: 4px;">${item.model_name || '-'}</td>
+                                    <td style="padding: 4px; color: #94a3b8;">${item.process_name}</td>
+                                    <td style="padding: 4px; color: #f8fafc; font-weight: 700;">${item.item_check_name}</td>
+                                    <td style="padding: 4px; text-align: center; color: #f87171; font-weight: 800;">${item.missing_slots} Slot Kosong</td>
+                                </tr>`;
+                        });
+                    });
+                    html += `
+                            </tbody>
+                        </table>
+                    </div>`;
+                } else {
+                    html += `<p style="font-size: 11px; color: #34d399; margin: 4px 0; font-style: italic;">Sempurna! Semua item check di stasiun ini terisi 100% full.</p>`;
+                }
+
+                html += `</div>`;
+            });
+        }
+
+        $('#perf-modal-body').html(html);
+    }
+
+    $(document).on('click', '.btn-download-section-report', function (e) {
+        e.stopPropagation();
+        let section = $(this).data('section') || '';
+        let line = $(this).data('line') || '';
+        openMonthlyPerfModal(section, line);
+    });
+
+    $(document).on('click', '#btn-export-monthly-report', function () {
+        openMonthlyPerfModal('', '');
+    });
+
+    $(document).on('click', '#btn-download-modal-excel', function () {
+        let month = $('#report_month').val() || new Date().toISOString().slice(0, 7);
+        let url = `Script/php/dtc/c_missing_data_monthly_report.php?month=${month}&section_name=${encodeURIComponent(activeExportSection)}&line_name=${encodeURIComponent(activeExportLine)}&export=excel`;
+        window.location.href = url;
+    });
+
+    $(document).on('click', '#btn-close-perf-modal, #btn-cancel-perf-modal', function () {
+        $('#modal-monthly-performance').css('display', 'none');
     });
 
     // Initial Data Load

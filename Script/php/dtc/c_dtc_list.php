@@ -13,13 +13,17 @@ try {
     $period = isset($_GET['period']) ? trim($_GET['period']) : 'all';
 
     // Endpoint to fetch distinct past months for dropdown filter
+    // Endpoint to fetch distinct past months for dropdown filter
     if (isset($_GET['action']) && $_GET['action'] === 'get_months') {
         $stmtMonths = $conn->prepare("
-            SELECT DISTINCT target_month,
-                   DATE_FORMAT(STR_TO_DATE(CONCAT(target_month, '-01'), '%Y-%m-%d'), '%b %Y') as label
-            FROM dtc_master_parameters
-            WHERE target_month IS NOT NULL AND target_month < :current_month
-            ORDER BY target_month DESC
+            SELECT DISTINCT p.target_month,
+                   DATE_FORMAT(STR_TO_DATE(CONCAT(p.target_month, '-01'), '%Y-%m-%d'), '%b %Y') as label
+            FROM dtc_master_parameters p
+            LEFT JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id
+            WHERE p.target_month IS NOT NULL AND p.target_month < :current_month
+            " . getIPAccessFilterSQL('COALESCE(p.line_name, spec.line_name)', 'COALESCE(p.section_name, spec.section_name)') . "
+            " . getUserAccessFilterSQL('COALESCE(p.line_name, spec.line_name)', 'COALESCE(p.section_name, spec.section_name)') . "
+            ORDER BY p.target_month DESC
         ");
         $stmtMonths->execute([':current_month' => $currentMonth]);
         $months = $stmtMonths->fetchAll(PDO::FETCH_ASSOC);
@@ -99,7 +103,7 @@ try {
     $is_server_side = isset($_GET['draw']) || isset($_GET['start']);
 
     // Count Total Records
-    $sqlTotal = "SELECT COUNT(*) FROM dtc_master_parameters p LEFT JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id WHERE 1=1 " . $wherePeriod . getIPAccessFilterSQL('COALESCE(p.line_name, spec.line_name)', 'COALESCE(p.section_name, spec.section_name)');
+    $sqlTotal = "SELECT COUNT(*) FROM dtc_master_parameters p LEFT JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id WHERE 1=1 " . $wherePeriod . getIPAccessFilterSQL('COALESCE(p.line_name, spec.line_name)', 'COALESCE(p.section_name, spec.section_name)') . getUserAccessFilterSQL('COALESCE(p.line_name, spec.line_name)', 'COALESCE(p.section_name, spec.section_name)');
     $stmtTotal = $conn->prepare($sqlTotal);
     $paramsNoKw = $queryParams;
     unset($paramsNoKw[':kw']);
@@ -107,7 +111,7 @@ try {
     $recordsTotal = (int)$stmtTotal->fetchColumn();
 
     // Count Filtered Records
-    $sqlFiltered = "SELECT COUNT(*) FROM dtc_master_parameters p LEFT JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id WHERE 1=1 " . $wherePeriod . $whereSearch . getIPAccessFilterSQL('COALESCE(p.line_name, spec.line_name)', 'COALESCE(p.section_name, spec.section_name)');
+    $sqlFiltered = "SELECT COUNT(*) FROM dtc_master_parameters p LEFT JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id WHERE 1=1 " . $wherePeriod . $whereSearch . getIPAccessFilterSQL('COALESCE(p.line_name, spec.line_name)', 'COALESCE(p.section_name, spec.section_name)') . getUserAccessFilterSQL('COALESCE(p.line_name, spec.line_name)', 'COALESCE(p.section_name, spec.section_name)');
     $stmtFiltered = $conn->prepare($sqlFiltered);
     $stmtFiltered->execute($queryParams);
     $recordsFiltered = (int)$stmtFiltered->fetchColumn();

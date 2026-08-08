@@ -65,16 +65,26 @@ try {
         }
     }
     
+    $allowed_sections = null;
+    if (!empty($_POST['allowed_sections'])) {
+        if (is_array($_POST['allowed_sections'])) {
+            $allowed_sections = implode(',', array_map('trim', $_POST['allowed_sections']));
+        } else {
+            $allowed_sections = trim($_POST['allowed_sections']);
+        }
+    }
+
     $params = [
         ':username' => $username,
         ':full_name' => $full_name,
         ':role' => $role,
         ':user_id' => $user_id,
         ':line_name' => !empty($_POST['line_name']) ? $_POST['line_name'] : null,
-        ':section_name' => !empty($_POST['section_name']) ? $_POST['section_name'] : null
+        ':section_name' => !empty($_POST['section_name']) ? $_POST['section_name'] : null,
+        ':allowed_sections' => $allowed_sections
     ];
     
-    $sqlSets = ["username = :username", "full_name = :full_name", "role = :role", "line_name = :line_name", "section_name = :section_name", "updated_at = CURRENT_TIMESTAMP"];
+    $sqlSets = ["username = :username", "full_name = :full_name", "role = :role", "line_name = :line_name", "section_name = :section_name", "allowed_sections = :allowed_sections", "updated_at = CURRENT_TIMESTAMP"];
     
     if (!empty($password)) {
         $params[':hash'] = password_hash($password, PASSWORD_DEFAULT);
@@ -97,6 +107,7 @@ try {
         $_SESSION['username'] = $username;
         $_SESSION['line_name'] = $params[':line_name'];
         $_SESSION['section_name'] = $params[':section_name'];
+        $_SESSION['allowed_sections'] = $allowed_sections;
         if ($hasNewProfilePic) {
             $_SESSION['profile_picture'] = $profile_picture;
         }

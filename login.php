@@ -9,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     try {
         $conn = getDBConnection();
-        $stmt = $conn->prepare("SELECT user_id, username, password_hash, full_name, role, profile_picture, line_name, section_name FROM dtc_users WHERE username = :username");
+        $stmt = $conn->prepare("SELECT user_id, username, password_hash, full_name, role, profile_picture, line_name, section_name, allowed_sections FROM dtc_users WHERE username = :username");
         $stmt->execute([':username' => $username]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['profile_picture'] = $user['profile_picture'];
             $_SESSION['line_name'] = $user['line_name'];
             $_SESSION['section_name'] = $user['section_name'];
+            $_SESSION['allowed_sections'] = $user['allowed_sections'];
             header("Location: index.php");
             exit;
         } else {

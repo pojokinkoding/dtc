@@ -137,16 +137,32 @@ sort($distinct_sections);
                     </div>
             
             <div class="form-group">
-                <label>Role</label>
+                <label>Role / Authority</label>
                 <select id="role" name="role" class="form-control" required>
                     <option value="Operator">Operator</option>
                     <option value="Foreman">Foreman</option>
-                    <option value="Supervisor">Supervisor</option>
+                    <option value="Supervisor">Supervisor (Monitoring Tracker)</option>
+                    <option value="Management">Management (Office Pusat)</option>
                     <option value="Admin">Admin</option>
                 </select>
             </div>
+
+            <div class="form-group" id="supervisor-sections-group" style="display: none; background: rgba(15, 23, 42, 0.6); padding: 12px; border-radius: 6px; border: 1px solid rgba(59, 130, 246, 0.3); margin-bottom: 15px;">
+                <label style="color: #60a5fa; font-weight: 600; margin-bottom: 8px;">
+                    <i class="fa-solid fa-layer-group"></i> Dynamic Section Monitoring (Supervisor)
+                </label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-height: 150px; overflow-y: auto; padding-right: 5px;">
+                    <?php foreach ($distinct_sections as $sec): ?>
+                        <label style="font-size: 11px; font-weight: normal; color: #cbd5e1; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                            <input type="checkbox" name="allowed_sections[]" value="<?= htmlspecialchars($sec) ?>" class="cb-supervisor-section">
+                            <?= htmlspecialchars($sec) ?>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+                <small style="color: var(--text-muted); display: block; margin-top: 6px; font-size: 10px;">Check all sections this Supervisor is authorized to monitor missing data for.</small>
+            </div>
             
-            <div class="form-group">
+            <div class="form-group" id="single-line-group">
                 <label>Access: Line</label>
                 <select id="line_name" name="line_name" class="form-control">
                     <option value="">-- All Lines --</option>
@@ -157,7 +173,7 @@ sort($distinct_sections);
                 <small style="color: var(--text-muted);">Leave empty to allow all lines.</small>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" id="single-section-group">
                 <label>Access: Section</label>
                 <select id="section_name" name="section_name" class="form-control">
                     <option value="">-- All Sections --</option>

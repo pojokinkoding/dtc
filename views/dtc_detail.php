@@ -369,13 +369,13 @@ if ($param_id > 0) {
 
             <!-- Column 4 (AI Insight & Trend Insight) - Spans both rows -->
             <?php if ($headerData['measuring_item'] === 'Quantitative'): ?>
-            <div style="display: flex; flex-direction: column; gap: 6px; grid-column: 4; grid-row: 1 / span 2;">
+            <div style="display: flex; flex-direction: column; gap: 8px; grid-column: 4; grid-row: 1 / span 2;">
                 <div class="header-item-title" style="color: var(--purple);"><i class="fa-solid fa-wand-magic-sparkles" style="margin-right: 4px;"></i> AI Insight (Prompt)</div>
-                <div id="ai-insight-box" style="font-size: 12.5px; line-height: 1.4; color: var(--text-light); background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 6px; padding: 6px; font-style: italic; display: flex; align-items: center; min-height: 52px; width: 100%;">
+                <div id="ai-insight-box" style="font-size: 12px; line-height: 1.5; color: var(--text-light); background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 6px; padding: 8px 12px; display: block; width: 100%; min-height: 48px;">
                     <i class="fa-solid fa-circle-notch fa-spin" style="margin-right: 6px; color: var(--purple);"></i> Analyzing X-Bar data...
                 </div>
-                <div class="header-item-title" style="color: var(--primary); margin-top: 4px;"><i class="fa-solid fa-chart-line" style="margin-right: 4px;"></i> Trend Insight</div>
-                <div id="trend-insight-box" style="font-size: 12.5px; line-height: 1.4; color: var(--text-light); background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 6px; padding: 6px; font-style: normal; display: flex; align-items: center; min-height: 32px; width: 100%;">
+                <div class="header-item-title" style="color: var(--primary); margin-top: 2px;"><i class="fa-solid fa-chart-line" style="margin-right: 4px;"></i> Trend Insight</div>
+                <div id="trend-insight-box" style="font-size: 12px; line-height: 1.5; color: var(--text-light); background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 6px; padding: 8px 12px; display: block; width: 100%; min-height: 38px;">
                     <i class="fa-solid fa-circle-notch fa-spin" style="margin-right: 6px; color: var(--primary);"></i> Loading trend...
                 </div>
             </div>

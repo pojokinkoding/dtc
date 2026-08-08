@@ -3,8 +3,32 @@
 require_once '../../../config/config.php';
 header('Content-Type: application/json');
 
-$date = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
+$prodHour = (int)date('H');
+$defaultProdDate = ($prodHour < 7) ? date('Y-m-d', strtotime('-1 day')) : date('Y-m-d');
+$date = isset($_GET['date']) ? $_GET['date'] : $defaultProdDate;
 $month = date('Y-m', strtotime($date));
+$line_filter = isset($_GET['line']) ? trim($_GET['line']) : '';
+$section_filter = isset($_GET['section']) ? trim($_GET['section']) : '';
+
+$nowH = $prodHour;
+$nowM = (int)date('i');
+$todayStr = $defaultProdDate;
+
+if (!function_exists('isSlotPast')) {
+    function isSlotPast($timeStr, $nowH, $nowM) {
+        if (!$timeStr) return false;
+        $tp = explode(':', trim($timeStr));
+        if (count($tp) < 2) return false;
+        $h = (int)$tp[0]; $m = (int)$tp[1];
+        if ($h >= 24) $h = $h - 24;
+
+        // Production day runs from 07:00 AM to 07:00 AM next morning.
+        $slotMinutesFrom7 = ($h < 7 ? $h + 24 : $h) * 60 + $m;
+        $nowMinutesFrom7 = ($nowH < 7 ? $nowH + 24 : $nowH) * 60 + $nowM;
+
+        return $slotMinutesFrom7 <= $nowMinutesFrom7;
+    }
+}
 
 $timestamp = strtotime($date);
 $dayOfWeek = date('N', $timestamp);
@@ -122,6 +146,14 @@ try {
         $section_name = $param['section_name'] ?? '';
         $model_name = $param['model_name'] ?? '';
 
+        // Filter by Line & Section if provided in request
+        if (!empty($line_filter) && strtolower(trim($line_name)) !== strtolower(trim($line_filter))) {
+            continue;
+        }
+        if (!empty($section_filter) && strtolower(trim($section_name)) !== strtolower(trim($section_filter))) {
+            continue;
+        }
+
         // If running models exist for this month/section/line, filter out non-running models
         if (!empty($runningSet)) {
             $k = strtolower(trim($line_name)) . '|' . strtolower(trim($section_name)) . '|' . strtolower(trim($model_name));
@@ -178,11 +210,17 @@ try {
                 $status = 2; // Closed
             } else if (in_array((string)$seq, $filled)) {
                 $status = 1; // Filled
-            } else if ($is_weekend) {
-                $status = 3; // Weekend
             } else {
-                $status = 0; // Missing
-                $hasMissingSlot = true;
+                $slotTime = $current_line_labels[$seq - 1] ?? null;
+                $isPast = ($date < $todayStr) || ($date == $todayStr && isSlotPast($slotTime, $nowH, $nowM));
+                if ($isPast) {
+                    $status = 0; // Missing (slot time has already passed)
+                    $hasMissingSlot = true;
+                } else if ($is_weekend) {
+                    $status = 3; // Weekend future slot
+                } else {
+                    $status = 0; // Unfilled future slot
+                }
             }
             $row['slots'][] = $status;
         }

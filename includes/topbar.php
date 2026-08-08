@@ -11,7 +11,7 @@
                     <?php 
                         if($page == 'dtc') echo "Digital Time Check";
                         else if($page == 'dtc_dashboard' || $page == 'dtc_detail' || $page == 'dtc_matrix_qualitative') echo "";
-                        else if($page == 'missing_data') echo "Missing Data Tracker";
+                        else if($page == 'missing_data') echo "Data Monitoring";
                         else echo ucfirst(str_replace('_', ' ', $page)); 
                     ?>
                 </h1>

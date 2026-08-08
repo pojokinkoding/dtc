@@ -59,7 +59,16 @@ try {
     $line_name = !empty($_POST['line_name']) ? $_POST['line_name'] : null;
     $section_name = !empty($_POST['section_name']) ? $_POST['section_name'] : null;
     
-    $sql = "INSERT INTO dtc_users (username, password_hash, full_name, role, profile_picture, line_name, section_name) VALUES (:username, :hash, :full_name, :role, :profile_picture, :line_name, :section_name)";
+    $allowed_sections = null;
+    if (!empty($_POST['allowed_sections'])) {
+        if (is_array($_POST['allowed_sections'])) {
+            $allowed_sections = implode(',', array_map('trim', $_POST['allowed_sections']));
+        } else {
+            $allowed_sections = trim($_POST['allowed_sections']);
+        }
+    }
+    
+    $sql = "INSERT INTO dtc_users (username, password_hash, full_name, role, profile_picture, line_name, section_name, allowed_sections) VALUES (:username, :hash, :full_name, :role, :profile_picture, :line_name, :section_name, :allowed_sections)";
     $stmt = $conn->prepare($sql);
     $stmt->execute([
         ':username' => $username,
@@ -68,7 +77,8 @@ try {
         ':role' => $role,
         ':profile_picture' => $profile_picture,
         ':line_name' => $line_name,
-        ':section_name' => $section_name
+        ':section_name' => $section_name,
+        ':allowed_sections' => $allowed_sections
     ]);
     
     echo json_encode(["status" => "success", "message" => "User successfully added."]);

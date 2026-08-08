@@ -33,12 +33,13 @@ if (!function_exists('getDBConnection')) {
 
 if (!function_exists('getIPAccessFilterSQL')) {
     function getIPAccessFilterSQL($lineField = 'COALESCE(p.line_name, spec.line_name)', $sectionField = 'COALESCE(p.section_name, spec.section_name)') {
-        // Admin gets access to everything across all IPs
-        if (isset($_SESSION['role']) && strtolower(trim($_SESSION['role'])) === 'admin') {
+        // Admin, Management, and Supervisor roles get access across all IPs
+        $role = strtolower(trim($_SESSION['role'] ?? ''));
+        if ($role === 'admin' || strpos($role, 'management') !== false || strpos($role, 'supervisor') !== false) {
             return "";
         }
 
-        $ip = $_SERVER['REMOTE_ADDR'];
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '';
         
         $ipMap = [
             // REF 01
@@ -77,21 +78,33 @@ if (!function_exists('getUserAccessFilterSQL')) {
             return "";
         }
         
-        // Admin gets access to everything
-        if (isset($_SESSION['role']) && strtolower(trim($_SESSION['role'])) === 'admin') {
+        $role = strtolower(trim($_SESSION['role'] ?? ''));
+
+        // Admin & Management get access to everything across all stations and lines
+        if ($role === 'admin' || $role === 'management' || strpos($role, 'management') !== false) {
             return "";
         }
 
         $sql = "";
-        
+
+        // Check for dynamic multi-section supervisor access (allowed_sections)
+        $allowedSectionsStr = $_SESSION['allowed_sections'] ?? '';
+        if (!empty($allowedSectionsStr)) {
+            $secArray = array_map('trim', explode(',', $allowedSectionsStr));
+            $secArray = array_filter($secArray);
+            if (!empty($secArray)) {
+                $escapedSecs = array_map(function($s) {
+                    return "'" . addslashes(strtoupper($s)) . "'";
+                }, $secArray);
+                $sql .= " AND UPPER($sectionField) IN (" . implode(',', $escapedSecs) . ") ";
+            }
+        } else if (!empty($_SESSION['section_name'])) {
+            $sql .= " AND UPPER($sectionField) = UPPER('" . addslashes($_SESSION['section_name']) . "') ";
+        }
+
         // Filter by Line if assigned
         if (!empty($_SESSION['line_name'])) {
             $sql .= " AND UPPER($lineField) = UPPER('" . addslashes($_SESSION['line_name']) . "') ";
-        }
-        
-        // Filter by Section if assigned
-        if (!empty($_SESSION['section_name'])) {
-            $sql .= " AND UPPER($sectionField) = UPPER('" . addslashes($_SESSION['section_name']) . "') ";
         }
         
         return $sql;

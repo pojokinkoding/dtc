@@ -230,10 +230,23 @@ $(document).ready(function () {
     function loadMissingCounts() {
         let line = $('#filter-line').val() || '';
         let section = $('#filter-section').val() || '';
+        let reqData = { line: line, section: section };
+
+        if (typeof activeModelFilter !== 'undefined' && activeModelFilter) {
+            reqData.model = activeModelFilter.model || '';
+            if (activeModelFilter.line) reqData.line = activeModelFilter.line;
+            if (activeModelFilter.section) reqData.section = activeModelFilter.section;
+        } else if (typeof runningModelsList !== 'undefined' && runningModelsList && runningModelsList.length > 0) {
+            let rMods = runningModelsList.map(m => m.model_name).filter(Boolean);
+            if (rMods.length > 0) {
+                reqData.running_models = rMods.join(',');
+            }
+        }
+
         $.ajax({
             url: 'Script/php/dtc/c_missing_data_daily.php',
             type: 'GET',
-            data: { line: line, section: section },
+            data: reqData,
             dataType: 'json',
             success: function (res) {
                 if (res.status === 'success') {
@@ -255,12 +268,38 @@ $(document).ready(function () {
     }
 
     function updateTabCounts() {
-        let counts = window.missingCounts || { 'All': 0, 'CTQ': 0, 'CTP': 0, 'Time Check': 0, 'F/Proof': 0 };
+        let counts = Object.assign({}, window.missingCounts || { 'All': 0, 'CTQ': 0, 'CTP': 0, 'Time Check': 0, 'F/Proof': 0 });
+
+        // Calculate/sync counts directly from loaded DataTable rows if present
+        if (typeof table !== 'undefined' && table && table.rows) {
+            let tableData = table.rows({ search: 'applied' }).data();
+            if (tableData && tableData.length > 0) {
+                let dtCounts = { 'All': 0, 'CTQ': 0, 'CTP': 0, 'Time Check': 0, 'F/Proof': 0 };
+                let hasOverdue = false;
+                for (let i = 0; i < tableData.length; i++) {
+                    let row = tableData[i];
+                    let overdue = parseInt(row.overdue_today_count || 0);
+                    if (overdue > 0) {
+                        hasOverdue = true;
+                        dtCounts['All'] += overdue;
+                        let type = (row.data_type || '').trim().toUpperCase();
+                        if (type === 'CTQ') dtCounts['CTQ'] += overdue;
+                        else if (type === 'CTP') dtCounts['CTP'] += overdue;
+                        else if (type === 'TIME CHECK') dtCounts['Time Check'] += overdue;
+                        else if (type === 'F/PROOF') dtCounts['F/Proof'] += overdue;
+                    }
+                }
+                if (hasOverdue) {
+                    counts = dtCounts;
+                }
+            }
+        }
 
         $('.filter-tab-btn').each(function () {
-            let filter = $(this).data('filter') || 'All';
-            let count = counts[filter] || 0;
-            let text = filter === '' ? 'All' : filter;
+            let filter = $(this).data('filter');
+            let key = (filter === '' || filter === null || filter === undefined) ? 'All' : filter;
+            let count = counts[key] || 0;
+            let text = (filter === '' || filter === null || filter === undefined) ? 'All' : filter;
 
             if (count > 0) {
                 $(this).addClass('has-notif');
@@ -381,7 +420,8 @@ $(document).ready(function () {
                     // Redraw table with updated running model filter
                     if (table) table.draw();
 
-                    // Refresh summary ticker with new running models
+                    // Refresh missing counts & summary ticker with new running models
+                    loadMissingCounts();
                     if (typeof window.reloadDTCSummaryTicker === 'function') {
                         window.reloadDTCSummaryTicker();
                     }
@@ -418,6 +458,7 @@ $(document).ready(function () {
             $('#btn-open-ctp-matrix').show();
         }
         if (table) table.draw();
+        loadMissingCounts();
     });
 
     $('#btn-open-ctp-matrix').on('click', function () {

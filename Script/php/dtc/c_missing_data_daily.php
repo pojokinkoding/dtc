@@ -50,9 +50,11 @@ try {
     $activeRMs = $stmtRM->fetchAll(PDO::FETCH_ASSOC);
 
     $runningSet = [];
+    $runningModels = [];
     foreach ($activeRMs as $rm) {
         $k = strtolower(trim($rm['line_name'])) . '|' . strtolower(trim($rm['section_name'])) . '|' . strtolower(trim($rm['model_name']));
         $runningSet[$k] = true;
+        $runningModels[strtolower(trim($rm['model_name']))] = true;
     }
 
     // 1. Fetch all active parameters for the month filtered by IP & User Section
@@ -140,6 +142,9 @@ try {
     $data = [];
     $counts = ['All' => 0, 'CTQ' => 0, 'CTP' => 0, 'Time Check' => 0, 'F/Proof' => 0];
 
+    $model_filter = isset($_GET['model']) ? trim($_GET['model']) : '';
+    $running_models_param = isset($_GET['running_models']) ? trim($_GET['running_models']) : '';
+
     foreach ($parameters as $param) {
         $pid = $param['parameter_id'];
         $line_name = $param['line_name'] ?? '';
@@ -154,10 +159,20 @@ try {
             continue;
         }
 
-        // If running models exist for this month/section/line, filter out non-running models
-        if (!empty($runningSet)) {
+        // Filter by Model if explicitly passed
+        if (!empty($model_filter) && strtolower(trim($model_name)) !== strtolower(trim($model_filter))) {
+            continue;
+        }
+
+        if (!empty($running_models_param)) {
+            $rArr = array_map('strtolower', array_map('trim', explode(',', $running_models_param)));
+            if (!in_array(strtolower(trim($model_name)), $rArr)) {
+                continue;
+            }
+        } else if (!empty($runningSet)) {
             $k = strtolower(trim($line_name)) . '|' . strtolower(trim($section_name)) . '|' . strtolower(trim($model_name));
-            if (!isset($runningSet[$k])) {
+            $mKey = strtolower(trim($model_name));
+            if (!isset($runningSet[$k]) && !isset($runningModels[$mKey])) {
                 continue;
             }
         }
@@ -200,7 +215,7 @@ try {
         // Ensure we provide labels up to param_allowed_slots
         $row['time_labels'] = array_slice($current_line_labels, 0, $param_allowed_slots);
 
-        $hasMissingSlot = false;
+        $overdueCount = 0;
 
         // Loop through the max slots
         for ($seq = 1; $seq <= $global_max_slots; $seq++) {
@@ -215,7 +230,7 @@ try {
                 $isPast = ($date < $todayStr) || ($date == $todayStr && isSlotPast($slotTime, $nowH, $nowM));
                 if ($isPast) {
                     $status = 0; // Missing (slot time has already passed)
-                    $hasMissingSlot = true;
+                    $overdueCount++;
                 } else if ($is_weekend) {
                     $status = 3; // Weekend future slot
                 } else {
@@ -227,13 +242,13 @@ try {
         
         $data[] = $row;
 
-        if ($hasMissingSlot) {
-            $counts['All']++;
+        if ($overdueCount > 0) {
+            $counts['All'] += $overdueCount;
             $type = strtoupper(trim($param['data_type'] ?? ''));
-            if ($type === 'CTQ') $counts['CTQ']++;
-            else if ($type === 'CTP') $counts['CTP']++;
-            else if ($type === 'TIME CHECK') $counts['Time Check']++;
-            else if ($type === 'F/PROOF') $counts['F/Proof']++;
+            if ($type === 'CTQ') $counts['CTQ'] += $overdueCount;
+            else if ($type === 'CTP') $counts['CTP'] += $overdueCount;
+            else if ($type === 'TIME CHECK') $counts['Time Check'] += $overdueCount;
+            else if ($type === 'F/PROOF') $counts['F/Proof'] += $overdueCount;
         }
     }
     

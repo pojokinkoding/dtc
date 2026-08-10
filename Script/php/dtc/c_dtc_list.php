@@ -62,11 +62,19 @@ try {
 
     $running_models = trim($_GET['running_models'] ?? '');
     if (!empty($running_models)) {
-        $models_arr = array_map('trim', explode(',', $running_models));
+        $models_arr = json_decode($running_models, true);
+        if (!is_array($models_arr)) {
+            if (strpos($running_models, '||') !== false) {
+                $models_arr = explode('||', $running_models);
+            } else {
+                $models_arr = explode(',', $running_models);
+            }
+        }
+        $models_arr = array_map('trim', $models_arr);
         $models_arr = array_filter($models_arr);
         if (!empty($models_arr)) {
             $in_placeholders = [];
-            foreach ($models_arr as $idx => $m_val) {
+            foreach (array_values($models_arr) as $idx => $m_val) {
                 $ph = ':rmod_' . $idx;
                 $in_placeholders[] = $ph;
                 $queryParams[$ph] = $m_val;

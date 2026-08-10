@@ -165,7 +165,15 @@ try {
         }
 
         if (!empty($running_models_param)) {
-            $rArr = array_map('strtolower', array_map('trim', explode(',', $running_models_param)));
+            $rArr = json_decode($running_models_param, true);
+            if (!is_array($rArr)) {
+                if (strpos($running_models_param, '||') !== false) {
+                    $rArr = explode('||', $running_models_param);
+                } else {
+                    $rArr = explode(',', $running_models_param);
+                }
+            }
+            $rArr = array_map('strtolower', array_map('trim', $rArr));
             if (!in_array(strtolower(trim($model_name)), $rArr)) {
                 continue;
             }
@@ -243,12 +251,12 @@ try {
         $data[] = $row;
 
         if ($overdueCount > 0) {
-            $counts['All'] += $overdueCount;
+            $counts['All']++;
             $type = strtoupper(trim($param['data_type'] ?? ''));
-            if ($type === 'CTQ') $counts['CTQ'] += $overdueCount;
-            else if ($type === 'CTP') $counts['CTP'] += $overdueCount;
-            else if ($type === 'TIME CHECK') $counts['Time Check'] += $overdueCount;
-            else if ($type === 'F/PROOF') $counts['F/Proof'] += $overdueCount;
+            if ($type === 'CTQ') $counts['CTQ']++;
+            else if ($type === 'CTP') $counts['CTP']++;
+            else if ($type === 'TIME CHECK') $counts['Time Check']++;
+            else if ($type === 'F/PROOF') $counts['F/Proof']++;
         }
     }
     

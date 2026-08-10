@@ -23,7 +23,7 @@ $(document).ready(function () {
                 } else if (typeof runningModelsList !== 'undefined' && runningModelsList && runningModelsList.length > 0) {
                     let rMods = runningModelsList.map(m => m.model_name).filter(Boolean);
                     if (rMods.length > 0) {
-                        d.running_models = rMods.join(',');
+                        d.running_models = JSON.stringify(rMods);
                     }
                 }
             }
@@ -239,7 +239,7 @@ $(document).ready(function () {
         } else if (typeof runningModelsList !== 'undefined' && runningModelsList && runningModelsList.length > 0) {
             let rMods = runningModelsList.map(m => m.model_name).filter(Boolean);
             if (rMods.length > 0) {
-                reqData.running_models = rMods.join(',');
+                reqData.running_models = JSON.stringify(rMods);
             }
         }
 
@@ -281,12 +281,12 @@ $(document).ready(function () {
                     let overdue = parseInt(row.overdue_today_count || 0);
                     if (overdue > 0) {
                         hasOverdue = true;
-                        dtCounts['All'] += overdue;
+                        dtCounts['All']++;
                         let type = (row.data_type || '').trim().toUpperCase();
-                        if (type === 'CTQ') dtCounts['CTQ'] += overdue;
-                        else if (type === 'CTP') dtCounts['CTP'] += overdue;
-                        else if (type === 'TIME CHECK') dtCounts['Time Check'] += overdue;
-                        else if (type === 'F/PROOF') dtCounts['F/Proof'] += overdue;
+                        if (type === 'CTQ') dtCounts['CTQ']++;
+                        else if (type === 'CTP') dtCounts['CTP']++;
+                        else if (type === 'TIME CHECK') dtCounts['Time Check']++;
+                        else if (type === 'F/PROOF') dtCounts['F/Proof']++;
                     }
                 }
                 if (hasOverdue) {

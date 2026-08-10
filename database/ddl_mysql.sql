@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS dtc_users (
     profile_picture VARCHAR(255) DEFAULT NULL,
     line_name VARCHAR(50) DEFAULT NULL,
     section_name VARCHAR(50) DEFAULT NULL,
+    allowed_sections TEXT DEFAULT NULL, -- Comma-separated sections untuk akses multi-section Supervisor (contoh: PRE CASE,PU CASE)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );

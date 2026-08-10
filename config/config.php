@@ -6,7 +6,7 @@ date_default_timezone_set('Asia/Jakarta');
 
 // Database Configuration
 define('DB_HOST', 'localhost');
-define('DB_USER', 'root');
+define('DB_USER', 'user');
 define('DB_PASS', 'root');
 define('DB_NAME', 'dtc_v1');
 

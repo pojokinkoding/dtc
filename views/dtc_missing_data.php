@@ -1,6 +1,11 @@
 <?php
 // dtc_missing_data.php
 // Missing Data Tracker - Monitoring Control Center
+$currentUserRole = strtolower(trim($_SESSION['role'] ?? ''));
+if ($currentUserRole !== 'admin' && strpos($currentUserRole, 'supervisor') === false) {
+    echo "<script>alert('Unauthorized access.'); window.location.href='index.php?page=dtc';</script>";
+    exit;
+}
 ?>
 
 <style>

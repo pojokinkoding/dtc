@@ -10,11 +10,16 @@
                     <i class="fa-solid fa-list-check"></i> <span>DTC List</span>
                 </a>
             </li>
+            <?php 
+            $currentUserRole = strtolower(trim($_SESSION['role'] ?? ''));
+            if ($currentUserRole === 'admin' || strpos($currentUserRole, 'supervisor') !== false): 
+            ?>
             <li>
                 <a href="index.php?page=missing_data" class="<?php echo ($page == 'missing_data') ? 'active' : ''; ?>">
                     <i class="fa-solid fa-border-none"></i> <span>Data Monitoring</span>
                 </a>
             </li>
+            <?php endif; ?>
             <li>
                 <a href="index.php?page=dtc_history" class="<?php echo ($page == 'dtc_history') ? 'active' : ''; ?>">
                     <i class="fa-solid fa-clock-rotate-left"></i> <span>DTC History</span>

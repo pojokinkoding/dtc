@@ -176,7 +176,10 @@ $(document).ready(function () {
 
             summaryMap[key].total_parameters++;
 
-            for (let i = 1; i <= daysUpToToday; i++) {
+            let startDay = isCurrentMonth ? todayDay : 1;
+            let endDay = isCurrentMonth ? todayDay : daysUpToToday;
+
+            for (let i = startDay; i <= endDay; i++) {
                 let status = param[`day_${i}`];
                 if (status === 3) continue; // Skip Weekend
 
@@ -195,13 +198,13 @@ $(document).ready(function () {
                     totalUnclosedSessionsAll++;
                 }
 
-                let slotsPerDay = param.slots_per_day || 10;
+                let slotsPerDay = (isCurrentMonth && param.expected_slots_today !== undefined) ? param.expected_slots_today : (param.slots_per_day || 10);
                 summaryMap[key].total_expected_slots += slotsPerDay;
                 totalExpectedSlotsAll += slotsPerDay;
 
                 // Overdue slots occur if NOT closed
                 if (!isClosed) {
-                    let missingSlotsCount = (param[`day_${i}_missing_slots`] !== undefined) ? param[`day_${i}_missing_slots`] : (status === 0 ? slotsPerDay : 1);
+                    let missingSlotsCount = (isCurrentMonth && param.overdue_slots_today !== undefined) ? param.overdue_slots_today : ((param[`day_${i}_missing_slots`] !== undefined) ? param[`day_${i}_missing_slots`] : (status === 0 ? slotsPerDay : 1));
 
                     if (missingSlotsCount > 0) {
                         if (isCurrentMonth && i < todayDay) {
@@ -213,20 +216,8 @@ $(document).ready(function () {
                             summaryMap[key].overdue_slots += missingSlotsCount;
                             totalOverdueSlotsAll += missingSlotsCount;
                         } else if (isCurrentMonth && i === todayDay) {
-                            // Today (operational day): check if target slot time has passed
-                            let timeLabel = param[`day_${i}_label`] || '07:30';
-                            let dateParam = `${rawApiResponse.month}-${String(i).padStart(2, '0')}`;
-                            let timeParts = timeLabel.match(/^(\d{1,2}):(\d{2})$/);
-                            if (timeParts) {
-                                let targetDateTime = new Date(`${dateParam}T${timeParts[1].padStart(2, '0')}:${timeParts[2]}:00`);
-                                if (!isNaN(targetDateTime.getTime()) && targetDateTime < now) {
-                                    summaryMap[key].overdue_slots += missingSlotsCount;
-                                    totalOverdueSlotsAll += missingSlotsCount;
-                                }
-                            } else {
-                                summaryMap[key].overdue_slots += missingSlotsCount;
-                                totalOverdueSlotsAll += missingSlotsCount;
-                            }
+                            summaryMap[key].overdue_slots += missingSlotsCount;
+                            totalOverdueSlotsAll += missingSlotsCount;
                         }
                     }
                 }
@@ -393,8 +384,8 @@ $(document).ready(function () {
 
         let currentMonth = new Date().toISOString().slice(0, 7);
         if (month === currentMonth) {
-            $('#active-day-badge').text(`Up to Day ${daysUpToToday}`).show();
-            $('#header-scope-label').text(`Monitoring unclosed sessions & overdue input percentage per Section per Line (Calculated up to Day ${daysUpToToday})`);
+            $('#active-day-badge').text(`Shift Hari Ini`).show();
+            $('#header-scope-label').text(`Monitoring unclosed sessions & overdue input percentage per Section per Line (Shift Hari Ini Fokus)`);
         } else {
             $('#active-day-badge').text(`Full Month (${daysCount} Days)`).show();
             $('#header-scope-label').text(`Monitoring unclosed sessions & overdue input percentage per Section per Line (Full Month Audit)`);
@@ -633,6 +624,13 @@ $(document).ready(function () {
                 let lineTagBg = isRef01 ? 'rgba(59, 130, 246, 0.2)' : 'rgba(6, 182, 212, 0.2)';
                 let lineTagBorder = isRef01 ? 'rgba(59, 130, 246, 0.35)' : 'rgba(6, 182, 212, 0.35)';
 
+                let secKeyMap = (item.line_name || '') + '___' + (item.section_name || '');
+                let modelsSet = sectionModelsMap[secKeyMap] || new Set();
+                let modelList = Array.from(modelsSet);
+                let modelCount = modelList.length;
+                let modelDisplay = modelCount === 1 ? modelList[0] : (modelCount > 0 ? `${modelCount} Models` : '-');
+                let modelTooltip = modelList.length > 0 ? `Active Running Models: ${modelList.join(', ')}` : 'No active running models';
+
                 html += `
                 <div class="section-card-clickable ${tileClass}" data-line="${item.line_name}" data-section="${item.section_name}" title="Klik untuk lihat data ${item.line_name} - ${item.section_name} di DTC List" style="background: rgba(15, 23, 42, 0.95); border: ${tileBorder}; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 6px 20px rgba(0,0,0,0.5); position: relative; overflow: hidden; animation: fadeIn 0.4s ease; cursor: pointer;">
                     <!-- Top Section Card Header (Line Badge & Actions) -->
@@ -677,10 +675,10 @@ $(document).ready(function () {
                             <div style="font-size: 22px; font-weight: 900; color: #fbbf24; margin-top: 1px; line-height: 1; letter-spacing: -0.5px;">${item.pct_unclosed}%</div>
                             <div style="font-size: 11px; color: #cbd5e1; font-weight: 800; margin-top: 2px;">${item.unclosed_sessions}/${item.total_expected_sessions} sess</div>
                         </div>
-                        <div style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); padding: 6px 4px; border-radius: 6px; text-align: center;">
-                            <div style="font-size: 10px; color: #60a5fa; font-weight: 900; text-transform: uppercase; letter-spacing: 0.3px;">MODEL</div>
-                            <div style="font-size: 22px; font-weight: 900; color: #60a5fa; margin-top: 1px; line-height: 1; letter-spacing: -0.5px;">${item.total_parameters}</div>
-                            <div style="font-size: 11px; color: #cbd5e1; font-weight: 800; margin-top: 2px;">Monitored</div>
+                        <div style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); padding: 6px 4px; border-radius: 6px; text-align: center;" title="${modelTooltip}">
+                            <div style="font-size: 10px; color: #60a5fa; font-weight: 900; text-transform: uppercase; letter-spacing: 0.3px;">RUNNING MODEL</div>
+                            <div style="font-size: ${modelCount === 1 && modelDisplay.length > 10 ? '14px' : (modelCount === 1 ? '16px' : '20px')}; font-weight: 900; color: #60a5fa; margin-top: 1px; line-height: 1.2; letter-spacing: -0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${modelTooltip}">${modelDisplay}</div>
+                            <div style="font-size: 10px; color: #cbd5e1; font-weight: 800; margin-top: 2px;">${item.total_parameters} Params</div>
                         </div>
                     </div>
                 </div>`;

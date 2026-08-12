@@ -3,6 +3,15 @@
 require_once '../../../config/config.php';
 header('Content-Type: application/json');
 
+$userRole = strtolower(trim($_SESSION['role'] ?? ''));
+if ($userRole !== 'admin' && strpos($userRole, 'supervisor') === false) {
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Unauthorized access. Data Monitoring is restricted to Supervisor and Admin.'
+    ]);
+    exit;
+}
+
 $prodHour = (int)date('H');
 $prodToday = ($prodHour < 7) ? date('Y-m-d', strtotime('-1 day')) : date('Y-m-d');
 
@@ -45,9 +54,17 @@ try {
     $activeRMs = $stmtRM->fetchAll(PDO::FETCH_ASSOC);
 
     $runningSet = [];
+    $sectionHasRunning = [];
     foreach ($activeRMs as $rm) {
-        $k = strtolower(trim($rm['line_name'])) . '|' . strtolower(trim($rm['section_name'])) . '|' . strtolower(trim($rm['model_name']));
+        $lName = strtolower(trim($rm['line_name']));
+        $sName = strtolower(trim($rm['section_name']));
+        $mName = strtolower(trim($rm['model_name']));
+        
+        $k = $lName . '|' . $sName . '|' . $mName;
         $runningSet[$k] = true;
+        
+        $secKey = $lName . '|' . $sName;
+        $sectionHasRunning[$secKey] = true;
     }
 
     // 1. Fetch parameters for target month filtered by User & IP access
@@ -127,9 +144,11 @@ try {
         $section_name = $param['section_name'] ?? '';
         $model_name = $param['model_name'] ?? '';
 
-        // Filter out non-running models if active running models exist
-        if (!empty($runningSet)) {
-            $k = strtolower(trim($line_name)) . '|' . strtolower(trim($section_name)) . '|' . strtolower(trim($model_name));
+        $secKey = strtolower(trim($line_name)) . '|' . strtolower(trim($section_name));
+        $k = $secKey . '|' . strtolower(trim($model_name));
+
+        // Filter out non-running models if active running models exist for this section
+        if (!empty($sectionHasRunning[$secKey])) {
             if (!isset($runningSet[$k])) {
                 continue;
             }
@@ -142,8 +161,7 @@ try {
         }
 
         $current_line_labels = $line_labels[$line_name] ?? $default_labels;
-        $param_max_seq = intval($param['max_seq']);
-        $param_allowed_slots = ($param_max_seq > 0) ? $param_max_seq : count($current_line_labels);
+        $param_allowed_slots = count($current_line_labels);
 
         $is_closed = 0;
         $filled = [];

@@ -2,6 +2,20 @@
 // c_missing_data_monthly_report.php - Monthly Station Performance Reporting & Excel Export
 require_once '../../../config/config.php';
 
+$userRole = strtolower(trim($_SESSION['role'] ?? ''));
+if ($userRole !== 'admin' && strpos($userRole, 'supervisor') === false) {
+    $format = isset($_GET['format']) ? strtolower(trim($_GET['format'])) : (isset($_GET['export']) && $_GET['export'] === 'excel' ? 'excel' : 'json');
+    if ($format === 'excel') {
+        die("Unauthorized access. Data Monitoring reports are restricted to Supervisor and Admin.");
+    }
+    header('Content-Type: application/json');
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Unauthorized access. Data Monitoring is restricted to Supervisor and Admin.'
+    ]);
+    exit;
+}
+
 $month = isset($_GET['month']) ? $_GET['month'] : date('Y-m');
 $targetSection = isset($_GET['section_name']) ? trim($_GET['section_name']) : '';
 $targetLine = isset($_GET['line_name']) ? trim($_GET['line_name']) : '';
@@ -10,6 +24,32 @@ $format = isset($_GET['format']) ? strtolower(trim($_GET['format'])) : (isset($_
 try {
     $conn = getDBConnection();
     
+    // 0. Fetch active running models for target month
+    $sqlRM = "
+        SELECT line_name, section_name, model_name 
+        FROM dtc_running_models 
+        WHERE target_month = :month AND is_active = 1
+        " . getIPAccessFilterSQL('line_name', 'section_name') . "
+        " . getUserAccessFilterSQL('line_name', 'section_name') . "
+    ";
+    $stmtRM = $conn->prepare($sqlRM);
+    $stmtRM->execute([':month' => $month]);
+    $activeRMs = $stmtRM->fetchAll(PDO::FETCH_ASSOC);
+
+    $runningSet = [];
+    $sectionHasRunning = [];
+    foreach ($activeRMs as $rm) {
+        $lName = strtolower(trim($rm['line_name']));
+        $sName = strtolower(trim($rm['section_name']));
+        $mName = strtolower(trim($rm['model_name']));
+        
+        $k = $lName . '|' . $sName . '|' . $mName;
+        $runningSet[$k] = true;
+        
+        $secKey = $lName . '|' . $sName;
+        $sectionHasRunning[$secKey] = true;
+    }
+
     // Build SQL query for active parameters in target month
     $sqlParams = "
         SELECT p.parameter_id, p.target_month,
@@ -96,6 +136,17 @@ try {
         $pid = $param['parameter_id'];
         $line_name = $param['line_name'] ?? 'REF 01';
         $section_name = $param['section_name'] ?? 'GENERAL';
+        $model_name = $param['model_name'] ?? '';
+
+        $sKey = strtolower(trim($line_name)) . '|' . strtolower(trim($section_name));
+        $kKey = $sKey . '|' . strtolower(trim($model_name));
+
+        if (!empty($sectionHasRunning[$sKey])) {
+            if (!isset($runningSet[$kKey])) {
+                continue;
+            }
+        }
+
         $secKey = $line_name . '___' . $section_name;
 
         if (!isset($sectionData[$secKey])) {
@@ -111,8 +162,7 @@ try {
         $sectionData[$secKey]['total_parameters']++;
 
         $current_line_labels = $line_labels[$line_name] ?? $default_labels;
-        $param_max_seq = intval($param['max_seq']);
-        $slots_per_day = ($param_max_seq > 0) ? $param_max_seq : count($current_line_labels);
+        $slots_per_day = count($current_line_labels);
 
         for ($d = 1; $d <= $daysInMonth; $d++) {
             $dateStr = $month . '-' . str_pad($d, 2, '0', STR_PAD_LEFT);

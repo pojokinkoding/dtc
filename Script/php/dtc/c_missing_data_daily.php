@@ -51,10 +51,18 @@ try {
 
     $runningSet = [];
     $runningModels = [];
+    $sectionHasRunning = [];
     foreach ($activeRMs as $rm) {
-        $k = strtolower(trim($rm['line_name'])) . '|' . strtolower(trim($rm['section_name'])) . '|' . strtolower(trim($rm['model_name']));
+        $lName = strtolower(trim($rm['line_name']));
+        $sName = strtolower(trim($rm['section_name']));
+        $mName = strtolower(trim($rm['model_name']));
+        
+        $k = $lName . '|' . $sName . '|' . $mName;
         $runningSet[$k] = true;
-        $runningModels[strtolower(trim($rm['model_name']))] = true;
+        $runningModels[$mName] = true;
+        
+        $secKey = $lName . '|' . $sName;
+        $sectionHasRunning[$secKey] = true;
     }
 
     // 1. Fetch all active parameters for the month filtered by IP & User Section
@@ -177,11 +185,14 @@ try {
             if (!in_array(strtolower(trim($model_name)), $rArr)) {
                 continue;
             }
-        } else if (!empty($runningSet)) {
-            $k = strtolower(trim($line_name)) . '|' . strtolower(trim($section_name)) . '|' . strtolower(trim($model_name));
-            $mKey = strtolower(trim($model_name));
-            if (!isset($runningSet[$k]) && !isset($runningModels[$mKey])) {
-                continue;
+        } else {
+            $secKey = strtolower(trim($line_name)) . '|' . strtolower(trim($section_name));
+            if (!empty($sectionHasRunning[$secKey])) {
+                $k = $secKey . '|' . strtolower(trim($model_name));
+                $mKey = strtolower(trim($model_name));
+                if (!isset($runningSet[$k]) && !isset($runningModels[$mKey])) {
+                    continue;
+                }
             }
         }
 
@@ -216,9 +227,7 @@ try {
         }
 
         $current_line_labels = $line_labels[$line_name] ?? $default_labels;
-        
-        $param_max_seq = intval($param['max_seq']);
-        $param_allowed_slots = ($param_max_seq > 0) ? $param_max_seq : count($current_line_labels);
+        $param_allowed_slots = count($current_line_labels);
         
         // Ensure we provide labels up to param_allowed_slots
         $row['time_labels'] = array_slice($current_line_labels, 0, $param_allowed_slots);

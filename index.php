@@ -20,7 +20,12 @@ switch ($page) {
         require_once 'views/dtc_list.php';
         break;
     case 'missing_data':
-        require_once 'views/dtc_missing_data.php';
+        $currentUserRole = strtolower(trim($_SESSION['role'] ?? ''));
+        if ($currentUserRole === 'admin' || strpos($currentUserRole, 'supervisor') !== false) {
+            require_once 'views/dtc_missing_data.php';
+        } else {
+            echo "<script>alert('Unauthorized access.'); window.location.href='index.php?page=dtc';</script>";
+        }
         break;
     case 'dtc_history':
         require_once 'views/dtc_history.php';

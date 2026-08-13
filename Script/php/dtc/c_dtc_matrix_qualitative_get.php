@@ -21,45 +21,62 @@ if (empty($model) || empty($line) || empty($section) || empty($month)) {
 try {
     $conn = getDBConnection();
     
-    // 1. Find the matching parameter(s) for this model/line/section/month that are Qualitative or Time Check / F/Proof
-    $where_param = "";
-    $exec_params = [
-        ':month' => $month,
-        ':model' => $model,
-        ':line' => $line,
-        ':section' => $section
-    ];
-
+    // 1. Find the matching parameter(s)
+    $parameters = [];
     if (!empty($param_id)) {
-        $where_param = " AND p.parameter_id = :param_id ";
-        $exec_params[':param_id'] = $param_id;
+        $sql_params = "
+            SELECT p.parameter_id, 
+                   COALESCE(p.item_check_name, spec.item_check_name) as item_check_name,
+                   COALESCE(p.data_type, spec.data_type) as data_type,
+                   COALESCE(p.measuring_item, spec.measuring_item) as measuring_item,
+                   COALESCE(p.lsl, spec.lsl) as lsl,
+                   COALESCE(p.usl, spec.usl) as usl,
+                   COALESCE(p.target_value, spec.target_value) as target_value,
+                   COALESCE(p.line_name, spec.line_name) as line_name,
+                   COALESCE(p.process_name, spec.process_name) as process_name,
+                   COALESCE(p.model_name, spec.model_name) as model_name,
+                   COALESCE(p.section_name, spec.section_name) as section_name
+            FROM dtc_master_parameters p
+            LEFT JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id
+            WHERE p.parameter_id = :param_id
+              AND UPPER(COALESCE(p.data_type, spec.data_type)) IN ('TIME CHECK', 'F/PROOF')
+        ";
+        $stmt = $conn->prepare($sql_params);
+        $stmt->execute([':param_id' => $param_id]);
+        $parameters = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    $sql_params = "
-        SELECT p.parameter_id, 
-               COALESCE(p.item_check_name, spec.item_check_name) as item_check_name,
-               COALESCE(p.data_type, spec.data_type) as data_type,
-               COALESCE(p.measuring_item, spec.measuring_item) as measuring_item,
-               COALESCE(p.lsl, spec.lsl) as lsl,
-               COALESCE(p.usl, spec.usl) as usl,
-               COALESCE(p.target_value, spec.target_value) as target_value,
-               COALESCE(p.line_name, spec.line_name) as line_name,
-               COALESCE(p.process_name, spec.process_name) as process_name
-        FROM dtc_master_parameters p
-        LEFT JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id
-        WHERE p.target_month = :month
-          AND COALESCE(p.model_name, spec.model_name) = :model
-          AND COALESCE(p.line_name, spec.line_name) = :line
-          AND COALESCE(p.section_name, spec.section_name) = :section
-          {$where_param}
-          AND UPPER(COALESCE(p.data_type, spec.data_type)) IN ('TIME CHECK', 'F/PROOF')
-        ORDER BY p.parameter_id ASC
-    ";
-    
-    $stmt = $conn->prepare($sql_params);
-    $stmt->execute($exec_params);
-    
-    $parameters = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    if (empty($parameters)) {
+        $sql_params = "
+            SELECT p.parameter_id, 
+                   COALESCE(p.item_check_name, spec.item_check_name) as item_check_name,
+                   COALESCE(p.data_type, spec.data_type) as data_type,
+                   COALESCE(p.measuring_item, spec.measuring_item) as measuring_item,
+                   COALESCE(p.lsl, spec.lsl) as lsl,
+                   COALESCE(p.usl, spec.usl) as usl,
+                   COALESCE(p.target_value, spec.target_value) as target_value,
+                   COALESCE(p.line_name, spec.line_name) as line_name,
+                   COALESCE(p.process_name, spec.process_name) as process_name,
+                   COALESCE(p.model_name, spec.model_name) as model_name,
+                   COALESCE(p.section_name, spec.section_name) as section_name
+            FROM dtc_master_parameters p
+            LEFT JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id
+            WHERE p.target_month = :month
+              AND COALESCE(p.model_name, spec.model_name) = :model
+              AND COALESCE(p.line_name, spec.line_name) = :line
+              AND COALESCE(p.section_name, spec.section_name) = :section
+              AND UPPER(COALESCE(p.data_type, spec.data_type)) IN ('TIME CHECK', 'F/PROOF')
+            ORDER BY p.parameter_id ASC
+        ";
+        $stmt = $conn->prepare($sql_params);
+        $stmt->execute([
+            ':month' => $month,
+            ':model' => $model,
+            ':line' => $line,
+            ':section' => $section
+        ]);
+        $parameters = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
     
     if (empty($parameters)) {
         echo json_encode(['status' => 'success', 'data' => [], 'time_labels' => [], 'parameters' => []]);
@@ -265,12 +282,31 @@ function sortShiftTimeLabels($labels) {
         }
     }
 
+    $rm_created_at = null;
+    $stmtRM = $conn->prepare("
+        SELECT created_at FROM dtc_running_models 
+        WHERE target_month = :month 
+          AND UPPER(TRIM(line_name)) = UPPER(TRIM(:line)) 
+          AND UPPER(TRIM(section_name)) = UPPER(TRIM(:section)) 
+          AND UPPER(TRIM(model_name)) = UPPER(TRIM(:model)) 
+          AND is_active = 1 
+        ORDER BY created_at DESC LIMIT 1
+    ");
+    $stmtRM->execute([
+        ':month' => $month,
+        ':line' => $line_name,
+        ':section' => $section,
+        ':model' => $model
+    ]);
+    $rm_created_at = $stmtRM->fetchColumn() ?: null;
+
     echo json_encode([
         'status' => 'success',
         'days_in_month' => (int)$days_in_month,
         'time_labels' => $time_labels,
         'parameters' => $param_info,
         'closed_days' => $closed_days,
+        'running_model_created_at' => $rm_created_at,
         'data' => $result_data
     ]);
 

@@ -129,18 +129,6 @@ try {
         throw new Exception("Missing required fields (parameter_id, inspection_date).");
     }
     
-    // Validate that at least one measurement is provided
-    $has_data = false;
-    foreach ($sample_inputs as $val) {
-        if ($val !== '') {
-            $has_data = true;
-            break;
-        }
-    }
-    if (!$has_data) {
-        throw new Exception("Minimal harus ada satu data pengukuran yang diisi.");
-    }
-    
     // Get Specs via parameter_id
     $sql_spec = "SELECT spec.lsl, spec.usl 
                  FROM dtc_master_dtc_specs spec
@@ -154,15 +142,64 @@ try {
         throw new Exception("Spec not found for parameter.");
     }
     
-    // Block Saturday (6) and Sunday (0) logic removed per user request
-    
     $lsl = floatval($spec['lsl']);
     $usl = floatval($spec['usl']);
     
-    // Mathematical Calculations (Only for numeric samples)
+    if (!function_exists('isUnmeasuredValue')) {
+        function isUnmeasuredValue($val) {
+            return ($val === '' || $val === null);
+        }
+    }
+    
+    // Check if session exists
+    $sql_check = "SELECT session_id, is_closed FROM dtc_inspection_sessions 
+                  WHERE parameter_id = :param_id 
+                  AND DATE(inspection_date) = :idate";
+    $stmt_check = $conn->prepare($sql_check);
+    $stmt_check->execute([':param_id' => $param_id, ':idate' => $inspection_date]);
+    $existing = $stmt_check->fetch(PDO::FETCH_ASSOC);
+    
+    $isAdmin = (isset($_SESSION['role']) && strtolower(trim($_SESSION['role'])) === 'admin');
+    
+    // Check if at least one valid measurement is provided
+    $has_data = false;
+    foreach ($sample_inputs as $val) {
+        if (!isUnmeasuredValue($val)) {
+            $has_data = true;
+            break;
+        }
+    }
+    
+    // If no samples provided: Delete existing session if exists, or error if new
+    if (!$has_data) {
+        if ($existing) {
+            if ($existing['is_closed'] == 1 && !$isAdmin) {
+                throw new Exception("This measurement has been closed and cannot be edited.");
+            }
+            $conn->beginTransaction();
+            $stmt_del_m = $conn->prepare("DELETE FROM dtc_measurements WHERE session_id = :sid");
+            $stmt_del_m->execute([':sid' => $existing['session_id']]);
+            
+            $stmt_del_s = $conn->prepare("DELETE FROM dtc_inspection_sessions WHERE session_id = :sid");
+            $stmt_del_s->execute([':sid' => $existing['session_id']]);
+            
+            $conn->commit();
+            ob_clean();
+            echo json_encode(["status" => "success", "message" => "Data pengukuran pada tanggal $inspection_date berhasil dihapus (set to NULL)."]);
+            exit;
+        } else {
+            throw new Exception("Minimal harus ada satu data pengukuran yang diisi.");
+        }
+    }
+    
+    if ($existing && $existing['is_closed'] == 1 && !$isAdmin) {
+        throw new Exception("This measurement has been closed and cannot be edited.");
+    }
+    
+    // Mathematical Calculations (Only for valid numeric samples)
     $numeric_samples = [];
     foreach ($sample_inputs as $val) {
-        if ($val !== '' && is_numeric($val)) {
+        if (!isUnmeasuredValue($val) && is_numeric($val)) {
             $numeric_samples[] = floatval($val);
         }
     }
@@ -193,20 +230,6 @@ try {
         }
     }
     
-    // Check if session exists
-    $sql_check = "SELECT session_id, is_closed FROM dtc_inspection_sessions 
-                  WHERE parameter_id = :param_id 
-                  AND DATE(inspection_date) = :idate";
-    $stmt_check = $conn->prepare($sql_check);
-    $stmt_check->execute([':param_id' => $param_id, ':idate' => $inspection_date]);
-    $existing = $stmt_check->fetch(PDO::FETCH_ASSOC);
-    
-    $isAdmin = (isset($_SESSION['role']) && strtolower(trim($_SESSION['role'])) === 'admin');
-    
-    if ($existing && $existing['is_closed'] == 1 && !$isAdmin) {
-        throw new Exception("This measurement has been closed and cannot be edited.");
-    }
-    
     $conn->beginTransaction();
     
     if ($existing) {
@@ -224,7 +247,7 @@ try {
             ':sid' => $session_id
         ]);
         
-        // For Vertical Updates: Delete existing and re-insert
+        // For Vertical Updates: Delete existing and re-insert valid ones
         $stmt_del = $conn->prepare("DELETE FROM dtc_measurements WHERE session_id = :sid");
         $stmt_del->execute([':sid' => $session_id]);
         
@@ -234,7 +257,7 @@ try {
         
         $seq = 1;
         foreach ($sample_inputs as $key => $raw_val) {
-            if ($raw_val !== '') { // Only insert if not empty
+            if (!isUnmeasuredValue($raw_val)) {
                 $stmt_ins_m->execute([
                     ':sid' => $session_id,
                     ':seq' => $seq,
@@ -273,7 +296,7 @@ try {
         
         $seq = 1;
         foreach ($sample_inputs as $key => $raw_val) {
-            if ($raw_val !== '') {
+            if (!isUnmeasuredValue($raw_val)) {
                 $stmt_ins_m->execute([
                     ':sid' => $session_id,
                     ':seq' => $seq,

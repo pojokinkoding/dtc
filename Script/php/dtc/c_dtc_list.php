@@ -70,16 +70,36 @@ try {
                 $models_arr = explode(',', $running_models);
             }
         }
-        $models_arr = array_map('trim', $models_arr);
-        $models_arr = array_filter($models_arr);
-        if (!empty($models_arr)) {
-            $in_placeholders = [];
+        if (is_array($models_arr) && !empty($models_arr)) {
+            $orClauses = [];
             foreach (array_values($models_arr) as $idx => $m_val) {
-                $ph = ':rmod_' . $idx;
-                $in_placeholders[] = $ph;
-                $queryParams[$ph] = $m_val;
+                if (is_array($m_val)) {
+                    $mL = trim($m_val['line_name'] ?? '');
+                    $mS = trim($m_val['section_name'] ?? '');
+                    $mM = trim($m_val['model_name'] ?? '');
+                    $phM = ':rmod_m_' . $idx;
+                    $subCond = "(p.model_name = $phM OR spec.model_name = $phM)";
+                    $queryParams[$phM] = $mM;
+                    if (!empty($mL)) {
+                        $phL = ':rmod_l_' . $idx;
+                        $subCond .= " AND (p.line_name = $phL OR spec.line_name = $phL)";
+                        $queryParams[$phL] = $mL;
+                    }
+                    if (!empty($mS)) {
+                        $phS = ':rmod_s_' . $idx;
+                        $subCond .= " AND (p.section_name = $phS OR spec.section_name = $phS)";
+                        $queryParams[$phS] = $mS;
+                    }
+                    $orClauses[] = "(" . $subCond . ")";
+                } else if (is_string($m_val) && trim($m_val) !== '') {
+                    $phM = ':rmod_m_' . $idx;
+                    $orClauses[] = "(p.model_name = $phM OR spec.model_name = $phM)";
+                    $queryParams[$phM] = trim($m_val);
+                }
             }
-            $wherePeriod .= " AND (p.model_name IN (" . implode(',', $in_placeholders) . ") OR spec.model_name IN (" . implode(',', $in_placeholders) . ")) ";
+            if (!empty($orClauses)) {
+                $wherePeriod .= " AND (" . implode(" OR ", $orClauses) . ") ";
+            }
         }
     }
 
@@ -219,6 +239,22 @@ try {
         }
     }
 
+    // Load active running models for today's month to get their created_at timestamps
+    $stmtRMList = $conn->prepare("
+        SELECT UPPER(TRIM(model_name)) as mname, UPPER(TRIM(line_name)) as lname, UPPER(TRIM(section_name)) as sname, created_at 
+        FROM dtc_running_models 
+        WHERE is_active = 1 AND target_month = :month
+    ");
+    $stmtRMList->execute([':month' => $currentMonth]);
+    $activeRMMap = [];
+    while ($rRM = $stmtRMList->fetch(PDO::FETCH_ASSOC)) {
+        $key = $rRM['mname'] . '|' . $rRM['lname'] . '|' . $rRM['sname'];
+        $activeRMMap[$key] = $rRM['created_at'];
+        if (!isset($activeRMMap[$rRM['mname']])) {
+            $activeRMMap[$rRM['mname']] = $rRM['created_at'];
+        }
+    }
+
     foreach ($results as &$row) {
         $row['monthly_zst'] = null;
         $row['monthly_zlt'] = null;
@@ -247,6 +283,14 @@ try {
         $pid = $row['parameter_id'];
         $measuringItem = strtolower(trim($row['measuring_item'] ?? 'quantitative'));
         $isQualitative = ($measuringItem === 'qualitative');
+
+        $mNameKey = strtoupper(trim($row['model_name'] ?? ''));
+        $lNameKey = strtoupper(trim($row['line_name'] ?? ''));
+        $sNameKey = strtoupper(trim($row['section_name'] ?? ''));
+        $comboKey = $mNameKey . '|' . $lNameKey . '|' . $sNameKey;
+
+        $rmCreatedAt = $activeRMMap[$comboKey] ?? ($activeRMMap[$mNameKey] ?? null);
+
         if ($isQualitative && !isset($paramsWithCheckpoints[$pid])) {
             // Qualitative param with no checkpoints yet — not overdue (nothing to fill yet)
             $row['overdue_today_count'] = 0;
@@ -254,9 +298,50 @@ try {
             $lineName = $row['line_name'] ?? '';
             $slots = isset($tLineLabels[$lineName]) ? $tLineLabels[$lineName] : $defaultSlots;
             $overdueCount = 0;
+
+            $createdMinsFrom7 = null;
+            if ($rmCreatedAt) {
+                $createdParts = explode(' ', trim($rmCreatedAt));
+                $cDate = $createdParts[0] ?? '';
+                $cTime = $createdParts[1] ?? '';
+                if ($cDate === $prodToday && !empty($cTime)) {
+                    $tp = explode(':', $cTime);
+                    $cH = (int)($tp[0] ?? 0);
+                    $cM = (int)($tp[1] ?? 0);
+                    if ($cH < 7) $cH += 24;
+                    $createdMinsFrom7 = $cH * 60 + $cM;
+                }
+            }
+
             foreach ($slots as $idx => $timeStr) {
                 $seq = $idx + 1;
                 if (isset($filledMap[$pid][$seq])) continue;
+
+                // Determine next slot start minutes to know when this slot's session window ended
+                $nextTimeStr = $slots[$idx + 1] ?? null;
+                $nextSlotMinsFrom7 = null;
+                if ($nextTimeStr) {
+                    $ntp = explode(':', trim($nextTimeStr));
+                    if (count($ntp) >= 2) {
+                        $nh = (int)$ntp[0];
+                        $nm = (int)$ntp[1];
+                        if ($nh >= 24) $nh -= 24;
+                        $nextSlotMinsFrom7 = ($nh < 7 ? $nh + 24 : $nh) * 60 + $nm;
+                    }
+                }
+                if (!$nextSlotMinsFrom7) {
+                    $stp = explode(':', trim($timeStr));
+                    $sh = (int)($stp[0] ?? 0);
+                    $sm = (int)($stp[1] ?? 0);
+                    if ($sh >= 24) $sh -= 24;
+                    $nextSlotMinsFrom7 = (($sh < 7 ? $sh + 24 : $sh) * 60 + $sm) + 120;
+                }
+
+                // If running model was created AFTER this slot's session window ended -> NOT OVERDUE!
+                if ($createdMinsFrom7 !== null && $createdMinsFrom7 >= $nextSlotMinsFrom7) {
+                    continue;
+                }
+
                 if (isSlotPast($timeStr, $nowH, $nowM)) {
                     $overdueCount++;
                 }

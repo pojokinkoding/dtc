@@ -75,12 +75,79 @@ try {
             WHERE p.parameter_id = :pid
         ");
         $stmt_spec->execute([':pid' => $param_id]);
-        $spec_info = $stmt_spec->fetch(PDO::FETCH_ASSOC);
+        // Check if active running model creation timestamp restricts earlier slots
+        $stmtPModel = $conn->prepare("
+            SELECT COALESCE(p.model_name, spec.model_name) as model_name
+            FROM dtc_master_parameters p
+            LEFT JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id
+            WHERE p.parameter_id = :pid
+        ");
+        $stmtPModel->execute([':pid' => $param_id]);
+        $pModelRow = $stmtPModel->fetch(PDO::FETCH_ASSOC);
+
+        $rmCreatedAt = null;
+        if ($pModelRow && !empty($pModelRow['model_name'])) {
+            $stmtRM = $conn->prepare("
+                SELECT created_at FROM dtc_running_models 
+                WHERE target_month = :month 
+                  AND UPPER(TRIM(model_name)) = UPPER(TRIM(:mname)) 
+                  AND is_active = 1 
+                LIMIT 1
+            ");
+            $stmtRM->execute([':month' => substr($date, 0, 7), ':mname' => $pModelRow['model_name']]);
+            $rmCreatedAt = $stmtRM->fetchColumn() ?: null;
+        }
+
+        $createdMinsFrom7 = null;
+        $cTimeDisplay = '';
+        if ($rmCreatedAt) {
+            $createdParts = explode(' ', trim($rmCreatedAt));
+            $cDate = $createdParts[0] ?? '';
+            $cTime = $createdParts[1] ?? '';
+
+            if ($cDate === $date && !empty($cTime)) {
+                $tp = explode(':', $cTime);
+                $cH = (int)($tp[0] ?? 0);
+                $cM = (int)($tp[1] ?? 0);
+                if ($cH < 7) $cH += 24;
+                $createdMinsFrom7 = $cH * 60 + $cM;
+                $cTimeDisplay = substr($cTime, 0, 5);
+            }
+        }
 
         $seq = 1;
-        $seq = 1;
         foreach ($samples_map as $lbl => $val) {
-            if ($val === '' || $val === null) continue;
+            if (isUnmeasuredValue($val)) continue;
+
+            // Validasi Slot Sebelum Waktu Naiknya Running Model
+            if ($createdMinsFrom7 !== null && preg_match('/^(\d{1,2})[:\.](\d{2})$/', $lbl, $sMatches)) {
+                $sH = (int)$sMatches[1];
+                $sM = (int)$sMatches[2];
+                if ($sH < 7) $sH += 24;
+                $slotMinsFrom7 = $sH * 60 + $sM;
+
+                $idxInLabels = array_search($lbl, $time_labels);
+                $nextSlotMinsFrom7 = null;
+                if ($idxInLabels !== false && isset($time_labels[$idxInLabels + 1])) {
+                    if (preg_match('/^(\d{1,2})[:\.](\d{2})$/', $time_labels[$idxInLabels + 1], $nMatches)) {
+                        $nH = (int)$nMatches[1];
+                        $nM = (int)$nMatches[2];
+                        if ($nH < 7) $nH += 24;
+                        $nextSlotMinsFrom7 = $nH * 60 + $nM;
+                    }
+                }
+                if (!$nextSlotMinsFrom7) {
+                    $nextSlotMinsFrom7 = $slotMinsFrom7 + 120;
+                }
+
+                if ($createdMinsFrom7 >= $nextSlotMinsFrom7 && !$is_admin) {
+                    echo json_encode([
+                        'status' => 'error',
+                        'message' => "Model '{$pModelRow['model_name']}' baru di-add pada jam {$cTimeDisplay}. Slot jam '{$lbl}' (sesi jam sebelumnya) tidak boleh diisi."
+                    ]);
+                    exit;
+                }
+            }
 
             // Validasi Future Time Slot (Berlaku untuk semua user termasuk Admin)
             if (preg_match('/^(\d{1,2}):(\d{2})$/', $lbl, $matches)) {

@@ -100,21 +100,19 @@ if (empty($model) || empty($line) || empty($section)) {
     }
     
     .cell-data {
-        cursor: pointer;
+        cursor: default;
         width: 32px;
         height: 28px;
         border-radius: 4px;
         display: flex;
         justify-content: center;
         align-items: center;
-        transition: all 0.15s;
         margin: 0 auto;
         font-size: 11px;
         font-weight: 600;
     }
     .cell-data:hover {
-        background: rgba(255,255,255,0.12);
-        transform: scale(1.1);
+        background: rgba(255,255,255,0.08);
     }
     .cell-ok {
         background: rgba(16, 185, 129, 0.2);
@@ -490,61 +488,75 @@ if (empty($model) || empty($line) || empty($section)) {
     </div>
 </div>
 
-<!-- Modal Add Checkpoint -->
+<!-- Modal Add Checkpoint (Multiple / Single Batch Creator) -->
 <div class="modal-overlay" id="modal-add-checkpoint">
-    <div class="modal-box">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h3 style="margin:0;"><i class="fa-solid fa-plus-circle" style="color:var(--accent);"></i> Add Check Point</h3>
-            <i class="fa-solid fa-times" id="btn-close-add-cp" style="color:var(--text-muted); cursor:pointer; font-size:18px;"></i>
+    <div class="modal-box" style="max-width: 960px; width: 95%; background: #1e293b; border-radius: 12px; padding: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px;">
+            <div style="display:flex; align-items:center; gap: 10px;">
+                <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.3); display:flex; align-items:center; justify-content:center;">
+                    <i class="fa-solid fa-layer-group" style="color:#38bdf8; font-size: 16px;"></i>
+                </div>
+                <div>
+                    <h3 style="margin:0; font-size: 16px; color: white;">Multiple Add Check Points</h3>
+                    <div style="font-size: 11px; color: #94a3b8;">Tambah beberapa checkpoint sekaligus (Single atau Batch) ke dalam DTC Item yang terpilih</div>
+                </div>
+            </div>
+            <i class="fa-solid fa-xmark" id="btn-close-add-cp" style="color:var(--text-muted); cursor:pointer; font-size:20px; transition: color 0.2s;" title="Tutup"></i>
         </div>
         
         <form id="form-add-checkpoint">
-            <div>
-                <label>Parameter (DTC Item)</label>
-                <select id="cp_param_select" name="parameter_id" required>
-                    <!-- Filled by JS -->
-                </select>
-            </div>
-            
-            <div>
-                <label>Checkpoint Name</label>
-                <input type="text" id="cp_name" name="checkpoint_name" placeholder="e.g. Pemakaian Tekanan Angin" required>
-            </div>
-            
-            <div>
-                <label>Spec Text (Optional)</label>
-                <input type="text" id="cp_spec" name="spec_value" placeholder="e.g. 5 Bar">
+            <!-- Header Controls: Parameter Selector & Quick Actions -->
+            <div style="background: rgba(15,23,42,0.6); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 250px;">
+                    <label style="margin:0; font-size: 12px; font-weight: 700; color: #cbd5e1; white-space: nowrap;">Parameter (DTC Item):</label>
+                    <input type="hidden" id="cp_param_select" name="parameter_id" value="">
+                    <span id="cp_param_display_text" style="font-size: 13px; font-weight: 700; color: #38bdf8; background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); padding: 5px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-cube" style="font-size: 11px;"></i> <span id="cp_param_label_value">-</span>
+                    </span>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <button type="button" id="btn-add-cp-row" style="background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.4); color: #38bdf8; padding: 7px 14px; border-radius: 6px; font-size: 11.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                        <i class="fa-solid fa-plus"></i> Tambah 1 Baris
+                    </button>
+                    <button type="button" id="btn-clear-cp-rows" style="background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: #f87171; padding: 7px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 5px;" title="Kosongkan seluruh baris">
+                        <i class="fa-solid fa-trash-can"></i> Clear
+                    </button>
+                </div>
             </div>
 
-            <div>
-                <label>Checkpoint Type</label>
-                <select id="cp_type" name="checkpoint_type">
-                    <option value="Qualitative">Qualitative (Matrix OK/NG)</option>
-                    <option value="Quantitative">Quantitative (Measurement / Numeric)</option>
-                </select>
+            <!-- Scrollable Dynamic Table Grid -->
+            <div style="max-height: 420px; overflow-x: auto; overflow-y: auto; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; margin-bottom: 15px; background: rgba(15,23,42,0.4);">
+                <table class="matrix-table" id="multiple-cp-table" style="width: 100%; table-layout: fixed; min-width: 860px; font-size: 12px;">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px; text-align: center; padding: 10px 4px;">No</th>
+                            <th style="width: 22%; text-align: left; padding: 10px 8px;">Nama Check Point *</th>
+                            <th style="width: 22%; text-align: left; padding: 10px 8px;">Spec Text (Opsional)</th>
+                            <th style="width: 165px; text-align: left; padding: 10px 8px;">Tipe Checkpoint</th>
+                            <th style="width: 85px; text-align: center; color: #f87171; padding: 10px 4px;">LSL (Min)</th>
+                            <th style="width: 85px; text-align: center; color: #34d399; padding: 10px 4px;">Target</th>
+                            <th style="width: 85px; text-align: center; color: #60a5fa; padding: 10px 4px;">USL (Max)</th>
+                            <th style="width: 50px; text-align: center; padding: 10px 4px;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="multiple-cp-tbody">
+                        <!-- Filled by JS -->
+                    </tbody>
+                </table>
             </div>
 
-            <!-- Quantitative Spec Bounds (Optional) -->
-            <div id="add_spec_bounds" style="display: none; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 10px; margin-bottom: 10px;">
-                <div>
-                    <label style="color: #f87171;">LSL (Min)</label>
-                    <input type="number" step="any" id="cp_lsl" name="lsl" placeholder="e.g. 60">
+            <!-- Modal Footer -->
+            <div style="display:flex; justify-content:space-between; align-items:center; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;">
+                <div style="font-size: 11px; color: #64748b;" id="multiple-cp-summary-info">
+                    Total: <b>0</b> checkpoint siap disimpan.
                 </div>
-                <div>
-                    <label style="color: #34d399;">Target</label>
-                    <input type="number" step="any" id="cp_target_value" name="target_value" placeholder="e.g. 80">
+                <div style="display:flex; gap:10px;">
+                    <button type="button" id="btn-cancel-add-cp" style="padding:8px 16px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:white; border-radius:6px; cursor:pointer; font-size: 12px; font-weight: 600;">Batal</button>
+                    <button type="submit" id="btn-submit-multiple-cp" style="padding:8px 20px; background: linear-gradient(135deg, #10b981, #059669); border:none; color:white; border-radius:6px; font-weight:bold; cursor:pointer; font-size: 12px; display:flex; align-items:center; gap:6px; box-shadow: 0 4px 12px rgba(16,185,129,0.3);">
+                        <i class="fa-solid fa-floppy-disk"></i> Simpan Semua Checkpoint (Batch Save)
+                    </button>
                 </div>
-                <div>
-                    <label style="color: #60a5fa;">USL (Max)</label>
-                    <input type="number" step="any" id="cp_usl" name="usl" placeholder="e.g. 100">
-                </div>
-            </div>
-            
-            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
-                <button type="button" id="btn-cancel-add-cp" style="padding:10px 15px; background:rgba(255,255,255,0.1); border:none; color:white; border-radius:6px; cursor:pointer;">Cancel</button>
-                <button type="submit" style="padding:10px 15px; background:var(--accent); border:none; color:white; border-radius:6px; font-weight:bold; cursor:pointer;">
-                    <i class="fa-solid fa-check"></i> Add Checkpoint
-                </button>
             </div>
         </form>
     </div>
@@ -694,8 +706,8 @@ if (empty($model) || empty($line) || empty($section)) {
             <div style="margin-bottom: 15px;">
                 <label style="display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 5px;">Inspection Date & Closing Status</label>
                 <div style="display: flex; gap: 10px; align-items: center;">
-                    <input type="date" name="inspection_date" id="quant_input_date" required 
-                           style="flex: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(15,23,42,0.8); color: white; box-sizing: border-box;">
+                    <input type="date" name="inspection_date" id="quant_input_date" required readonly 
+                           style="flex: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(15,23,42,0.6); color: rgba(255,255,255,0.7); box-sizing: border-box; cursor: not-allowed; pointer-events: none;" title="Tanggal pengisian bersifat tetap (Read-only)">
                     <span id="quant-day-close-badge" style="font-size: 11px; font-weight: 700; padding: 6px 10px; border-radius: 6px; background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); display: flex; align-items: center; gap: 4px;">
                         <i class="fa-solid fa-lock-open"></i> Open
                     </span>

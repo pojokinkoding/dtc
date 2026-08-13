@@ -17,7 +17,7 @@ try {
     try { $conn->exec("ALTER TABLE dtc_checkpoints ADD COLUMN target_value DECIMAL(10,3) DEFAULT NULL"); } catch (Exception $e) {}
     try { $conn->exec("ALTER TABLE dtc_checkpoints ADD COLUMN usl DECIMAL(10,3) DEFAULT NULL"); } catch (Exception $e) {}
 
-    if (in_array($action, ['add', 'edit', 'delete', 'reorder'])) {
+    if (in_array($action, ['add', 'add_multiple', 'edit', 'delete', 'reorder'])) {
         $param_id_check = $_POST['parameter_id'] ?? $_GET['parameter_id'] ?? 0;
         if (!$param_id_check && isset($_POST['checkpoint_id'])) {
             $stmtC = $conn->prepare("SELECT parameter_id FROM dtc_checkpoints WHERE checkpoint_id = :cid");
@@ -110,6 +110,81 @@ try {
             
             $newId = $conn->lastInsertId();
             echo json_encode(['status' => 'success', 'message' => 'Checkpoint berhasil ditambahkan.', 'checkpoint_id' => $newId]);
+            break;
+
+        case 'add_multiple':
+            $param_id = intval($_POST['parameter_id'] ?? 0);
+            $rawCheckpoints = $_POST['checkpoints'] ?? [];
+
+            if (!$param_id || empty($rawCheckpoints)) {
+                echo json_encode(['status' => 'error', 'message' => 'Validasi Gagal: Parameter ID dan daftar checkpoint wajib diisi.']);
+                exit;
+            }
+
+            if (is_string($rawCheckpoints)) {
+                $rawCheckpoints = json_decode($rawCheckpoints, true);
+            }
+
+            if (!is_array($rawCheckpoints) || empty($rawCheckpoints)) {
+                echo json_encode(['status' => 'error', 'message' => 'Validasi Gagal: Format data checkpoint tidak valid.']);
+                exit;
+            }
+
+            $conn->beginTransaction();
+            try {
+                $stmtMax = $conn->prepare("SELECT MAX(sort_order) as mx FROM dtc_checkpoints WHERE parameter_id = :pid");
+                $stmtMax->execute([':pid' => $param_id]);
+                $maxRow = $stmtMax->fetch(PDO::FETCH_ASSOC);
+                $nextOrder = ($maxRow['mx'] !== null) ? (int)$maxRow['mx'] + 1 : 0;
+
+                $insertedCount = 0;
+                $skippedCount = 0;
+                $stmtChk = $conn->prepare("SELECT checkpoint_id FROM dtc_checkpoints WHERE parameter_id = :pid AND checkpoint_name = :name");
+                $stmtIns = $conn->prepare("INSERT INTO dtc_checkpoints (parameter_id, checkpoint_name, spec_value, lsl, target_value, usl, sort_order, checkpoint_type) VALUES (:pid, :name, :spec, :lsl, :target, :usl, :sort, :ctype)");
+
+                foreach ($rawCheckpoints as $cp) {
+                    $name = trim($cp['checkpoint_name'] ?? $cp['name'] ?? '');
+                    if (empty($name)) continue;
+
+                    $spec = trim($cp['spec_value'] ?? $cp['spec'] ?? '');
+                    $ctype = $cp['checkpoint_type'] ?? $cp['type'] ?? 'Qualitative';
+                    $lsl = (isset($cp['lsl']) && $cp['lsl'] !== '') ? (float)$cp['lsl'] : null;
+                    $target = (isset($cp['target_value']) && $cp['target_value'] !== '') ? (float)$cp['target_value'] : null;
+                    $usl = (isset($cp['usl']) && $cp['usl'] !== '') ? (float)$cp['usl'] : null;
+
+                    $stmtChk->execute([':pid' => $param_id, ':name' => $name]);
+                    if ($stmtChk->fetch()) {
+                        $skippedCount++;
+                        continue;
+                    }
+
+                    $stmtIns->execute([
+                        ':pid' => $param_id,
+                        ':name' => $name,
+                        ':spec' => empty($spec) ? null : $spec,
+                        ':lsl' => $lsl,
+                        ':target' => $target,
+                        ':usl' => $usl,
+                        ':sort' => $nextOrder++,
+                        ':ctype' => $ctype
+                    ]);
+                    $insertedCount++;
+                }
+
+                $conn->commit();
+                if ($insertedCount > 0) {
+                    $msg = "Berhasil menambahkan {$insertedCount} checkpoint baru!";
+                    if ($skippedCount > 0) {
+                        $msg .= " ({$skippedCount} checkpoint diabaikan karena nama sudah ada).";
+                    }
+                    echo json_encode(['status' => 'success', 'message' => $msg, 'count' => $insertedCount, 'skipped' => $skippedCount]);
+                } else {
+                    echo json_encode(['status' => 'error', 'message' => 'Tidak ada checkpoint baru yang ditambahkan (mungkin semua nama checkpoint sudah ada).']);
+                }
+            } catch (Exception $e) {
+                $conn->rollBack();
+                echo json_encode(['status' => 'error', 'message' => 'Gagal menyimpan batch checkpoint: ' . $e->getMessage()]);
+            }
             break;
 
         case 'update':

@@ -131,7 +131,11 @@ try {
         
         // Ensure UI doesn't break if numeric parsing fails
         $val = $row["sample_value"];
-        $pivot_data[$row_key][$day_key] = is_numeric($val) ? floatval($val) : $val;
+        if ($val === '' || $val === null) {
+            $pivot_data[$row_key][$day_key] = null;
+        } else {
+            $pivot_data[$row_key][$day_key] = is_numeric($val) ? floatval($val) : $val;
+        }
         
         // Also capture the chart data (maps perfectly to 1 session per day)
         $day_index = $day - 1; // 0-indexed for chart arrays

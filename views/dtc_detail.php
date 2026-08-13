@@ -607,9 +607,9 @@ if ($param_id > 0) {
                     <div style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 12px;">
                         <div>
                             <label style="display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 5px;">Inspection Date</label>
-                            <input type="date" name="inspection_date" id="input_inspection_date" required 
+                            <input type="date" name="inspection_date" id="input_inspection_date" required readonly 
                                    min="<?= $min_date ?>" max="<?= $max_date ?>" value="<?= $default_date ?>"
-                                   style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 0 8px rgba(255,255,255,0.2); background: rgba(15,23,42,0.5); color: white;">
+                                   style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(15,23,42,0.6); color: rgba(255,255,255,0.7); cursor: not-allowed; pointer-events: none;" title="Tanggal pengisian bersifat tetap (Read-only)">
                         </div>
                     </div>
                     
@@ -621,8 +621,15 @@ if ($param_id > 0) {
                     <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 15px;">
                         <?php foreach ($time_labels as $idx => $label): ?>
                         <div>
-                            <label id="label_sample_<?= $idx+1 ?>" style="display: block; font-size: 10px; text-align: center; color: var(--text-muted); margin-bottom: 4px;"><?= htmlspecialchars($label) ?></label>
-                            <input type="number" step="any" name="sample_<?= $idx+1 ?>" class="sample-input" style="width: 100%; text-align: center; padding: 6px 4px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 0 5px rgba(255,255,255,0.2); background: rgba(15,23,42,0.5); color: white; transition: all 0.3s; font-size: 12px;" placeholder="S<?= $idx+1 ?>">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                <label id="label_sample_<?= $idx+1 ?>" style="font-size: 10px; color: var(--text-muted); text-align: center; width: 100%;"><?= htmlspecialchars($label) ?></label>
+                            </div>
+                            <div style="position: relative;">
+                                <input type="number" step="any" name="sample_<?= $idx+1 ?>" id="input_sample_<?= $idx+1 ?>" class="sample-input" style="width: 100%; text-align: center; padding: 6px 18px 6px 4px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 0 5px rgba(255,255,255,0.2); background: rgba(15,23,42,0.5); color: white; transition: all 0.3s; font-size: 12px;" placeholder="S<?= $idx+1 ?>">
+                                <button type="button" class="btn-clear-sample" data-sample="<?= $idx+1 ?>" title="Reset sample ke NULL" style="position: absolute; right: 3px; top: 50%; transform: translateY(-50%); background: transparent; border: none; color: #ef4444; font-size: 11px; cursor: pointer; padding: 2px; opacity: 0.8; display: none; transition: opacity 0.2s;">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
                         </div>
                         <?php endforeach; ?>
                     </div>
@@ -634,6 +641,7 @@ if ($param_id > 0) {
                     
                     <div style="margin-top: 25px; display: flex; justify-content: flex-end; gap: 10px; width: 100%; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
                         <button type="button" id="btn-close-data" class="btn-rich-danger" style="display: none;"><i class="fa-solid fa-lock"></i> Close Measurement</button>
+                        <button type="button" id="btn-delete-data" class="btn-rich-danger" style="display: none; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.5); color: #f87171;"><i class="fa-solid fa-trash-can"></i> Delete / Reset (NULL)</button>
                         <div style="flex-grow: 1;"></div>
                         <button type="button" id="btn-cancel-input" class="btn-rich-secondary">Cancel</button>
                         <button type="submit" id="btn-save-input" class="btn-rich-primary"><i class="fa-solid fa-floppy-disk"></i> Save Data</button>

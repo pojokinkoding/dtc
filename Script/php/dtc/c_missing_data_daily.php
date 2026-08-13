@@ -30,6 +30,44 @@ if (!function_exists('isSlotPast')) {
     }
 }
 
+if (!function_exists('isSlotBeforeCreationHelper')) {
+    function isSlotBeforeCreationHelper($slotTime, $timeLabels, $slotIdx, $createdAtStr, $dateStr) {
+        if (empty($createdAtStr) || empty($dateStr) || empty($slotTime)) return false;
+        
+        $parts = explode(' ', trim($createdAtStr));
+        $createdDate = $parts[0] ?? '';
+        $createdTime = $parts[1] ?? '';
+        
+        if ($createdDate < $dateStr) return false;
+        if ($createdDate > $dateStr) return true;
+        
+        // Same date
+        $tp = explode(':', $createdTime);
+        $cH = (int)($tp[0] ?? 0);
+        $cM = (int)($tp[1] ?? 0);
+        $createdMinutesFrom7 = ($cH < 7 ? $cH + 24 : $cH) * 60 + $cM;
+        
+        $parseMins = function($t) {
+            $parts = explode(':', trim($t));
+            $h = (int)($parts[0] ?? 0);
+            $m = (int)($parts[1] ?? 0);
+            if ($h >= 24) $h -= 24;
+            $mins = ($h < 7 ? $h + 24 : $h) * 60 + $m;
+            return $mins;
+        };
+        
+        $nextSlotTime = $timeLabels[$slotIdx + 1] ?? null;
+        if ($nextSlotTime) {
+            $nextSlotMins = $parseMins($nextSlotTime);
+        } else {
+            $curSlotMins = $parseMins($slotTime);
+            $nextSlotMins = $curSlotMins + 120;
+        }
+        
+        return $createdMinutesFrom7 >= $nextSlotMins;
+    }
+}
+
 $timestamp = strtotime($date);
 $dayOfWeek = date('N', $timestamp);
 $is_weekend = ($dayOfWeek == 6 || $dayOfWeek == 7) ? true : false;
@@ -39,7 +77,7 @@ try {
     
     // 0. Fetch active running models for this month filtered by IP & User Section
     $sqlRM = "
-        SELECT line_name, section_name, model_name 
+        SELECT line_name, section_name, model_name, created_at 
         FROM dtc_running_models 
         WHERE target_month = :month AND is_active = 1
         " . getIPAccessFilterSQL('line_name', 'section_name') . "
@@ -58,8 +96,10 @@ try {
         $mName = strtolower(trim($rm['model_name']));
         
         $k = $lName . '|' . $sName . '|' . $mName;
-        $runningSet[$k] = true;
-        $runningModels[$mName] = true;
+        $runningSet[$k] = $rm['created_at'] ?? true;
+        if (!isset($runningModels[$mName])) {
+            $runningModels[$mName] = $rm['created_at'] ?? true;
+        }
         
         $secKey = $lName . '|' . $sName;
         $sectionHasRunning[$secKey] = true;
@@ -172,6 +212,11 @@ try {
             continue;
         }
 
+        $lNameLower = strtolower(trim($line_name));
+        $sNameLower = strtolower(trim($section_name));
+        $mNameLower = strtolower(trim($model_name));
+        $comboKey = $lNameLower . '|' . $sNameLower . '|' . $mNameLower;
+
         if (!empty($running_models_param)) {
             $rArr = json_decode($running_models_param, true);
             if (!is_array($rArr)) {
@@ -181,18 +226,30 @@ try {
                     $rArr = explode(',', $running_models_param);
                 }
             }
-            $rArr = array_map('strtolower', array_map('trim', $rArr));
-            if (!in_array(strtolower(trim($model_name)), $rArr)) {
-                continue;
-            }
-        } else {
-            $secKey = strtolower(trim($line_name)) . '|' . strtolower(trim($section_name));
-            if (!empty($sectionHasRunning[$secKey])) {
-                $k = $secKey . '|' . strtolower(trim($model_name));
-                $mKey = strtolower(trim($model_name));
-                if (!isset($runningSet[$k]) && !isset($runningModels[$mKey])) {
-                    continue;
+            if (is_array($rArr)) {
+                $matched = false;
+                foreach ($rArr as $rmObj) {
+                    if (is_array($rmObj)) {
+                        $rmL = strtolower(trim($rmObj['line_name'] ?? ''));
+                        $rmS = strtolower(trim($rmObj['section_name'] ?? ''));
+                        $rmM = strtolower(trim($rmObj['model_name'] ?? ''));
+                        if (($rmL === '' || $rmL === $lNameLower) && ($rmS === '' || $rmS === $sNameLower) && $rmM === $mNameLower) {
+                            $matched = true;
+                            break;
+                        }
+                    } else if (is_string($rmObj)) {
+                        if (strtolower(trim($rmObj)) === $mNameLower) {
+                            $matched = true;
+                            break;
+                        }
+                    }
                 }
+                if (!$matched) continue;
+            }
+        } else if (!empty($runningSet)) {
+            // Strictly match line_name | section_name | model_name
+            if (!isset($runningSet[$comboKey])) {
+                continue;
             }
         }
 
@@ -233,17 +290,20 @@ try {
         $row['time_labels'] = array_slice($current_line_labels, 0, $param_allowed_slots);
 
         $overdueCount = 0;
+        $modelCreatedAt = is_string($runningSet[$comboKey] ?? null) ? $runningSet[$comboKey] : (is_string($runningModels[$mNameLower] ?? null) ? $runningModels[$mNameLower] : null);
 
         // Loop through the max slots
         for ($seq = 1; $seq <= $global_max_slots; $seq++) {
-            if ($seq > $param_allowed_slots) {
-                $status = 4; // Not applicable for this parameter
+            $slotTime = $current_line_labels[$seq - 1] ?? null;
+            $isBeforeCreation = isSlotBeforeCreationHelper($slotTime, $current_line_labels, $seq - 1, $modelCreatedAt, $date);
+
+            if ($seq > $param_allowed_slots || $isBeforeCreation) {
+                $status = 4; // Not applicable (session occurred before running model was raised)
             } else if ($is_closed == 1) {
                 $status = 2; // Closed
             } else if (in_array((string)$seq, $filled)) {
                 $status = 1; // Filled
             } else {
-                $slotTime = $current_line_labels[$seq - 1] ?? null;
                 $isPast = ($date < $todayStr) || ($date == $todayStr && isSlotPast($slotTime, $nowH, $nowM));
                 if ($isPast) {
                     $status = 0; // Missing (slot time has already passed)

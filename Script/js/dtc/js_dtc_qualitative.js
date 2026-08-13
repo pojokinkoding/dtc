@@ -134,7 +134,9 @@ $(document).ready(function () {
             }
         });
 
-        if (!hasData) {
+        let isExistingData = $("#btn-delete-data").is(":visible");
+
+        if (!hasData && !isExistingData) {
             Swal.fire({
                 title: 'Data Kosong!',
                 text: 'Minimal harus ada satu data pengukuran yang diisi sebelum menyimpan.',

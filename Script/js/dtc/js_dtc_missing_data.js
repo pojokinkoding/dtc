@@ -169,6 +169,8 @@ $(document).ready(function () {
                     total_expected_sessions: 0,
                     closed_sessions: 0,
                     unclosed_sessions: 0,
+                    not_overdue_sessions: 0,
+                    overdue_sessions: 0,
                     total_expected_slots: 0,
                     overdue_slots: 0
                 };
@@ -202,77 +204,89 @@ $(document).ready(function () {
                 summaryMap[key].total_expected_slots += slotsPerDay;
                 totalExpectedSlotsAll += slotsPerDay;
 
+                let isSessionOverdue = false;
                 // Overdue slots occur if NOT closed
                 if (!isClosed) {
                     let missingSlotsCount = (isCurrentMonth && param.overdue_slots_today !== undefined) ? param.overdue_slots_today : ((param[`day_${i}_missing_slots`] !== undefined) ? param[`day_${i}_missing_slots`] : (status === 0 ? slotsPerDay : 1));
 
                     if (missingSlotsCount > 0) {
                         if (isCurrentMonth && i < todayDay) {
-                            // Past day in current month: ALL missing slots for this past day ARE OVERDUE!
                             summaryMap[key].overdue_slots += missingSlotsCount;
                             totalOverdueSlotsAll += missingSlotsCount;
+                            isSessionOverdue = true;
                         } else if (!isCurrentMonth && rawApiResponse.month < currentMonthStr) {
-                            // Past month: ALL missing slots ARE OVERDUE!
                             summaryMap[key].overdue_slots += missingSlotsCount;
                             totalOverdueSlotsAll += missingSlotsCount;
+                            isSessionOverdue = true;
                         } else if (isCurrentMonth && i === todayDay) {
                             summaryMap[key].overdue_slots += missingSlotsCount;
                             totalOverdueSlotsAll += missingSlotsCount;
+                            isSessionOverdue = true;
                         }
                     }
+                }
+
+                if (isSessionOverdue) {
+                    summaryMap[key].overdue_sessions++;
+                } else {
+                    summaryMap[key].not_overdue_sessions++;
                 }
             }
         });
 
-            // Format filtered summary list
-            let summaryList = [];
-            Object.keys(summaryMap).sort().forEach(key => {
-                let item = summaryMap[key];
-                let totExpSess = maxVal(item.total_expected_sessions, 1);
-                let pctUnclosed = Math.round((item.unclosed_sessions / totExpSess) * 1000) / 10;
+        // Format filtered summary list
+        let summaryList = [];
+        Object.keys(summaryMap).sort().forEach(key => {
+            let item = summaryMap[key];
+            let totExpSess = maxVal(item.total_expected_sessions, 1);
+            let pctUnclosed = Math.round((item.unclosed_sessions / totExpSess) * 1000) / 10;
+            let pctOverdueSess = Math.round((item.overdue_sessions / totExpSess) * 100);
 
-                let totExpSlots = maxVal(item.total_expected_slots, 1);
-                let pctOverdue = Math.round((item.overdue_slots / totExpSlots) * 1000) / 10;
+            let totExpSlots = maxVal(item.total_expected_slots, 1);
+            let pctOverdue = Math.round((item.overdue_slots / totExpSlots) * 1000) / 10;
 
-                let statusLevel = 'OK';
-                if (pctOverdue > 10 || pctUnclosed > 30) {
-                    statusLevel = 'CRITICAL';
-                } else if (pctOverdue > 5 || pctUnclosed > 15) {
-                    statusLevel = 'WARNING';
-                }
+            let statusLevel = 'OK';
+            if (pctOverdue > 10 || pctUnclosed > 30) {
+                statusLevel = 'CRITICAL';
+            } else if (pctOverdue > 5 || pctUnclosed > 15) {
+                statusLevel = 'WARNING';
+            }
 
-                summaryList.push({
-                    line_name: item.line_name,
-                    section_name: item.section_name,
-                    total_parameters: item.total_parameters,
-                    total_expected_sessions: item.total_expected_sessions,
-                    closed_sessions: item.closed_sessions,
-                    unclosed_sessions: item.unclosed_sessions,
-                    pct_unclosed: pctUnclosed,
-                    total_expected_slots: item.total_expected_slots,
-                    overdue_slots: item.overdue_slots,
-                    pct_overdue: pctOverdue,
-                    status_level: statusLevel
-                });
+            summaryList.push({
+                line_name: item.line_name,
+                section_name: item.section_name,
+                total_parameters: item.total_parameters,
+                total_expected_sessions: item.total_expected_sessions,
+                closed_sessions: item.closed_sessions,
+                unclosed_sessions: item.unclosed_sessions,
+                not_overdue_sessions: item.not_overdue_sessions,
+                overdue_sessions: item.overdue_sessions,
+                pct_unclosed: pctUnclosed,
+                pct_overdue_sess: pctOverdueSess,
+                total_expected_slots: item.total_expected_slots,
+                overdue_slots: item.overdue_slots,
+                pct_overdue: pctOverdue,
+                status_level: statusLevel
             });
+        });
 
-            // Render Filtered Overall KPIs
-            let overallTotExpSess = maxVal(totalExpectedSessionsAll, 1);
-            let overallTotExpSlots = maxVal(totalExpectedSlotsAll, 1);
-            let overallKpi = {
-                total_parameters: totalParamsAll,
-                total_expected_sessions: totalExpectedSessionsAll,
-                closed_sessions: totalClosedSessionsAll,
-                unclosed_sessions: totalUnclosedSessionsAll,
-                pct_unclosed: Math.round((totalUnclosedSessionsAll / overallTotExpSess) * 1000) / 10,
-                total_expected_slots: totalExpectedSlotsAll,
-                overdue_slots: totalOverdueSlotsAll,
-                pct_overdue: Math.round((totalOverdueSlotsAll / overallTotExpSlots) * 1000) / 10,
-                pct_closed: Math.round((totalClosedSessionsAll / overallTotExpSess) * 1000) / 10
-            };
+        // Render Filtered Overall KPIs
+        let overallTotExpSess = maxVal(totalExpectedSessionsAll, 1);
+        let overallTotExpSlots = maxVal(totalExpectedSlotsAll, 1);
+        let overallKpi = {
+            total_parameters: totalParamsAll,
+            total_expected_sessions: totalExpectedSessionsAll,
+            closed_sessions: totalClosedSessionsAll,
+            unclosed_sessions: totalUnclosedSessionsAll,
+            pct_unclosed: Math.round((totalUnclosedSessionsAll / overallTotExpSess) * 1000) / 10,
+            total_expected_slots: totalExpectedSlotsAll,
+            overdue_slots: totalOverdueSlotsAll,
+            pct_overdue: Math.round((totalOverdueSlotsAll / overallTotExpSlots) * 1000) / 10,
+            pct_closed: Math.round((totalClosedSessionsAll / overallTotExpSess) * 1000) / 10
+        };
 
-            renderOverallKpis(overallKpi, daysUpToToday, rawApiResponse.days_count, rawApiResponse.month, summaryList);
-            renderSummaryTable(summaryList);
+        renderOverallKpis(overallKpi, daysUpToToday, rawApiResponse.days_count, rawApiResponse.month, summaryList);
+        renderSummaryTable(summaryList);
 
         if (currentDetailTable) {
             currentDetailTable.draw(false);
@@ -349,7 +363,7 @@ $(document).ready(function () {
                         ${pct}%
                     </div>
                     <div style="font-size: 11px; color: #cbd5e1; margin-top: 4px; font-weight: 600;">
-                        ${closed.toLocaleString()} / ${totExp.toLocaleString()} sessions closed
+                        ${closed.toLocaleString()} / ${totExp.toLocaleString()} item check
                     </div>
                 </div>
             `);
@@ -520,6 +534,8 @@ $(document).ready(function () {
             let lineExpSess = 0;
             let lineClosedSess = 0;
             let lineUnclosedSess = 0;
+            let lineNotOverdueSess = 0;
+            let lineOverdueSess = 0;
             let lineExpSlots = 0;
             let lineOverdueSlots = 0;
 
@@ -528,6 +544,8 @@ $(document).ready(function () {
                 lineExpSess += it.total_expected_sessions || 0;
                 lineClosedSess += it.closed_sessions || 0;
                 lineUnclosedSess += it.unclosed_sessions || 0;
+                lineNotOverdueSess += it.not_overdue_sessions || 0;
+                lineOverdueSess += it.overdue_sessions || 0;
                 lineExpSlots += it.total_expected_slots || 0;
                 lineOverdueSlots += it.overdue_slots || 0;
             });
@@ -587,8 +605,8 @@ $(document).ready(function () {
 
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                         ${pageControlsHtml}
-                        <div style="background: rgba(245, 158, 11, 0.18); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 800;" title="Line Total Unclosed">
-                            <i class="fa-solid fa-folder-open" style="margin-right: 4px;"></i> Unclosed: <span style="font-weight:900; font-size:12px;">${pctUnclosed}%</span> (${lineUnclosedSess.toLocaleString()}/${lineExpSess.toLocaleString()})
+                        <div style="background: rgba(16, 185, 129, 0.18); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 800;" title="Line Total Belum Overdue">
+                            <i class="fa-solid fa-circle-check" style="margin-right: 4px;"></i> Belum Overdue: <span style="font-weight:900; font-size:12px;">${lineNotOverdueSess.toLocaleString()}/${lineExpSess.toLocaleString()}</span> (${lineOverdueSess.toLocaleString()} overdue)
                         </div>
                         <div style="background: rgba(239, 68, 68, 0.18); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 800;" title="Line Total Overdue">
                             <i class="fa-solid fa-clock-rotate-left" style="margin-right: 4px;"></i> Overdue: <span style="font-weight:900; font-size:12px;">${pctOverdue}%</span> (${lineOverdueSlots.toLocaleString()}/${lineExpSlots.toLocaleString()})
@@ -597,26 +615,56 @@ $(document).ready(function () {
                     </div>
                 </div>`;
 
-                // Section Grid Tiles (Strict 6x2 Fixed Grid Layout)
-                html += `<div class="section-grid-6x2">`;
+            // Section Grid Tiles (Strict 6x2 Fixed Grid Layout)
+            html += `<div class="section-grid-6x2">`;
+
+            function getGradientColorStyle(pct) {
+                if (pct <= 0) {
+                    return {
+                        text: '#34d399',
+                        border: 'rgba(16, 185, 129, 0.5)',
+                        bg: 'rgba(16, 185, 129, 0.15)',
+                        barGradient: 'linear-gradient(90deg, #10b981, #34d399)',
+                        displayText: 'GOOD'
+                    };
+                } else if (pct <= 15) {
+                    return {
+                        text: '#fbbf24',
+                        border: 'rgba(245, 158, 11, 0.5)',
+                        bg: 'rgba(245, 158, 11, 0.15)',
+                        barGradient: 'linear-gradient(90deg, #f59e0b, #fbbf24)',
+                        displayText: pct + '%'
+                    };
+                } else if (pct <= 40) {
+                    return {
+                        text: '#fb923c',
+                        border: 'rgba(251, 146, 60, 0.6)',
+                        bg: 'rgba(251, 146, 60, 0.15)',
+                        barGradient: 'linear-gradient(90deg, #ea580c, #fb923c)',
+                        displayText: pct + '%'
+                    };
+                } else {
+                    return {
+                        text: '#f87171',
+                        border: 'rgba(239, 68, 68, 0.7)',
+                        bg: 'rgba(239, 68, 68, 0.15)',
+                        barGradient: 'linear-gradient(90deg, #ef4444, #f87171)',
+                        displayText: pct + '%'
+                    };
+                }
+            }
 
             displayItems.forEach(item => {
-                let overdueTextColor = '#34d399';
-                let barGradient = 'linear-gradient(90deg, #10b981, #34d399)';
+                let mainOverdueStyle = getGradientColorStyle(item.pct_overdue);
+                let sessOverdueStyle = getGradientColorStyle(item.pct_overdue_sess);
+
                 let tileClass = '';
-                let tileBorder = '2px solid rgba(16, 185, 129, 0.4)';
-                let dotColor = '#34d399';
+                let dotColor = mainOverdueStyle.text;
 
                 if (item.status_level === 'CRITICAL') {
-                    overdueTextColor = '#f87171';
-                    barGradient = 'linear-gradient(90deg, #ef4444, #f87171)';
                     tileClass = 'cctv-tile-critical';
-                    tileBorder = '2px solid rgba(239, 68, 68, 0.7)';
                     dotColor = '#ef4444';
                 } else if (item.status_level === 'WARNING') {
-                    overdueTextColor = '#fbbf24';
-                    barGradient = 'linear-gradient(90deg, #f59e0b, #fbbf24)';
-                    tileBorder = '2px solid rgba(245, 158, 11, 0.6)';
                     dotColor = '#fbbf24';
                 }
 
@@ -632,7 +680,7 @@ $(document).ready(function () {
                 let modelTooltip = modelList.length > 0 ? `Active Running Models: ${modelList.join(', ')}` : 'No active running models';
 
                 html += `
-                <div class="section-card-clickable ${tileClass}" data-line="${item.line_name}" data-section="${item.section_name}" title="Klik untuk lihat data ${item.line_name} - ${item.section_name} di DTC List" style="background: rgba(15, 23, 42, 0.95); border: ${tileBorder}; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 6px 20px rgba(0,0,0,0.5); position: relative; overflow: hidden; animation: fadeIn 0.4s ease; cursor: pointer;">
+                <div class="section-card-clickable ${tileClass}" data-line="${item.line_name}" data-section="${item.section_name}" title="Klik untuk lihat data ${item.line_name} - ${item.section_name} di DTC List" style="background: rgba(15, 23, 42, 0.95); border: 2px solid ${mainOverdueStyle.border}; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 6px 20px rgba(0,0,0,0.5); position: relative; overflow: hidden; animation: fadeIn 0.4s ease; cursor: pointer;">
                     <!-- Top Section Card Header (Line Badge & Actions) -->
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 6px; margin-bottom: 6px;">
                         <div style="display: flex; align-items: center; gap: 6px;">
@@ -653,27 +701,27 @@ $(document).ready(function () {
                     <!-- Main Overdue Rate KPI Display -->
                     <div style="background: rgba(0,0,0,0.45); padding: 10px 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); text-align: center; margin-bottom: 8px;">
                         <div style="font-size: 10px; color: #94a3b8; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;">
-                            <i class="fa-solid fa-clock-rotate-left" style="color: ${overdueTextColor}; margin-right: 3px;"></i> OVERDUE RATE
+                            <i class="fa-solid fa-clock-rotate-left" style="color: ${mainOverdueStyle.text}; margin-right: 3px;"></i> OVERDUE RATE
                         </div>
-                        <div style="font-size: 38px; font-weight: 900; color: ${overdueTextColor}; line-height: 1; letter-spacing: -1px; margin: 2px 0;">
-                            ${item.pct_overdue}%
+                        <div style="font-size: ${item.pct_overdue === 0 ? '30px' : '38px'}; font-weight: 900; color: ${mainOverdueStyle.text}; line-height: 1; letter-spacing: -1px; margin: 2px 0;">
+                            ${mainOverdueStyle.displayText}
                         </div>
                         <div style="font-size: 11px; color: #f1f5f9; margin-top: 3px; font-weight: 800; white-space: nowrap;">
-                            <strong style="color: ${overdueTextColor}; font-size: 13px;">${item.overdue_slots.toLocaleString()}</strong> <span style="color:#64748b;">/</span> ${item.total_expected_slots.toLocaleString()} overdue
+                            <strong style="color: ${mainOverdueStyle.text}; font-size: 13px;">${item.overdue_slots.toLocaleString()}</strong> <span style="color:#64748b;">/</span> ${item.total_expected_slots.toLocaleString()} overdue
                         </div>
 
                         <!-- Visual Progress Bar -->
                         <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.12); border-radius: 3px; overflow: hidden; margin-top: 6px;">
-                            <div style="width: ${Math.min(item.pct_overdue, 100)}%; height: 100%; background: ${barGradient}; transition: width 0.5s ease;"></div>
+                            <div style="width: ${Math.min(item.pct_overdue, 100)}%; height: 100%; background: ${mainOverdueStyle.barGradient}; transition: width 0.5s ease;"></div>
                         </div>
                     </div>
 
                     <!-- Metrics Grid (2 Columns) -->
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-                        <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); padding: 6px 4px; border-radius: 6px; text-align: center;">
-                            <div style="font-size: 10px; color: #fbbf24; font-weight: 900; text-transform: uppercase; letter-spacing: 0.3px;">UNCLOSED</div>
-                            <div style="font-size: 22px; font-weight: 900; color: #fbbf24; margin-top: 1px; line-height: 1; letter-spacing: -0.5px;">${item.pct_unclosed}%</div>
-                            <div style="font-size: 11px; color: #cbd5e1; font-weight: 800; margin-top: 2px;">${item.unclosed_sessions}/${item.total_expected_sessions} sess</div>
+                        <div style="background: ${sessOverdueStyle.bg}; border: 1px solid ${sessOverdueStyle.border}; padding: 6px 4px; border-radius: 6px; text-align: center;" title="${item.overdue_sessions} Sesi Overdue dari total ${item.total_expected_sessions} sesi">
+                            <div style="font-size: 10px; color: ${sessOverdueStyle.text}; font-weight: 900; text-transform: uppercase; letter-spacing: 0.3px;">OVERDUE</div>
+                            <div style="font-size: ${item.pct_overdue_sess === 0 ? '18px' : '22px'}; font-weight: 900; color: ${sessOverdueStyle.text}; margin-top: 1px; line-height: 1; letter-spacing: -0.5px;">${sessOverdueStyle.displayText}</div>
+                            <div style="font-size: 11px; color: #cbd5e1; font-weight: 800; margin-top: 2px;">${item.overdue_sessions}/${item.total_expected_sessions} item check</div>
                         </div>
                         <div style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); padding: 6px 4px; border-radius: 6px; text-align: center;" title="${modelTooltip}">
                             <div style="font-size: 10px; color: #60a5fa; font-weight: 900; text-transform: uppercase; letter-spacing: 0.3px;">RUNNING MODEL</div>
@@ -845,11 +893,11 @@ $(document).ready(function () {
         }
 
         currentDetailTable = $('#missing-data-table').DataTable({
-            responsive: false, 
+            responsive: false,
             scrollX: false,
             pageLength: 10,
             lengthChange: false,
-            ordering: false, 
+            ordering: false,
             language: {
                 search: "_INPUT_",
                 searchPlaceholder: "Search parameters..."
@@ -864,7 +912,7 @@ $(document).ready(function () {
         data.forEach(row => {
             if (row.line_name) uniqueLines.add(row.line_name);
         });
-        
+
         let currentVal = $('#filter_line_name').val();
         let html = '<option value="">-- All Lines --</option>';
         Array.from(uniqueLines).sort().forEach(line => {
@@ -881,7 +929,7 @@ $(document).ready(function () {
         data.forEach(row => {
             if (row.section_name) uniqueSections.add(row.section_name);
         });
-        
+
         let currentVal = $('#filter_section_name').val();
         let html = '<option value="">-- All Sections --</option>';
         Array.from(uniqueSections).sort().forEach(sec => {
@@ -928,16 +976,16 @@ $(document).ready(function () {
         if (!isFull) {
             $('body').addClass('wall-display-focus');
             $(this).html('<i class="fa-solid fa-compress"></i> Normal Mode')
-                   .css({'background': 'linear-gradient(135deg, #059669, #047857)', 'border-color': 'rgba(52, 211, 153, 0.5)', 'box-shadow': '0 0 12px rgba(16, 185, 129, 0.5)'});
+                .css({ 'background': 'linear-gradient(135deg, #059669, #047857)', 'border-color': 'rgba(52, 211, 153, 0.5)', 'box-shadow': '0 0 12px rgba(16, 185, 129, 0.5)' });
             if (document.documentElement.requestFullscreen) {
-                document.documentElement.requestFullscreen().catch(function (err) {});
+                document.documentElement.requestFullscreen().catch(function (err) { });
             }
         } else {
             $('body').removeClass('wall-display-focus');
             $(this).html('<i class="fa-solid fa-expand"></i> Full Mode')
-                   .css({'background': 'linear-gradient(135deg, #0284c7, #0369a1)', 'border-color': 'rgba(56, 189, 248, 0.5)', 'box-shadow': '0 0 12px rgba(2, 132, 199, 0.4)'});
+                .css({ 'background': 'linear-gradient(135deg, #0284c7, #0369a1)', 'border-color': 'rgba(56, 189, 248, 0.5)', 'box-shadow': '0 0 12px rgba(2, 132, 199, 0.4)' });
             if (document.fullscreenElement && document.exitFullscreen) {
-                document.exitFullscreen().catch(function (err) {});
+                document.exitFullscreen().catch(function (err) { });
             }
         }
     });
@@ -948,7 +996,7 @@ $(document).ready(function () {
         if (!isNativeFull && $('body').hasClass('wall-display-focus')) {
             $('body').removeClass('wall-display-focus');
             $('#btn-wall-fullscreen').html('<i class="fa-solid fa-expand"></i> Full Mode')
-                   .css({'background': 'linear-gradient(135deg, #0284c7, #0369a1)', 'border-color': 'rgba(56, 189, 248, 0.5)', 'box-shadow': '0 0 12px rgba(2, 132, 199, 0.4)'});
+                .css({ 'background': 'linear-gradient(135deg, #0284c7, #0369a1)', 'border-color': 'rgba(56, 189, 248, 0.5)', 'box-shadow': '0 0 12px rgba(2, 132, 199, 0.4)' });
         }
     });
 
@@ -996,7 +1044,7 @@ $(document).ready(function () {
         let line = $(this).data('line') || '';
         let section = $(this).data('section') || '';
         let activeType = $('.filter-tab-btn.active').data('filter') || '';
-        
+
         let currentMonthStr = new Date().toISOString().slice(0, 7);
         let selectedMonth = $('#filter_month').val() || (rawApiResponse ? rawApiResponse.month : currentMonthStr);
         let isPastMonth = (selectedMonth && selectedMonth < currentMonthStr);
@@ -1056,14 +1104,14 @@ $(document).ready(function () {
             type: 'GET',
             data: { month: month, section_name: section, line_name: line, format: 'json' },
             dataType: 'json',
-            success: function(res) {
+            success: function (res) {
                 if (res.status === 'success' && res.data) {
                     renderPerfModalBody(res);
                 } else {
                     $('#perf-modal-body').html(`<div style="color: var(--danger); text-align: center; padding: 20px;">Failed to generate preview: ${res.message || 'Unknown error'}</div>`);
                 }
             },
-            error: function() {
+            error: function () {
                 $('#perf-modal-body').html('<div style="color: var(--danger); text-align: center; padding: 20px;">Failed to connect to report server.</div>');
             }
         });

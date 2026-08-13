@@ -71,6 +71,62 @@ $(document).ready(function () {
         }, 50);
     });
 
+    let masterSpecsList = [];
+
+    function updateSectionFilterOptions() {
+        let selectedLine = $('#filter-line').val();
+        let selectedSection = $('#filter-section').val();
+
+        let filteredSpecs = masterSpecsList;
+        if (selectedLine) {
+            filteredSpecs = filteredSpecs.filter(s => s.line_name === selectedLine);
+        }
+
+        let availableSections = [...new Set(filteredSpecs.map(s => s.section_name).filter(Boolean))].sort();
+
+        let sectionOpts = '<option value="">All Sections</option>';
+        availableSections.forEach(sec => {
+            sectionOpts += `<option value="${sec}">${sec}</option>`;
+        });
+        $('#filter-section').html(sectionOpts);
+
+        if (selectedSection && availableSections.includes(selectedSection)) {
+            $('#filter-section').val(selectedSection);
+        } else {
+            $('#filter-section').val('');
+        }
+
+        updateItemCheckFilterOptions();
+    }
+
+    function updateItemCheckFilterOptions() {
+        let selectedLine = $('#filter-line').val();
+        let selectedSection = $('#filter-section').val();
+        let selectedItemCheck = $('#filter-item-check').val();
+
+        let filteredSpecs = masterSpecsList;
+        if (selectedLine) {
+            filteredSpecs = filteredSpecs.filter(s => s.line_name === selectedLine);
+        }
+        if (selectedSection) {
+            filteredSpecs = filteredSpecs.filter(s => s.section_name === selectedSection);
+        }
+
+        let availableItemChecks = [...new Set(filteredSpecs.map(s => s.item_check_name).filter(Boolean))].sort();
+
+        let itemCheckOpts = '<option value="">All Item Checks</option>';
+        availableItemChecks.forEach(ic => {
+            itemCheckOpts += `<option value="${ic}">${ic}</option>`;
+        });
+        $('#filter-item-check').html(itemCheckOpts);
+
+        if (selectedItemCheck && availableItemChecks.includes(selectedItemCheck)) {
+            $('#filter-item-check').val(selectedItemCheck);
+        } else {
+            $('#filter-item-check').val('');
+        }
+    }
+
     // Custom filtering for Line, Section, and Item Check
     $.fn.dataTable.ext.search.push(
         function (settings, data, dataIndex, rowData) {
@@ -86,7 +142,17 @@ $(document).ready(function () {
         }
     );
 
-    $('#filter-line, #filter-section, #filter-item-check').on('change', function () {
+    $('#filter-line').on('change', function () {
+        updateSectionFilterOptions();
+        if (table) table.draw();
+    });
+
+    $('#filter-section').on('change', function () {
+        updateItemCheckFilterOptions();
+        if (table) table.draw();
+    });
+
+    $('#filter-item-check').on('change', function () {
         if (table) table.draw();
     });
 
@@ -124,22 +190,14 @@ $(document).ready(function () {
                 }
                 if (res.sections) {
                     let opts = '<option value="">-- Select Section --</option>';
-                    let filterOpts = '<option value="">All Sections</option>';
                     res.sections.forEach(s => {
                         opts += `<option value="${s.section_name}">${s.section_name}</option>`;
-                        filterOpts += `<option value="${s.section_name}">${s.section_name}</option>`;
                     });
                     $('#section_name').html(opts);
-                    $('#filter-section').html(filterOpts);
                 }
                 if (res.specs) {
-                    // Extract unique Item Check Names for filter
-                    let itemChecks = [...new Set(res.specs.map(s => s.item_check_name).filter(Boolean))].sort();
-                    let itemCheckOpts = '<option value="">All Item Checks</option>';
-                    itemChecks.forEach(ic => {
-                        itemCheckOpts += `<option value="${ic}">${ic}</option>`;
-                    });
-                    $('#filter-item-check').html(itemCheckOpts);
+                    masterSpecsList = res.specs;
+                    updateSectionFilterOptions();
                 }
                 if (callback) callback();
             }

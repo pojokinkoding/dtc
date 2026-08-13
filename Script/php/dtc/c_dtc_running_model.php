@@ -33,7 +33,7 @@ try {
     if ($action === 'get') {
         $month = $_GET['month'] ?? $currentMonth;
 
-        $sql = "SELECT running_id, target_month, line_name, section_name, model_name, is_active 
+        $sql = "SELECT running_id, target_month, line_name, section_name, model_name, is_active, created_at 
                 FROM dtc_running_models 
                 WHERE target_month = :m AND is_active = 1
                 " . getIPAccessFilterSQL('line_name', 'section_name') . getUserAccessFilterSQL('line_name', 'section_name') . "
@@ -120,14 +120,14 @@ try {
                 echo json_encode(['status' => 'info', 'message' => "Model '$model' sudah aktif di list Running Model untuk Line $line & Section $section."]);
                 exit;
             } else {
-                // Update to active
-                $updateStmt = $conn->prepare("UPDATE dtc_running_models SET is_active = 1 WHERE running_id = :id");
+                // Update to active and update created_at timestamp to CURRENT_TIMESTAMP
+                $updateStmt = $conn->prepare("UPDATE dtc_running_models SET is_active = 1, created_at = CURRENT_TIMESTAMP WHERE running_id = :id");
                 $updateStmt->execute([':id' => $existing['running_id']]);
             }
         } else {
-            // Insert new record
-            $insertStmt = $conn->prepare("INSERT INTO dtc_running_models (target_month, line_name, section_name, model_name, is_active)
-                                         VALUES (:m, :line, :section, :model, 1)");
+            // Insert new record with created_at = CURRENT_TIMESTAMP
+            $insertStmt = $conn->prepare("INSERT INTO dtc_running_models (target_month, line_name, section_name, model_name, is_active, created_at)
+                                         VALUES (:m, :line, :section, :model, 1, CURRENT_TIMESTAMP)");
             $insertStmt->execute([
                 ':m' => $month,
                 ':line' => $line,

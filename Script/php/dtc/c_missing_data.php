@@ -38,12 +38,50 @@ if (!function_exists('isSlotPast')) {
     }
 }
 
+if (!function_exists('isSlotBeforeCreationHelper')) {
+    function isSlotBeforeCreationHelper($slotTime, $timeLabels, $slotIdx, $createdAtStr, $dateStr) {
+        if (empty($createdAtStr) || empty($dateStr) || empty($slotTime)) return false;
+        
+        $parts = explode(' ', trim($createdAtStr));
+        $createdDate = $parts[0] ?? '';
+        $createdTime = $parts[1] ?? '';
+        
+        if ($createdDate < $dateStr) return false;
+        if ($createdDate > $dateStr) return true;
+        
+        // Same date
+        $tp = explode(':', $createdTime);
+        $cH = (int)($tp[0] ?? 0);
+        $cM = (int)($tp[1] ?? 0);
+        $createdMinutesFrom7 = ($cH < 7 ? $cH + 24 : $cH) * 60 + $cM;
+        
+        $parseMins = function($t) {
+            $parts = explode(':', trim($t));
+            $h = (int)($parts[0] ?? 0);
+            $m = (int)($parts[1] ?? 0);
+            if ($h >= 24) $h -= 24;
+            $mins = ($h < 7 ? $h + 24 : $h) * 60 + $m;
+            return $mins;
+        };
+        
+        $nextSlotTime = $timeLabels[$slotIdx + 1] ?? null;
+        if ($nextSlotTime) {
+            $nextSlotMins = $parseMins($nextSlotTime);
+        } else {
+            $curSlotMins = $parseMins($slotTime);
+            $nextSlotMins = $curSlotMins + 120;
+        }
+        
+        return $createdMinutesFrom7 >= $nextSlotMins;
+    }
+}
+
 try {
     $conn = getDBConnection();
     
     // 0. Fetch active running models for this month filtered by IP & User Access SQL
     $sqlRM = "
-        SELECT line_name, section_name, model_name 
+        SELECT line_name, section_name, model_name, created_at 
         FROM dtc_running_models 
         WHERE target_month = :month AND is_active = 1
         " . getIPAccessFilterSQL('line_name', 'section_name') . "
@@ -61,7 +99,7 @@ try {
         $mName = strtolower(trim($rm['model_name']));
         
         $k = $lName . '|' . $sName . '|' . $mName;
-        $runningSet[$k] = true;
+        $runningSet[$k] = $rm['created_at'] ?? true;
         
         $secKey = $lName . '|' . $sName;
         $sectionHasRunning[$secKey] = true;
@@ -147,8 +185,8 @@ try {
         $secKey = strtolower(trim($line_name)) . '|' . strtolower(trim($section_name));
         $k = $secKey . '|' . strtolower(trim($model_name));
 
-        // Filter out non-running models if active running models exist for this section
-        if (!empty($sectionHasRunning[$secKey])) {
+        // If active running models exist, filter out parameters that are not active running models
+        if (!empty($runningSet)) {
             if (!isset($runningSet[$k])) {
                 continue;
             }
@@ -175,8 +213,13 @@ try {
         $filledCount = 0;
         $expectedCount = 0;
 
+        $modelCreatedAt = is_string($runningSet[$k] ?? null) ? $runningSet[$k] : null;
+
         for ($seq = 1; $seq <= 11; $seq++) {
-            if ($seq > $param_allowed_slots) {
+            $slotTime = $current_line_labels[$seq - 1] ?? null;
+            $isBeforeCreation = isSlotBeforeCreationHelper($slotTime, $current_line_labels, $seq - 1, $modelCreatedAt, $date);
+
+            if ($seq > $param_allowed_slots || $isBeforeCreation) {
                 $status = 4;
             } else if ($is_closed == 1) {
                 $status = 2;
@@ -187,7 +230,6 @@ try {
                 $filledCount++;
                 $expectedCount++;
             } else {
-                $slotTime = $current_line_labels[$seq - 1] ?? null;
                 $isPast = ($date < $todayStr) || ($date == $todayStr && isSlotPast($slotTime, $nowH, $nowM));
                 $expectedCount++;
                 if ($isPast) {

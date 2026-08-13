@@ -181,12 +181,26 @@ try {
                 ];
             }
 
+            $rm_created_at = null;
+            if (!empty($paramSingle['model_name'])) {
+                $stmtRM = $conn->prepare("
+                    SELECT created_at FROM dtc_running_models 
+                    WHERE target_month = :month 
+                      AND UPPER(TRIM(model_name)) = UPPER(TRIM(:mname)) 
+                      AND is_active = 1 
+                    ORDER BY created_at DESC LIMIT 1
+                ");
+                $stmtRM->execute([':month' => substr($inspection_date, 0, 7), ':mname' => $paramSingle['model_name']]);
+                $rm_created_at = $stmtRM->fetchColumn() ?: null;
+            }
+
             $modelNode = [
                 'running_id' => 0,
                 'model_name' => $paramSingle['model_name'],
                 'line_name' => $paramSingle['line_name'],
                 'section_name' => $paramSingle['section_name'],
                 'target_month' => $paramSingle['target_month'],
+                'created_at' => $rm_created_at,
                 'parameters' => [[
                     'parameter_id' => $pid,
                     'process_name' => $paramSingle['process_name'],
@@ -218,7 +232,7 @@ try {
 
     // 1. Fetch active running models for this month and selected filters
     $sqlRM = "
-        SELECT running_id, model_name, line_name, section_name, target_month 
+        SELECT running_id, model_name, line_name, section_name, target_month, created_at 
         FROM dtc_running_models 
         WHERE is_active = 1 AND target_month = :month
     ";
@@ -246,7 +260,7 @@ try {
 
     if (empty($runningModels)) {
         // Fallback: search for active models for target_month without line/section/model filter but with IP & User access filters
-        $sqlRM2 = "SELECT running_id, model_name, line_name, section_name, target_month FROM dtc_running_models WHERE is_active = 1 AND target_month = :month " . getIPAccessFilterSQL('line_name', 'section_name') . getUserAccessFilterSQL('line_name', 'section_name') . " ORDER BY line_name ASC, section_name ASC, model_name ASC";
+        $sqlRM2 = "SELECT running_id, model_name, line_name, section_name, target_month, created_at FROM dtc_running_models WHERE is_active = 1 AND target_month = :month " . getIPAccessFilterSQL('line_name', 'section_name') . getUserAccessFilterSQL('line_name', 'section_name') . " ORDER BY line_name ASC, section_name ASC, model_name ASC";
         $stmtRM2 = $conn->prepare($sqlRM2);
         $stmtRM2->execute([':month' => $month]);
         $runningModels = $stmtRM2->fetchAll(PDO::FETCH_ASSOC);
@@ -479,6 +493,7 @@ try {
             'line_name' => $lName,
             'section_name' => $sName,
             'target_month' => $tMonth,
+            'created_at' => $rm['created_at'] ?? null,
             'items' => $items
         ];
     }

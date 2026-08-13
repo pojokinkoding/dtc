@@ -84,13 +84,15 @@ $(document).ready(function () {
                         let isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
 
                         let val = row["day_" + i];
-                        let displayVal = val !== null ? parseFloat(val).toFixed(2) : "";
+                        let isUnmeasured = (val === null || val === undefined || val === "");
+                        let displayVal = (!isSummary && isUnmeasured) ? "" : (val !== null && val !== undefined && val !== "" ? parseFloat(val).toFixed(2) : "");
 
                         let cellClass = "";
                         let bgStyle = isWeekend ? 'background-color: rgba(100,100,100,0.15); color: #555;' : '';
 
-                        if (!isSummary && val !== null) {
-                            if (val < LSL || val > USL) {
+                        if (!isSummary && !isUnmeasured) {
+                            let parsedVal = parseFloat(val);
+                            if (parsedVal < LSL || parsedVal > USL) {
                                 cellClass = "oos-cell";
                             }
                         }
@@ -852,37 +854,98 @@ $(document).ready(function () {
 
     function isTimeSlotFutureDetail(dateStr, labelText) {
         if (!dateStr || !labelText) return false;
-        let timeParts = labelText.match(/^(\d{1,2}):(\d{2})$/);
-        if (!timeParts) return false;
 
-        let hours = parseInt(timeParts[1], 10);
-        let minutes = parseInt(timeParts[2], 10);
-        let offsetDay = 0;
-
-        if (hours >= 24) {
-            offsetDay = Math.floor(hours / 24);
-            hours = hours % 24;
-        } else if (hours < 7) {
-            offsetDay = 1;
-        }
-
-        let targetDate = new Date(dateStr + 'T00:00:00');
-        if (isNaN(targetDate.getTime())) return false;
-
-        if (offsetDay > 0) {
-            targetDate.setDate(targetDate.getDate() + offsetDay);
-        }
-        targetDate.setHours(hours, minutes, 0, 0);
+        let todayStr = new Date().toISOString().slice(0, 10);
+        if (dateStr > todayStr) return true;
+        if (dateStr < todayStr) return false;
 
         let now = new Date();
-        return targetDate.getTime() > now.getTime();
+        let curH = now.getHours();
+        let curM = now.getMinutes();
+        if (curH < 7) curH += 24;
+        let curMins = curH * 60 + curM;
+
+        let clean = String(labelText).replace('.', ':');
+        let m = clean.match(/^(\d{1,2}):(\d{2})/);
+        if (!m) return false;
+
+        let sH = parseInt(m[1], 10);
+        let sM = parseInt(m[2], 10);
+        if (sH < 7) sH += 24;
+        let slotMins = sH * 60 + sM;
+
+        // Slot is future if current shift time is prior to (slotMins - 30)
+        return curMins < (slotMins - 30);
+    }
+
+    function isTimeSlotBeforeModelStartDetail(dateStr, labelText, rmCreatedAt) {
+        if (!rmCreatedAt || !dateStr || !labelText) return false;
+
+        let parts = String(rmCreatedAt).trim().split(' ');
+        if (parts.length < 2) return false;
+
+        let rmDate = parts[0];
+        let rmTime = parts[1];
+
+        if (rmDate !== dateStr) return false;
+
+        let tParts = rmTime.split(':');
+        let mH = parseInt(tParts[0], 10);
+        let mM = parseInt(tParts[1], 10);
+        if (isNaN(mH) || isNaN(mM)) return false;
+
+        let modelMins = (mH < 7 ? mH + 24 : mH) * 60 + mM;
+
+        let defaultLabels = ['07:30','09:40','12:40','14:40','16:40','18:40','20:05','22:30','24:30','02:30','04:30'];
+        let clean = String(labelText).replace('.', ':');
+        let idx = defaultLabels.findIndex(l => l.replace('.', ':').startsWith(clean));
+
+        let nextSlotMins;
+        if (idx !== -1 && idx < defaultLabels.length - 1) {
+            let nextLabel = defaultLabels[idx + 1];
+            let nMatch = nextLabel.match(/^(\d{1,2})[:\.](\d{2})/);
+            if (nMatch) {
+                let nH = parseInt(nMatch[1], 10);
+                let nM = parseInt(nMatch[2], 10);
+                if (nH < 7) nH += 24;
+                nextSlotMins = nH * 60 + nM;
+            }
+        }
+
+        if (!nextSlotMins) {
+            let sMatch = clean.match(/^(\d{1,2})[:\.](\d{2})/);
+            if (!sMatch) return false;
+            let sH = parseInt(sMatch[1], 10);
+            let sM = parseInt(sMatch[2], 10);
+            if (sH < 7) sH += 24;
+            nextSlotMins = (sH * 60 + sM) + 120;
+        }
+
+        return modelMins >= nextSlotMins;
     }
 
     $(document).on('input keyup change', ".sample-input, input[name^='sample_']", function () {
         let val = $(this).val();
+        let $clearBtn = $(this).siblings('.btn-clear-sample');
         if (val !== null && val !== undefined && String(val).trim() !== '') {
             $(this).removeClass('slot-overdue-glowing');
+            if (!$(this).prop('readonly')) {
+                $clearBtn.show();
+            } else {
+                $clearBtn.hide();
+            }
+        } else {
+            $clearBtn.hide();
         }
+    });
+
+    $(document).on('click', '.btn-clear-sample', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        let seq = $(this).data('sample');
+        let $input = $("input[name='sample_" + seq + "']");
+        $input.val("").removeClass('slot-overdue-glowing').trigger('change').focus();
+        $(this).hide();
     });
 
     // --- Auto Load Data on Date Change ---
@@ -892,9 +955,11 @@ $(document).ready(function () {
 
         // Clear previous sample values before loading
         $("input[name^='sample_']").val("").prop("readonly", false).css({ 'opacity': '1', 'cursor': 'text' }).removeAttr('title').removeClass('slot-overdue-glowing');
+        $('.btn-clear-sample').hide();
         $("input[name='remarks']").val("").prop("readonly", false);
         $("#btn-save-input").show();
         $("#btn-close-data").hide();
+        $("#btn-delete-data").hide();
 
         $.ajax({
             url: `Script/php/dtc/c_dtc_measurement_get.php?parameter_id=${paramId}&date=${selectedDate}`,
@@ -903,21 +968,40 @@ $(document).ready(function () {
             dataType: "json",
             success: function (response) {
                 let d = (response.status === "found") ? response.data : {};
+                let rmCreatedAt = response.running_model_created_at || null;
                 let hasLoadedOOS = false;
                 let isClosed = (response.status === "found" && parseInt(d.is_closed) === 1);
                 let unfilledOverdueCount = 0;
                 let totalSlotsCount = $("input[name^='sample_']").length || 11;
 
+                if (response.status === "found") {
+                    $("#btn-delete-data").show();
+                } else {
+                    $("#btn-delete-data").hide();
+                }
+
                 for (let i = 1; i <= totalSlotsCount; i++) {
                     let sampleVal = d["sample_" + i];
                     let $input = $("input[name='sample_" + i + "']");
+                    let $clearBtn = $input.siblings('.btn-clear-sample');
                     if ($input.length === 0) continue;
 
                     $input.removeClass('slot-overdue-glowing');
                     let labelText = $("#label_sample_" + i).text().trim();
                     let isFuture = isTimeSlotFutureDetail(selectedDate, labelText);
+                    let isBeforeModelStart = isTimeSlotBeforeModelStartDetail(selectedDate, labelText, rmCreatedAt);
 
-                    if (isFuture) {
+                    if (isBeforeModelStart) {
+                        $input.val(sampleVal !== null && sampleVal !== undefined ? sampleVal : "").prop("readonly", true).css({
+                            'border': '1px dashed rgba(255,255,255,0.12)',
+                            'box-shadow': 'none',
+                            'background-color': 'rgba(15, 23, 42, 0.45)',
+                            'color': 'rgba(255,255,255,0.3)',
+                            'opacity': '0.5',
+                            'cursor': 'not-allowed'
+                        }).attr('title', 'Slot jam sebelum running model di-add (Terkunci)');
+                        $clearBtn.hide();
+                    } else if (isFuture) {
                         $input.val("").prop("readonly", true).css({
                             'border': '1px dashed rgba(255,255,255,0.15)',
                             'box-shadow': 'none',
@@ -926,6 +1010,7 @@ $(document).ready(function () {
                             'opacity': '0.5',
                             'cursor': 'not-allowed'
                         }).attr('title', 'Belum masuk waktu pengisian (slot jam di masa depan)');
+                        $clearBtn.hide();
                     } else if (sampleVal !== null && sampleVal !== undefined && sampleVal !== "" && String(sampleVal).trim() !== "") {
                         let val = parseFloat(sampleVal);
                         $input.val(val).removeAttr('title');
@@ -937,12 +1022,14 @@ $(document).ready(function () {
                                 'cursor': 'not-allowed',
                                 'background-color': 'rgba(255,255,255,0.05)'
                             });
+                            $clearBtn.hide();
                         } else {
                             $input.prop("readonly", false).css({
                                 'opacity': '1',
                                 'cursor': 'text',
                                 'background-color': 'rgba(15,23,42,0.5)'
                             });
+                            $clearBtn.show();
                         }
 
                         if (!isNaN(val) && (val < LSL || val > USL)) {
@@ -950,6 +1037,7 @@ $(document).ready(function () {
                         }
                     } else {
                         $input.val("").removeAttr('title');
+                        $clearBtn.hide();
                         // KEEP EMPTY SLOTS EDITABLE IF NOT CLOSED
                         $input.prop("readonly", false).css({
                             'opacity': '1',
@@ -975,10 +1063,12 @@ $(document).ready(function () {
                         $("input[name='remarks']").prop("readonly", true);
                         $("#btn-save-input").hide();
                         $("#btn-close-data").hide();
+                        $("#btn-delete-data").hide();
                     } else {
-                        // Admin can edit even if closed
+                        // Admin can edit/delete even if closed
                         $("#btn-save-input").show();
                         $("#btn-close-data").hide();
+                        $("#btn-delete-data").show();
                     }
                 } else {
                     // Allow edits but show Close button since data exists
@@ -1009,6 +1099,37 @@ $(document).ready(function () {
                 }, 150);
             }
         });
+});
+
+// --- Delete / Reset (NULL) Action ---
+$("#btn-delete-data").click(function () {
+    const dateVal = $("#input_inspection_date").val();
+    if (!dateVal) return;
+
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: 'Hapus / Reset Data (NULL)?',
+            text: `Apakah Anda yakin ingin menghapus / meng-reset data pengukuran pada tanggal ${dateVal} menjadi NULL?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Ya, Hapus (Reset NULL)',
+            cancelButtonText: 'Batal',
+            background: '#1e293b',
+            color: '#f8fafc'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $("input[name^='sample_']").val("");
+                $("#form-input-data").submit();
+            }
+        });
+    } else {
+        if (confirm(`Apakah Anda yakin ingin menghapus data tanggal ${dateVal}?`)) {
+            $("input[name^='sample_']").val("");
+            $("#form-input-data").submit();
+        }
+    }
 });
 
 // --- Close Measurement Action ---
@@ -1103,7 +1224,9 @@ $("#form-input-data").submit(function (e) {
         }
     });
 
-    if (!hasData) {
+    let isExistingData = $("#btn-delete-data").is(":visible");
+
+    if (!hasData && !isExistingData) {
         Swal.fire({
             title: 'Data Kosong!',
             text: 'Minimal harus ada satu data pengukuran yang diisi sebelum menyimpan.',

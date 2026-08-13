@@ -6,108 +6,26 @@ let timeLabels = [];       // Time labels from Settings
 let parametersList = [];   // List of parameters for dropdown
 let daysInMonth = 31;
 let closedDaysMap = {};    // Closed days status mapped by parameter_id and day
+let runningModelCreatedAt = null; // Created_at timestamp of active running model
 
 $(document).ready(function () {
     loadMatrixData();
 
-    // === CELL CLICK → Open Input Modal ===
-    $(document).on('click', '.cell-data', function () {
-        let currentMonthStr = new Date().toISOString().slice(0, 7);
-        if (matrixMonth && matrixMonth < currentMonthStr) {
+    // === CELL CLICK → Matrix Table is Read-Only Information Dashboard ===
+    $(document).on('click', '.cell-data', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof Swal !== 'undefined') {
             Swal.fire({
-                icon: 'lock',
-                title: 'Periode Bulan Lalu Terkunci Total',
-                text: 'Data pengukuran dan checkpoint periode bulan lalu terkunci total dan tidak dapat diubah.',
+                icon: 'info',
+                title: 'Tabel Matrix Informasi (Read-Only)',
+                text: 'Tabel matrix ini hanya berfungsi sebagai tampilan informasi/history data. Silakan klik tombol "Input / Update Data" di kanan atas untuk pengisian data sampel.',
+                timer: 2500,
+                showConfirmButton: false,
                 background: '#1e293b',
-                color: '#f8fafc',
-                confirmButtonColor: '#ef4444'
+                color: '#f8fafc'
             });
-            return;
         }
-
-        let paramId = $(this).data('param-id');
-        let cpId = $(this).data('checkpoint-id');
-        let date = $(this).data('date');
-        let timeLabel = $(this).data('label');
-        let val = $(this).data('val');
-        let cpName = $(this).data('cp-name');
-
-        let formattedDate = `${matrixMonth}-${date.toString().padStart(2, '0')}`;
-
-        // --- 1. Validation: Gak boleh isi sebelum waktunya ---
-        let isFuture = false;
-        if (/^\d{2}:\d{2}$/.test(timeLabel)) {
-            let parts = timeLabel.split(':');
-            let hours = parseInt(parts[0], 10);
-            let minutes = parseInt(parts[1], 10);
-
-            // Buat objek tanggal target berdasarkan shift date
-            let targetDt = new Date(formattedDate + 'T00:00:00');
-            if (hours < 7) {
-                // Jam sebelum 07:00 masuk ke hari kalender berikutnya
-                targetDt.setDate(targetDt.getDate() + 1);
-            }
-            targetDt.setHours(hours, minutes, 0, 0);
-
-            if (targetDt > new Date()) {
-                isFuture = true;
-            }
-        } else {
-            // Custom label. Check date only.
-            let today = new Date().toISOString().slice(0, 10);
-            if (formattedDate > today) {
-                isFuture = true;
-            }
-        }
-
-        if (isFuture) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Belum Waktunya',
-                text: 'Belum masuk waktu pengisian untuk slot ini.'
-            });
-            return;
-        }
-
-        // --- 2. Validation: Hari telah dikunci (Closed) ---
-        let isClosed = (closedDaysMap[paramId] && closedDaysMap[paramId][date] == 1);
-        if (isClosed && !isAdmin) {
-            Swal.fire({
-                icon: 'lock',
-                title: 'Terkunci',
-                text: 'Hari ini telah di-close. Pengisian data tidak diperbolehkan.'
-            });
-            return;
-        }
-
-        // --- 3. Validation: Kalau sudah ada input, tidak bisa ganti kecuali admin ---
-        if (val && val.trim() !== '' && !isAdmin) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Akses Ditolak',
-                text: 'Hanya Admin yang dapat mengubah data yang sudah diisi.'
-            });
-            return;
-        }
-
-        $('#input_param_id').val(paramId);
-        $('#input_checkpoint_id').val(cpId);
-        $('#input_date').val(formattedDate);
-        $('#input_time').val(timeLabel);
-        $('#input_result').val(val);
-
-        // Hide warning msg when modal opens
-        $('#result-warning-msg').hide();
-
-        // Reset button states
-        $('.btn-result').css({ 'opacity': '1', 'transform': 'scale(1)' });
-        if (val) {
-            $(`.btn-result[data-val="${val}"]`).css({ 'opacity': '1', 'transform': 'scale(1.05)' });
-            $(`.btn-result[data-val!="${val}"]`).css({ 'opacity': '0.4' });
-        }
-
-        $('#modal-info-text').html(`<b>${cpName}</b> — Jam: <b>${timeLabel}</b> — Tanggal: <b>${formattedDate}</b>`);
-        $('#modal-input-matrix').addClass('active');
     });
 
     // === TOGGLE LOCK CLICK ===
@@ -209,105 +127,225 @@ $(document).ready(function () {
         });
     });
 
-    // === OPEN ADD CHECKPOINT MODAL ===
-    $(document).on('click', '#btn-open-add-checkpoint, #btn-open-add-checkpoint-empty, .btn-add-checkpoint', function () {
-        // Fill parameter dropdown
-        let opts = '';
-        if (parametersList && parametersList.length > 0) {
-            parametersList.forEach(p => {
-                opts += `<option value="${p.parameter_id}">${p.item_check_name} [${p.data_type}]</option>`;
-            });
-        }
-        $('#cp_param_select').html(opts);
-        if (typeof matrixParamId !== 'undefined' && matrixParamId) {
-            $('#cp_param_select').val(matrixParamId);
-        }
-        $('#cp_name').val('');
-        $('#cp_spec').val('');
-        $('#cp_type').val('Qualitative');
-        $('#add_spec_bounds').css('display', 'none');
-        $('#cp_lsl').val('');
-        $('#cp_target_value').val('');
-        $('#cp_usl').val('');
-        $('#modal-add-checkpoint').addClass('active');
+function createCpRowHtml(rowIdx, name = '', spec = '', type = 'Quantitative', lsl = '', target = '', usl = '') {
+    let isQuant = (type === 'Quantitative');
+    let baseInputStyle = 'width: 100%; height: 36px; padding: 0 10px; font-size: 12px; border-radius: 6px; color: white; border: 1px solid rgba(255,255,255,0.15); box-sizing: border-box; vertical-align: middle; transition: all 0.2s;';
+    let enabledStyle = baseInputStyle + ' background: rgba(15,23,42,0.8);';
+    let disabledStyle = baseInputStyle + ' background: rgba(15,23,42,0.3); opacity: 0.35; color: rgba(255,255,255,0.4); border-color: rgba(255,255,255,0.08); text-align: center; cursor: not-allowed;';
+    let numStyle = baseInputStyle + ' background: rgba(15,23,42,0.8); text-align: center;';
+
+    let disabledAttr = isQuant ? '' : 'disabled';
+    let currentNumStyle = isQuant ? numStyle : disabledStyle;
+
+    return `<tr class="cp-multiple-row" data-row-idx="${rowIdx}">
+        <td style="text-align: center; font-weight: bold; color: #94a3b8; vertical-align: middle; padding: 8px 4px;" class="row-num">${rowIdx}</td>
+        <td style="vertical-align: middle; padding: 8px 6px;">
+            <input type="text" class="cp-row-name" value="${name}" placeholder="e.g. A" required style="${enabledStyle}">
+        </td>
+        <td style="vertical-align: middle; padding: 8px 6px;">
+            <input type="text" class="cp-row-spec" value="${spec}" placeholder="e.g. 700±0.5" style="${enabledStyle}">
+        </td>
+        <td style="vertical-align: middle; padding: 8px 6px;">
+            <select class="cp-row-type" style="${enabledStyle}">
+                <option value="Quantitative" ${isQuant ? 'selected' : ''}>Quantitative</option>
+                <option value="Qualitative" ${!isQuant ? 'selected' : ''}>Qualitative</option>
+            </select>
+        </td>
+        <td style="vertical-align: middle; padding: 8px 4px;">
+            <input type="number" step="any" class="cp-row-lsl" value="${lsl}" placeholder="Min" style="${currentNumStyle}" ${disabledAttr}>
+        </td>
+        <td style="vertical-align: middle; padding: 8px 4px;">
+            <input type="number" step="any" class="cp-row-target" value="${target}" placeholder="Target" style="${currentNumStyle}" ${disabledAttr}>
+        </td>
+        <td style="vertical-align: middle; padding: 8px 4px;">
+            <input type="number" step="any" class="cp-row-usl" value="${usl}" placeholder="Max" style="${currentNumStyle}" ${disabledAttr}>
+        </td>
+        <td style="text-align: center; vertical-align: middle; padding: 8px 4px;">
+            <button type="button" class="btn-remove-cp-row" style="background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #f87171; width: 32px; height: 32px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s;" title="Hapus baris ini">
+                <i class="fa-solid fa-trash" style="font-size: 12px;"></i>
+            </button>
+        </td>
+    </tr>`;
+}
+
+function updateCpRowsSeqNumbers() {
+    $('#multiple-cp-tbody tr').each(function (idx) {
+        $(this).find('.row-num').text(idx + 1);
     });
+    let totalRows = $('#multiple-cp-tbody tr').length;
+    $('#multiple-cp-summary-info').html(`Total: <b>${totalRows}</b> checkpoint siap disimpan.`);
+}
 
-    $(document).on('change', '#cp_type', function() {
-        if ($(this).val() === 'Quantitative') {
-            $('#add_spec_bounds').css('display', 'grid');
-        } else {
-            $('#add_spec_bounds').css('display', 'none');
-        }
-    });
+// === OPEN ADD CHECKPOINT MODAL (MULTIPLE/BATCH CREATOR) ===
+$(document).on('click', '#btn-open-add-checkpoint, #btn-open-add-checkpoint-empty, .btn-add-checkpoint', function () {
+    let activeParam = null;
+    if (typeof matrixParamId !== 'undefined' && matrixParamId && parametersList) {
+        activeParam = parametersList.find(p => p.parameter_id === matrixParamId);
+    }
+    if (!activeParam && parametersList && parametersList.length > 0) {
+        activeParam = parametersList[0];
+    }
 
-    $(document).on('change', '#edit_cp_type', function() {
-        if ($(this).val() === 'Quantitative') {
-            $('#edit_spec_bounds').css('display', 'grid');
-        } else {
-            $('#edit_spec_bounds').css('display', 'none');
-        }
-    });
+    if (activeParam) {
+        $('#cp_param_select').val(activeParam.parameter_id);
+        $('#cp_param_label_value').text(`${activeParam.item_check_name} [${activeParam.data_type || 'Time Check'}]`);
+    } else {
+        $('#cp_param_select').val(typeof matrixParamId !== 'undefined' ? matrixParamId : 0);
+        $('#cp_param_label_value').text(typeof matrixParamName !== 'undefined' ? matrixParamName : '-');
+    }
 
-    // === SUBMIT ADD CHECKPOINT ===
-    $(document).on('submit', '#form-add-checkpoint', function (e) {
-        e.preventDefault();
+    $('#multiple-cp-tbody').empty();
+    $('#multiple-cp-tbody').append(createCpRowHtml(1));
+    updateCpRowsSeqNumbers();
 
-        let lslVal = $('#cp_lsl').val() !== '' ? parseFloat($('#cp_lsl').val()) : null;
-        let targetVal = $('#cp_target_value').val() !== '' ? parseFloat($('#cp_target_value').val()) : null;
-        let uslVal = $('#cp_usl').val() !== '' ? parseFloat($('#cp_usl').val()) : null;
+    $('#modal-add-checkpoint').addClass('active');
+});
 
-        if (lslVal !== null && uslVal !== null && lslVal > uslVal) {
-            Swal.fire({ icon: 'error', title: 'Validasi Gagal', text: `Batas LSL (${lslVal}) tidak boleh lebih besar dari USL (${uslVal}).`, background: '#1e293b', color: '#f8fafc' });
-            return;
-        }
+// Add 1 row
+$(document).on('click', '#btn-add-cp-row', function () {
+    let nextIdx = $('#multiple-cp-tbody tr').length + 1;
+    $('#multiple-cp-tbody').append(createCpRowHtml(nextIdx));
+    updateCpRowsSeqNumbers();
+    $('#multiple-cp-tbody tr:last .cp-row-name').focus();
+});
 
-        if (targetVal !== null) {
-            if (lslVal !== null && targetVal < lslVal) {
-                Swal.fire({ icon: 'error', title: 'Validasi Gagal', text: `Nilai Target (${targetVal}) berada di bawah LSL (${lslVal}).`, background: '#1e293b', color: '#f8fafc' });
-                return;
+
+
+// Clear all rows
+$(document).on('click', '#btn-clear-cp-rows', function () {
+    $('#multiple-cp-tbody').empty();
+    $('#multiple-cp-tbody').append(createCpRowHtml(1));
+    updateCpRowsSeqNumbers();
+});
+
+// Remove single row
+$(document).on('click', '.btn-remove-cp-row', function () {
+    $(this).closest('tr').remove();
+    if ($('#multiple-cp-tbody tr').length === 0) {
+        $('#multiple-cp-tbody').append(createCpRowHtml(1));
+    }
+    updateCpRowsSeqNumbers();
+});
+
+// Toggle row inputs on Type change
+$(document).on('change', '.cp-row-type', function () {
+    let $row = $(this).closest('tr');
+    let isQuant = ($(this).val() === 'Quantitative');
+    let $inputs = $row.find('.cp-row-lsl, .cp-row-target, .cp-row-usl');
+    let baseStyle = 'width: 100%; height: 36px; padding: 0 10px; font-size: 12px; border-radius: 6px; color: white; box-sizing: border-box; vertical-align: middle; text-align: center; transition: all 0.2s;';
+
+    if (isQuant) {
+        $inputs.prop('disabled', false).attr('style', baseStyle + ' background: rgba(15,23,42,0.8); border: 1px solid rgba(255,255,255,0.15); opacity: 1; cursor: text;');
+    } else {
+        $inputs.val('').prop('disabled', true).attr('style', baseStyle + ' background: rgba(15,23,42,0.3); border: 1px solid rgba(255,255,255,0.08); opacity: 0.35; color: rgba(255,255,255,0.4); cursor: not-allowed;');
+    }
+});
+
+// Toggle row inputs for Edit modal
+$(document).on('change', '#edit_cp_type', function() {
+    if ($(this).val() === 'Quantitative') {
+        $('#edit_spec_bounds').css('display', 'grid');
+    } else {
+        $('#edit_spec_bounds').css('display', 'none');
+    }
+});
+
+// === SUBMIT MULTIPLE CHECKPOINTS (BATCH SAVE) ===
+$(document).on('submit', '#form-add-checkpoint', function (e) {
+    e.preventDefault();
+
+    let checkpoints = [];
+    let hasValidationError = false;
+
+    $('#multiple-cp-tbody tr').each(function () {
+        let name = $(this).find('.cp-row-name').val().trim();
+        if (!name) return; // Skip empty rows
+
+        let spec = $(this).find('.cp-row-spec').val().trim();
+        let type = $(this).find('.cp-row-type').val();
+        let lsl = $(this).find('.cp-row-lsl').val();
+        let target = $(this).find('.cp-row-target').val();
+        let usl = $(this).find('.cp-row-usl').val();
+
+        if (type === 'Quantitative') {
+            let lslNum = lsl !== '' ? parseFloat(lsl) : null;
+            let targetNum = target !== '' ? parseFloat(target) : null;
+            let uslNum = usl !== '' ? parseFloat(usl) : null;
+
+            if (lslNum !== null && uslNum !== null && lslNum > uslNum) {
+                Swal.fire({ icon: 'error', title: 'Validasi Gagal', text: `Checkpoint "${name}": LSL (${lslNum}) tidak boleh lebih besar dari USL (${uslNum}).`, background: '#1e293b', color: '#f8fafc' });
+                hasValidationError = true;
+                return false;
             }
-            if (uslVal !== null && targetVal > uslVal) {
-                Swal.fire({ icon: 'error', title: 'Validasi Gagal', text: `Nilai Target (${targetVal}) berada di atas USL (${uslVal}).`, background: '#1e293b', color: '#f8fafc' });
-                return;
-            }
-        }
-
-        let formData = $(this).serializeArray();
-        formData.push({ name: 'action', value: 'add' });
-
-        let btn = $(this).find('button[type="submit"]');
-        let origText = btn.html();
-        btn.html('<i class="fa-solid fa-spinner fa-spin"></i> Adding...').prop('disabled', true);
-
-        $.ajax({
-            url: 'Script/php/dtc/c_dtc_checkpoint_manage.php',
-            type: 'POST',
-            data: $.param(formData),
-            dataType: 'json',
-            success: function (res) {
-                btn.html(origText).prop('disabled', false);
-                if (res.status === 'success') {
-                    $('#modal-add-checkpoint').removeClass('active');
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Sukses',
-                        text: res.message,
-                        timer: 1500,
-                        showConfirmButton: false,
-                        background: '#1e293b',
-                        color: '#f8fafc'
-                    });
-                    loadMatrixData(false);
-                } else {
-                    Swal.fire({ icon: 'error', title: 'Error!', text: res.message, background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#ef4444' });
+            if (targetNum !== null) {
+                if (lslNum !== null && targetNum < lslNum) {
+                    Swal.fire({ icon: 'error', title: 'Validasi Gagal', text: `Checkpoint "${name}": Target (${targetNum}) berada di bawah LSL (${lslNum}).`, background: '#1e293b', color: '#f8fafc' });
+                    hasValidationError = true;
+                    return false;
                 }
-            },
-            error: function () {
-                btn.html(origText).prop('disabled', false);
-                Swal.fire({ icon: 'error', title: 'Koneksi Gagal!', text: 'Server connection error.', background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#ef4444' });
+                if (uslNum !== null && targetNum > uslNum) {
+                    Swal.fire({ icon: 'error', title: 'Validasi Gagal', text: `Checkpoint "${name}": Target (${targetNum}) berada di atas USL (${uslNum}).`, background: '#1e293b', color: '#f8fafc' });
+                    hasValidationError = true;
+                    return false;
+                }
             }
+        }
+
+        checkpoints.push({
+            name: name,
+            spec: spec,
+            type: type,
+            lsl: lsl,
+            target_value: target,
+            usl: usl
         });
     });
+
+    if (hasValidationError) return;
+
+    if (checkpoints.length === 0) {
+        Swal.fire({ icon: 'warning', title: 'Peringatan', text: 'Silakan isi minimal 1 Nama Checkpoint.', background: '#1e293b', color: '#f8fafc' });
+        return;
+    }
+
+    let paramId = $('#cp_param_select').val();
+    let btn = $('#btn-submit-multiple-cp');
+    let origHtml = btn.html();
+    btn.html('<i class="fa-solid fa-spinner fa-spin"></i> Saving...').prop('disabled', true);
+
+    $.ajax({
+        url: 'Script/php/dtc/c_dtc_checkpoint_manage.php',
+        type: 'POST',
+        data: {
+            action: 'add_multiple',
+            parameter_id: paramId,
+            checkpoints: JSON.stringify(checkpoints)
+        },
+        dataType: 'json',
+        success: function (res) {
+            btn.html(origHtml).prop('disabled', false);
+            if (res.status === 'success') {
+                $('#modal-add-checkpoint').removeClass('active');
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Sukses Batch Save',
+                    text: res.message,
+                    timer: 1800,
+                    showConfirmButton: false,
+                    background: '#1e293b',
+                    color: '#f8fafc'
+                });
+                loadMatrixData(false);
+            } else {
+                Swal.fire({ icon: 'error', title: 'Gagal', text: res.message, background: '#1e293b', color: '#f8fafc' });
+            }
+        },
+        error: function () {
+            btn.html(origHtml).prop('disabled', false);
+            Swal.fire({ icon: 'error', title: 'Koneksi Gagal!', text: 'Gagal terhubung ke server.', background: '#1e293b', color: '#f8fafc' });
+        }
+    });
+});
 
     // === DELETE CHECKPOINT ===
     $(document).on('click', '.btn-delete-cp', function (e) {
@@ -519,6 +557,7 @@ function loadMatrixData(showLoading = true) {
                 daysInMonth = res.days_in_month;
                 parametersList = res.parameters;
                 closedDaysMap = res.closed_days || {};
+                runningModelCreatedAt = res.running_model_created_at || null;
 
                 if (parametersList.length === 0) {
                     $('#matrix-container').html('<div style="text-align: center; padding: 50px; color: var(--text-muted);"><i class="fa-solid fa-inbox fa-2x" style="opacity:0.3;"></i><br><br>No Qualitative (Time Check / F-Proof) parameters found for this model.</div>');
@@ -617,11 +656,7 @@ $(document).on('click', '#btn-open-quant-input', function () {
     openQuantInputModal();
 });
 
-// Click cell in Quantitative Tracking History grid
-$(document).on('click', '#quant-history-body .cell-data', function () {
-    let day = $(this).data('date');
-    openQuantInputModal(day);
-});
+
 
 function getManufacturingProdDay() {
     let now = new Date();
@@ -693,32 +728,91 @@ function openQuantInputModal(selectedDay) {
 
 function isTimeSlotFuture(dateStr, label) {
     if (!dateStr || !label) return false;
-    let parts = label.split(':');
-    if (parts.length < 2) return false;
-    let hours = parseInt(parts[0], 10);
-    let minutes = parseInt(parts[1], 10);
-    let offsetDay = 0;
 
-    if (hours >= 24) {
-        offsetDay = Math.floor(hours / 24);
-        hours = hours % 24;
-    } else if (hours < 7) {
-        offsetDay = 1;
-    }
-
-    let targetDate = new Date(dateStr + 'T00:00:00');
-    if (isNaN(targetDate.getTime())) return false;
-
-    if (offsetDay > 0) {
-        targetDate.setDate(targetDate.getDate() + offsetDay);
-    }
-    targetDate.setHours(hours, minutes, 0, 0);
+    let todayStr = new Date().toISOString().slice(0, 10);
+    if (dateStr > todayStr) return true;
+    if (dateStr < todayStr) return false;
 
     let now = new Date();
-    return targetDate.getTime() > now.getTime();
+    let curH = now.getHours();
+    let curM = now.getMinutes();
+    if (curH < 7) curH += 24;
+    let curMins = curH * 60 + curM;
+
+    let clean = String(label).replace('.', ':');
+    let m = clean.match(/^(\d{1,2}):(\d{2})/);
+    if (!m) return false;
+
+    let sH = parseInt(m[1], 10);
+    let sM = parseInt(m[2], 10);
+    if (sH < 7) sH += 24;
+    let slotMins = sH * 60 + sM;
+
+    // Slot is future if current shift time is prior to (slotMins - 30)
+    return curMins < (slotMins - 30);
 }
 
-function applySampleInputGlowing($input, val, lsl, usl, isClosed, isFuture) {
+function isTimeSlotBeforeModelStart(dateStr, timeLabel, rmCreatedAt) {
+    let createdAt = rmCreatedAt || runningModelCreatedAt;
+    if (!createdAt || !dateStr || !timeLabel) return false;
+
+    let parts = String(createdAt).trim().split(' ');
+    if (parts.length < 2) return false;
+
+    let rmDate = parts[0];
+    let rmTime = parts[1];
+
+    if (rmDate !== dateStr) return false;
+
+    let tParts = rmTime.split(':');
+    let mH = parseInt(tParts[0], 10);
+    let mM = parseInt(tParts[1], 10);
+    if (isNaN(mH) || isNaN(mM)) return false;
+
+    let modelMins = (mH < 7 ? mH + 24 : mH) * 60 + mM;
+
+    let defaultLabels = (typeof timeLabels !== 'undefined' && timeLabels.length) ? timeLabels : ['07:30','09:40','12:40','14:40','16:40','18:40','20:05','22:30','24:30','02:30','04:30'];
+    let clean = String(timeLabel).replace('.', ':');
+    let idx = defaultLabels.findIndex(l => String(l).replace('.', ':').startsWith(clean));
+
+    let nextSlotMins;
+    if (idx !== -1 && idx < defaultLabels.length - 1) {
+        let nextLabel = defaultLabels[idx + 1];
+        let cleanN = String(nextLabel).replace('.', ':');
+        let nMatch = cleanN.match(/^(\d{1,2})[:\.](\d{2})/);
+        if (nMatch) {
+            let nH = parseInt(nMatch[1], 10);
+            let nM = parseInt(nMatch[2], 10);
+            if (nH < 7) nH += 24;
+            nextSlotMins = nH * 60 + nM;
+        }
+    }
+
+    if (!nextSlotMins) {
+        let sMatch = clean.match(/^(\d{1,2})[:\.](\d{2})/);
+        if (!sMatch) return false;
+        let sH = parseInt(sMatch[1], 10);
+        let sM = parseInt(sMatch[2], 10);
+        if (sH < 7) sH += 24;
+        nextSlotMins = (sH * 60 + sM) + 120;
+    }
+
+    return modelMins >= nextSlotMins;
+}
+
+function applySampleInputGlowing($input, val, lsl, usl, isClosed, isFuture, isBeforeModelStart = false) {
+    if (isBeforeModelStart) {
+        $input.removeClass('slot-overdue-glowing').prop('readonly', true).css({
+            'border': '1px dashed rgba(255,255,255,0.12)',
+            'box-shadow': 'none',
+            'background-color': 'rgba(15, 23, 42, 0.5)',
+            'color': 'rgba(255,255,255,0.25)',
+            'opacity': '0.45',
+            'cursor': 'not-allowed'
+        }).attr('title', 'Slot jam sebelum running model di-add (Terkunci)');
+        return;
+    }
+
     if (isFuture) {
         $input.removeClass('slot-overdue-glowing').prop('readonly', true).css({
             'border': '1px dashed rgba(255,255,255,0.15)',
@@ -829,8 +923,9 @@ function populateQuantSamplesForDate(cp, day) {
         let $input = $(`#quant_sample_val_${seq}`);
 
         let isFuture = isTimeSlotFuture(selectedDateStr, label);
+        let isBeforeModelStart = isTimeSlotBeforeModelStart(selectedDateStr, label, runningModelCreatedAt);
         $input.val(val !== '' && is_numeric_val(val) ? parseFloat(val) : '');
-        applySampleInputGlowing($input, val, lsl, usl, isClosed, isFuture);
+        applySampleInputGlowing($input, val, lsl, usl, isClosed, isFuture, isBeforeModelStart);
     });
 }
 
@@ -853,8 +948,9 @@ $(document).on('input keyup change', '.quant-sample-input', function () {
     let seq = $(this).attr('id') ? $(this).attr('id').replace('quant_sample_val_', '') : '';
     let label = $(`input[name="sample_label_${seq}"]`).val();
     let isFuture = isTimeSlotFuture(dateVal, label);
+    let isBeforeModelStart = isTimeSlotBeforeModelStart(dateVal, label, runningModelCreatedAt);
 
-    applySampleInputGlowing($(this), val, lsl, usl, isClosed, isFuture);
+    applySampleInputGlowing($(this), val, lsl, usl, isClosed, isFuture, isBeforeModelStart);
 });
 
 // Date change inside Quantitative Modal
@@ -1235,6 +1331,19 @@ function is_numeric_val(val) {
     return !isNaN(parseFloat(val)) && isFinite(val);
 }
 
+function getComingSoonHtml(title, desc, icon) {
+    title = title || 'Coming Soon';
+    desc = desc || 'Belum ada data pengukuran untuk checkpoint ini.';
+    icon = icon || 'fa-clock-rotate-left';
+    return `<div style="height: 100%; min-height: 145px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #64748b; padding: 15px; background: rgba(15,23,42,0.3); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.08);">
+        <div style="width: 42px; height: 42px; border-radius: 50%; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25); display: flex; align-items: center; justify-content: center; margin-bottom: 8px; box-shadow: 0 0 12px rgba(59,130,246,0.15);">
+            <i class="fa-solid ${icon}" style="font-size: 18px; color: #60a5fa;"></i>
+        </div>
+        <div style="font-size: 12px; font-weight: 700; color: #cbd5e1; margin-bottom: 3px;">${title}</div>
+        <div style="font-size: 10.5px; color: #64748b; max-width: 250px; line-height: 1.35;">${desc}</div>
+    </div>`;
+}
+
 // === RENDER CHECKPOINT CHARTS (KENDO UI 6-PANEL SPC GRID) ===
 function renderCheckpointCharts(cp, isQuantitative) {
     if (!isQuantitative || !cp || !cp.chart_data) {
@@ -1251,170 +1360,182 @@ function renderCheckpointCharts(cp, isQuantitative) {
     let USL = cData.usl !== null && cData.usl !== undefined ? cData.usl : (paramInfo.usl !== null ? paramInfo.usl : null);
     let Target = cData.target !== null && cData.target !== undefined ? cData.target : (paramInfo.target_value !== null ? paramInfo.target_value : null);
 
-    // 1. X-Bar Chart
-    let xbarSeries = [
-        {
-            type: "line",
-            name: "Avg (X-Bar)",
-            data: xbarValues,
-            color: "#38bdf8",
-            markers: { visible: true, size: 5, background: "#38bdf8", border: { color: "#38bdf8", width: 2 } },
-            line: { width: 2.5, style: "smooth" }
-        }
-    ];
-
-    if (Target !== null) {
-        xbarSeries.push({
-            type: "line",
-            name: "Target",
-            data: Array(categories.length).fill(Target),
-            color: "#10b981",
-            dashType: "dash",
-            markers: { visible: false },
-            line: { width: 1.5 }
-        });
-    }
-    if (LSL !== null) {
-        xbarSeries.push({
-            type: "line",
-            name: "LSL",
-            data: Array(categories.length).fill(LSL),
-            color: "#ef4444",
-            dashType: "dash",
-            markers: { visible: false },
-            line: { width: 1.5 }
-        });
-    }
-    if (USL !== null) {
-        xbarSeries.push({
-            type: "line",
-            name: "USL",
-            data: Array(categories.length).fill(USL),
-            color: "#ef4444",
-            dashType: "dash",
-            markers: { visible: false },
-            line: { width: 1.5 }
-        });
-    }
-
     let validXbar = xbarValues.filter(v => v !== null && v !== undefined && !isNaN(v));
-    let allXbarVals = [LSL, USL, xbarMean, ...validXbar].filter(v => v !== null && v !== undefined && !isNaN(v));
-    let xMinVal = allXbarVals.length > 0 ? Math.min(...allXbarVals) : 0;
-    let xMaxVal = allXbarVals.length > 0 ? Math.max(...allXbarVals) : 10;
-    let xbarSpan = xMaxVal - xMinVal;
-    let xPadding = (xbarSpan === 0) ? (Math.abs(xMaxVal) > 0 ? Math.abs(xMaxVal) * 0.1 : 0.5) : Math.max(xbarSpan * 0.25, 0.1);
-    let axisMinXbar = xMinVal - xPadding;
-    let axisMaxXbar = xMaxVal + xPadding;
-    let formatXbar = (xbarSpan < 2) ? "{0:n2}" : "{0:n1}";
 
-    $("#chart-xbar").kendoChart({
-        theme: "sass",
-        chartArea: { background: "transparent" },
-        legend: { position: "bottom", labels: { color: "#94a3b8", font: "11px Inter, sans-serif" } },
-        seriesDefaults: { type: "line" },
-        series: xbarSeries,
-        categoryAxis: {
-            categories: categories,
-            labels: { color: "#94a3b8", font: "9px Inter, sans-serif" },
-            majorGridLines: { visible: false },
-            justified: true
-        },
-        valueAxis: {
-            min: axisMinXbar,
-            max: axisMaxXbar,
-            labels: { color: "#94a3b8", font: "9px Inter, sans-serif", format: formatXbar },
-            majorGridLines: { color: "rgba(255,255,255,0.05)" }
-        },
-        tooltip: {
-            visible: true,
-            template: "Day #= category #: #= value !== null ? kendo.toString(value, 'n2') : 'N/A' #"
+    // 1. X-Bar Chart
+    if (validXbar.length === 0) {
+        $("#chart-xbar").html(getComingSoonHtml('Coming Soon (X-Bar Chart)', 'Grafik Rata-Rata (X-Bar) akan tampil setelah data sampel diinput.', 'fa-chart-line'));
+    } else {
+        $("#chart-xbar").empty();
+        let xbarSeries = [
+            {
+                type: "line",
+                name: "Avg (X-Bar)",
+                data: xbarValues,
+                color: "#38bdf8",
+                markers: { visible: true, size: 5, background: "#38bdf8", border: { color: "#38bdf8", width: 2 } },
+                line: { width: 2.5, style: "smooth" }
+            }
+        ];
+
+        if (Target !== null) {
+            xbarSeries.push({
+                type: "line",
+                name: "Target",
+                data: Array(categories.length).fill(Target),
+                color: "#10b981",
+                dashType: "dash",
+                markers: { visible: false },
+                line: { width: 1.5 }
+            });
         }
-    });
+        if (LSL !== null) {
+            xbarSeries.push({
+                type: "line",
+                name: "LSL",
+                data: Array(categories.length).fill(LSL),
+                color: "#ef4444",
+                dashType: "dash",
+                markers: { visible: false },
+                line: { width: 1.5 }
+            });
+        }
+        if (USL !== null) {
+            xbarSeries.push({
+                type: "line",
+                name: "USL",
+                data: Array(categories.length).fill(USL),
+                color: "#ef4444",
+                dashType: "dash",
+                markers: { visible: false },
+                line: { width: 1.5 }
+            });
+        }
+
+        let xbarMean = (validXbar.reduce((a, b) => a + parseFloat(b), 0) / validXbar.length);
+        let allXbarVals = [LSL, USL, Target, xbarMean, ...validXbar].filter(v => v !== null && v !== undefined && !isNaN(v));
+        let xMinVal = allXbarVals.length > 0 ? Math.min(...allXbarVals) : 0;
+        let xMaxVal = allXbarVals.length > 0 ? Math.max(...allXbarVals) : 10;
+        let xbarSpan = xMaxVal - xMinVal;
+        let xPadding = (xbarSpan === 0) ? (Math.abs(xMaxVal) > 0 ? Math.abs(xMaxVal) * 0.1 : 0.5) : Math.max(xbarSpan * 0.25, 0.1);
+        let axisMinXbar = xMinVal - xPadding;
+        let axisMaxXbar = xMaxVal + xPadding;
+        let formatXbar = (xbarSpan < 2) ? "{0:n2}" : "{0:n1}";
+
+        $("#chart-xbar").kendoChart({
+            theme: "sass",
+            chartArea: { background: "transparent" },
+            legend: { position: "bottom", labels: { color: "#94a3b8", font: "11px Inter, sans-serif" } },
+            seriesDefaults: { type: "line" },
+            series: xbarSeries,
+            categoryAxis: {
+                categories: categories,
+                labels: { color: "#94a3b8", font: "9px Inter, sans-serif" },
+                majorGridLines: { visible: false },
+                justified: true
+            },
+            valueAxis: {
+                min: axisMinXbar,
+                max: axisMaxXbar,
+                labels: { color: "#94a3b8", font: "9px Inter, sans-serif", format: formatXbar },
+                majorGridLines: { color: "rgba(255,255,255,0.05)" }
+            },
+            tooltip: {
+                visible: true,
+                template: "Day #= category #: #= value !== null ? kendo.toString(value, 'n2') : 'N/A' #"
+            }
+        });
+    }
 
     // 2. R Chart (Ranges)
     let validR = rValues.filter(v => v !== null && v !== undefined && !isNaN(v));
-    let rMean = validR.length > 0 ? (validR.reduce((a, b) => a + parseFloat(b), 0) / validR.length) : null;
-    let D4 = 1.777, D3 = 0.223;
-    let UCL_R = rMean !== null ? (D4 * rMean) : null;
-    let LCL_R = rMean !== null ? (D3 * rMean) : null;
+    if (validR.length === 0) {
+        $("#chart-r").html(getComingSoonHtml('Coming Soon (R-Chart)', 'Grafik Range (R-Chart) akan tampil setelah data sampel diinput.', 'fa-chart-area'));
+    } else {
+        $("#chart-r").empty();
+        let rMean = (validR.reduce((a, b) => a + parseFloat(b), 0) / validR.length);
+        let D4 = 1.777, D3 = 0.223;
+        let UCL_R = rMean !== null ? (D4 * rMean) : null;
+        let LCL_R = rMean !== null ? (D3 * rMean) : null;
 
-    let rSeries = [
-        {
-            type: "line",
-            name: "Range (R)",
-            data: rValues,
-            color: "#a855f7",
-            markers: { visible: true, size: 5, background: "#a855f7", border: { color: "#a855f7", width: 2 } },
-            line: { width: 2 }
+        let rSeries = [
+            {
+                type: "line",
+                name: "Range (R)",
+                data: rValues,
+                color: "#a855f7",
+                markers: { visible: true, size: 5, background: "#a855f7", border: { color: "#a855f7", width: 2 } },
+                line: { width: 2 }
+            }
+        ];
+
+        if (UCL_R !== null) {
+            rSeries.push({
+                type: "line",
+                name: "UCL",
+                data: Array(categories.length).fill(parseFloat(UCL_R.toFixed(2))),
+                color: "#ef4444",
+                dashType: "dash",
+                markers: { visible: false },
+                line: { width: 1.5 }
+            });
         }
-    ];
-
-    if (UCL_R !== null) {
-        rSeries.push({
-            type: "line",
-            name: "UCL",
-            data: Array(categories.length).fill(parseFloat(UCL_R.toFixed(2))),
-            color: "#ef4444",
-            dashType: "dash",
-            markers: { visible: false },
-            line: { width: 1.5 }
-        });
-    }
-    if (rMean !== null) {
-        rSeries.push({
-            type: "line",
-            name: "CL (Mean)",
-            data: Array(categories.length).fill(parseFloat(rMean.toFixed(2))),
-            color: "#10b981",
-            dashType: "longDash",
-            markers: { visible: false },
-            line: { width: 1.5 }
-        });
-    }
-    if (LCL_R !== null && LCL_R > 0) {
-        rSeries.push({
-            type: "line",
-            name: "LCL",
-            data: Array(categories.length).fill(parseFloat(LCL_R.toFixed(2))),
-            color: "#ef4444",
-            dashType: "dash",
-            markers: { visible: false },
-            line: { width: 1.5 }
-        });
-    }
-
-    let allRVals = [LCL_R, UCL_R, rMean, ...validR].filter(v => v !== null && v !== undefined && !isNaN(v));
-    let rMinVal = allRVals.length > 0 ? Math.min(...allRVals) : 0;
-    let rMaxVal = allRVals.length > 0 ? Math.max(...allRVals) : 1;
-    let rSpan = rMaxVal - rMinVal;
-    let rPad = (rSpan === 0) ? (Math.abs(rMaxVal) > 0 ? Math.abs(rMaxVal) * 0.2 : 0.05) : Math.max(rSpan * 0.25, 0.02);
-    let axisMinR = Math.max(0, rMinVal - rPad);
-    let axisMaxR = rMaxVal + rPad;
-    let formatR = (rSpan < 2) ? "{0:n2}" : "{0:n1}";
-
-    $("#chart-r").kendoChart({
-        theme: "sass",
-        chartArea: { background: "transparent" },
-        legend: { position: "bottom", labels: { color: "#94a3b8", font: "11px Inter, sans-serif" } },
-        seriesDefaults: { type: "line" },
-        series: rSeries,
-        categoryAxis: {
-            categories: categories,
-            labels: { color: "#94a3b8", font: "9px Inter, sans-serif" },
-            majorGridLines: { visible: false },
-            justified: true
-        },
-        valueAxis: {
-            min: axisMinR,
-            max: axisMaxR,
-            labels: { color: "#94a3b8", font: "9px Inter, sans-serif", format: formatR },
-            majorGridLines: { color: "rgba(255,255,255,0.05)" }
-        },
-        tooltip: {
-            visible: true,
-            template: "Day #= category # Range: #= value !== null ? kendo.toString(value, 'n2') : 'N/A' #"
+        if (rMean !== null) {
+            rSeries.push({
+                type: "line",
+                name: "CL (Mean)",
+                data: Array(categories.length).fill(parseFloat(rMean.toFixed(2))),
+                color: "#10b981",
+                dashType: "longDash",
+                markers: { visible: false },
+                line: { width: 1.5 }
+            });
         }
-    });
+        if (LCL_R !== null && LCL_R > 0) {
+            rSeries.push({
+                type: "line",
+                name: "LCL",
+                data: Array(categories.length).fill(parseFloat(LCL_R.toFixed(2))),
+                color: "#ef4444",
+                dashType: "dash",
+                markers: { visible: false },
+                line: { width: 1.5 }
+            });
+        }
+
+        let allRVals = [LCL_R, UCL_R, rMean, ...validR].filter(v => v !== null && v !== undefined && !isNaN(v));
+        let rMinVal = allRVals.length > 0 ? Math.min(...allRVals) : 0;
+        let rMaxVal = allRVals.length > 0 ? Math.max(...allRVals) : 1;
+        let rSpan = rMaxVal - rMinVal;
+        let rPad = (rSpan === 0) ? (Math.abs(rMaxVal) > 0 ? Math.abs(rMaxVal) * 0.2 : 0.05) : Math.max(rSpan * 0.25, 0.02);
+        let axisMinR = Math.max(0, rMinVal - rPad);
+        let axisMaxR = rMaxVal + rPad;
+        let formatR = (rSpan < 2) ? "{0:n2}" : "{0:n1}";
+
+        $("#chart-r").kendoChart({
+            theme: "sass",
+            chartArea: { background: "transparent" },
+            legend: { position: "bottom", labels: { color: "#94a3b8", font: "11px Inter, sans-serif" } },
+            seriesDefaults: { type: "line" },
+            series: rSeries,
+            categoryAxis: {
+                categories: categories,
+                labels: { color: "#94a3b8", font: "9px Inter, sans-serif" },
+                majorGridLines: { visible: false },
+                justified: true
+            },
+            valueAxis: {
+                min: axisMinR,
+                max: axisMaxR,
+                labels: { color: "#94a3b8", font: "9px Inter, sans-serif", format: formatR },
+                majorGridLines: { color: "rgba(255,255,255,0.05)" }
+            },
+            tooltip: {
+                visible: true,
+                template: "Day #= category # Range: #= value !== null ? kendo.toString(value, 'n2') : 'N/A' #"
+            }
+        });
+    }
 
     // 3. Extract All Samples for Capability Curve & 4-Block & Data Summary
     let allSamples = [];
@@ -1472,7 +1593,7 @@ function renderCheckpointCharts(cp, isQuantitative) {
     $("#summ-max").text(maxData !== null ? kendo.toString(maxData, "n2") : "-");
     $("#summ-min").text(minData !== null ? kendo.toString(minData, "n2") : "-");
     $("#summ-avg").text(mean !== null ? kendo.toString(mean, "n2") : "-");
-    $("#summ-std").text(n > 1 ? kendo.toString(std, "n2") : "0.00");
+    $("#summ-std").text(n > 1 ? kendo.toString(std, "n2") : (n === 1 ? "0.00" : "-"));
     $("#summ-center").text(centerSpec !== null ? kendo.toString(centerSpec, "n2") : "-");
     $("#summ-cp").text(cpVal !== null ? (cpVal >= 99.9 ? "Ideal" : kendo.toString(cpVal, "n2")) : "-");
     $("#summ-cpk").text(cpk !== null ? (cpk >= 99.9 ? "Ideal" : kendo.toString(cpk, "n2")) : "-");
@@ -1481,11 +1602,13 @@ function renderCheckpointCharts(cp, isQuantitative) {
 
     if (cpVal !== null && cpVal < 1.0) $("#summ-cp").css("color", "#ef4444");
     else if (cpVal !== null && cpVal < 1.33) $("#summ-cp").css("color", "#f59e0b");
-    else $("#summ-cp").css("color", "#10b981");
+    else if (cpVal !== null) $("#summ-cp").css("color", "#10b981");
+    else $("#summ-cp").css("color", "#64748b");
 
     if (cpk !== null && cpk < 1.0) $("#summ-cpk").css("color", "#ef4444");
     else if (cpk !== null && cpk < 1.33) $("#summ-cpk").css("color", "#f59e0b");
-    else $("#summ-cpk").css("color", "#10b981");
+    else if (cpk !== null) $("#summ-cpk").css("color", "#10b981");
+    else $("#summ-cpk").css("color", "#64748b");
 
     // AI INSIGHT BOX
     let oosPoints = allSamples.filter(v => (LSL !== null && v < LSL) || (USL !== null && v > USL));
@@ -1499,7 +1622,7 @@ function renderCheckpointCharts(cp, isQuantitative) {
 
     let aiText = "";
     if (n === 0) {
-        aiText = `ℹ️ <strong>Waiting for Data.</strong> Belum ada sampel pengukuran untuk checkpoint ini.`;
+        aiText = `ℹ️ <strong>Coming Soon (Belum Ada Data).</strong> Belum ada sampel pengukuran untuk checkpoint ini. Silakan input data terlebih dahulu.`;
     } else if (cpk !== null && cpk < 1.0) {
         aiText = `🚨 <strong>Process is Unstable.</strong> Cpk (${cpk >= 99.9 ? 'Ideal' : kendo.toString(cpk, "n2")}) is below 1.0, indicating high variation.${oosStr}`;
     } else if (cpk !== null && cpk < 1.33) {
@@ -1509,8 +1632,14 @@ function renderCheckpointCharts(cp, isQuantitative) {
     }
     if ($("#ai-insight-box").length) $("#ai-insight-box").html(aiText);
 
-    // 4-Block Diagram (Scatter Chart)
-    if (n > 0) {
+    // 4-Block Diagram & Process Capability Curve
+    if (n === 0) {
+        $("#chart-4block").html(getComingSoonHtml('Coming Soon (Z-Shift)', 'Diagram 4-Block akan aktif setelah sampel data diinput.', 'fa-chart-pie'));
+        $("#chart-capability").html(getComingSoonHtml('Coming Soon (Capability Curve)', 'Kurva Kapabilitas Proses membutuhkan sampel data pengukuran.', 'fa-wave-square'));
+    } else {
+        $("#chart-4block").empty();
+        $("#chart-capability").empty();
+
         let displayZst = zstTrue !== null ? zstTrue : 0;
         let displayZShift = zShift !== null ? zShift : 0;
         let cappedZst = displayZst > 6.0 ? 6.0 : displayZst;
@@ -1650,10 +1779,11 @@ function renderCheckpointCharts(cp, isQuantitative) {
                 }
                 conclusionDiv.html(cText);
             } else if (conclusionDiv.length) {
-                conclusionDiv.html('Belum ada data historis tren Z-Value untuk periode ini.');
+                conclusionDiv.html('Data tidak cukup untuk menyimpulkan tren (Coming Soon).');
             }
 
             if (series.length > 0) {
+                $("#chart-ztrend").empty();
                 $("#chart-ztrend").kendoChart({
                     theme: "sass",
                     chartArea: { background: "transparent" },
@@ -1662,11 +1792,14 @@ function renderCheckpointCharts(cp, isQuantitative) {
                     categoryAxis: { categories: displayLabels, labels: { color: "#94a3b8", font: "9px Inter" } },
                     valueAxis: { labels: { color: "#94a3b8", font: "9px Inter" }, majorUnit: 40 },
                     legend: { position: "bottom", labels: { color: "#94a3b8", font: "11px Inter" } },
-                    tooltip: { visible: true, format: "{0:n2}" }
+                    tooltip: { visible: true, template: "#= series.name #: #= value !== null ? kendo.toString(value, 'n2') : 'N/A' #" }
                 });
             } else {
-                $("#chart-ztrend").html('<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#64748b;font-size:11px;">No trend data available</div>');
+                $("#chart-ztrend").html(getComingSoonHtml('Coming Soon (Z-Value Trend)', 'Tren Z-Value bulanan akan ditampilkan setelah ada data historis.', 'fa-chart-column'));
             }
+        },
+        error: function () {
+            $("#chart-ztrend").html(getComingSoonHtml('Coming Soon (Z-Value Trend)', 'Tren Z-Value bulanan akan ditampilkan setelah ada data historis.', 'fa-chart-column'));
         }
     });
 }

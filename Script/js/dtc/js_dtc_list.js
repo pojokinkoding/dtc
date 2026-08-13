@@ -21,7 +21,11 @@ $(document).ready(function () {
                     if (activeModelFilter.line) d.line = activeModelFilter.line;
                     if (activeModelFilter.section) d.section = activeModelFilter.section;
                 } else if (typeof runningModelsList !== 'undefined' && runningModelsList && runningModelsList.length > 0) {
-                    let rMods = runningModelsList.map(m => m.model_name).filter(Boolean);
+                    let rMods = runningModelsList.map(m => ({
+                        line_name: m.line_name || '',
+                        section_name: m.section_name || '',
+                        model_name: m.model_name || ''
+                    })).filter(m => m.model_name);
                     if (rMods.length > 0) {
                         d.running_models = JSON.stringify(rMods);
                     }
@@ -295,11 +299,12 @@ $(document).ready(function () {
             }
         }
 
-        $('.filter-tab-btn').each(function () {
-            let filter = $(this).data('filter');
-            let key = (filter === '' || filter === null || filter === undefined) ? 'All' : filter;
+        $('.dtc-filter-tabs .filter-tab-btn, .filter-tab-btn[data-filter]').each(function () {
+            let filter = $(this).attr('data-filter');
+            if (filter === undefined) return; // Skip checkpoint tabs or buttons without data-filter
+            let key = (filter === '' || filter === null) ? 'All' : filter;
             let count = counts[key] || 0;
-            let text = (filter === '' || filter === null || filter === undefined) ? 'All' : filter;
+            let text = (filter === '' || filter === null) ? 'All' : filter;
 
             if (count > 0) {
                 $(this).addClass('has-notif');
@@ -312,11 +317,11 @@ $(document).ready(function () {
     }
 
     // 1.5 Filter Tabs Logic
-    $('.filter-tab-btn').on('click', function () {
-        $('.filter-tab-btn').removeClass('active');
+    $('.dtc-filter-tabs .filter-tab-btn, .filter-tab-btn[data-filter]').on('click', function () {
+        $('.dtc-filter-tabs .filter-tab-btn, .filter-tab-btn[data-filter]').removeClass('active');
         $(this).addClass('active');
 
-        if (table) {
+        if (typeof table !== 'undefined' && table) {
             table.draw();
         }
     });
@@ -365,7 +370,75 @@ $(document).ready(function () {
         }
     );
 
-    $('#filter-line, #filter-section, #filter-item-check').on('change', function () {
+    let masterSpecsListDtc = [];
+
+    function updateListSectionFilterOptions() {
+        if (!masterSpecsListDtc || masterSpecsListDtc.length === 0) return;
+        let selectedLine = $('#filter-line').val();
+        let selectedSection = $('#filter-section').val();
+
+        let filteredSpecs = masterSpecsListDtc;
+        if (selectedLine) {
+            filteredSpecs = filteredSpecs.filter(s => s.line_name === selectedLine);
+        }
+
+        let availableSections = [...new Set(filteredSpecs.map(s => s.section_name).filter(Boolean))].sort();
+
+        let sectionOpts = '<option value="">All Sections</option>';
+        availableSections.forEach(sec => {
+            sectionOpts += `<option value="${sec}">${sec}</option>`;
+        });
+        $('#filter-section').html(sectionOpts);
+
+        if (selectedSection && availableSections.includes(selectedSection)) {
+            $('#filter-section').val(selectedSection);
+        } else {
+            $('#filter-section').val('');
+        }
+
+        updateListItemCheckFilterOptions();
+    }
+
+    function updateListItemCheckFilterOptions() {
+        if (!masterSpecsListDtc || masterSpecsListDtc.length === 0) return;
+        let selectedLine = $('#filter-line').val();
+        let selectedSection = $('#filter-section').val();
+        let selectedItemCheck = $('#filter-item-check').val();
+
+        let filteredSpecs = masterSpecsListDtc;
+        if (selectedLine) {
+            filteredSpecs = filteredSpecs.filter(s => s.line_name === selectedLine);
+        }
+        if (selectedSection) {
+            filteredSpecs = filteredSpecs.filter(s => s.section_name === selectedSection);
+        }
+
+        let availableItemChecks = [...new Set(filteredSpecs.map(s => s.item_check_name).filter(Boolean))].sort();
+
+        let itemCheckOpts = '<option value="">All Item Checks</option>';
+        availableItemChecks.forEach(ic => {
+            itemCheckOpts += `<option value="${ic}">${ic}</option>`;
+        });
+        $('#filter-item-check').html(itemCheckOpts);
+
+        if (selectedItemCheck && availableItemChecks.includes(selectedItemCheck)) {
+            $('#filter-item-check').val(selectedItemCheck);
+        } else {
+            $('#filter-item-check').val('');
+        }
+    }
+
+    $('#filter-line').on('change', function () {
+        updateListSectionFilterOptions();
+        if (table) table.draw();
+    });
+
+    $('#filter-section').on('change', function () {
+        updateListItemCheckFilterOptions();
+        if (table) table.draw();
+    });
+
+    $('#filter-item-check').on('change', function () {
         if (table) table.draw();
     });
 
@@ -634,15 +707,8 @@ $(document).ready(function () {
             success: function (res) {
                 if (res.specs) {
                     window.dtcSpecs = res.specs;
+                    masterSpecsListDtc = res.specs;
                     populateSpecs();
-
-                    // Extract unique Item Check Names for filter
-                    let itemChecks = [...new Set(res.specs.map(s => s.item_check_name).filter(Boolean))].sort();
-                    let itemCheckOpts = '<option value="">All Item Checks</option>';
-                    itemChecks.forEach(ic => {
-                        itemCheckOpts += `<option value="${ic}">${ic}</option>`;
-                    });
-                    $('#filter-item-check').html(itemCheckOpts);
                 }
                 if (res.sections) {
                     window.dtcSections = res.sections;
@@ -665,6 +731,10 @@ $(document).ready(function () {
                     });
                     $('#cs_line').html(opts);
                     $('#filter-line').html(filterOpts);
+                }
+
+                if (res.specs) {
+                    updateListSectionFilterOptions();
                 }
 
                 // Apply any filters passed in URL parameters (e.g. from Missing Data Tracker)
@@ -738,21 +808,29 @@ $(document).ready(function () {
         }
     }
 
-    btnAdd.onclick = function () {
-        formAdd.reset();
-        loadSelectOptions();
+    if (btnAdd && modal) {
+        btnAdd.onclick = function () {
+            if (formAdd) formAdd.reset();
+            loadSelectOptions();
 
-        let today = new Date();
-        let yyyy = today.getFullYear();
-        let mm = String(today.getMonth() + 1).padStart(2, '0');
-        $('input[name="target_month"]').val(`${yyyy}-${mm}`);
+            let today = new Date();
+            let yyyy = today.getFullYear();
+            let mm = String(today.getMonth() + 1).padStart(2, '0');
+            $('input[name="target_month"]').val(`${yyyy}-${mm}`);
 
-        modal.style.display = 'flex';
+            modal.style.display = 'flex';
+        };
     }
 
-    btnClose.onclick = function () { modal.style.display = 'none'; }
-    btnCancel.onclick = function () { modal.style.display = 'none'; }
-    window.onclick = function (event) { if (event.target == modal) { modal.style.display = "none"; } }
+    if (btnClose && modal) {
+        btnClose.onclick = function () { modal.style.display = 'none'; };
+    }
+    if (btnCancel && modal) {
+        btnCancel.onclick = function () { modal.style.display = 'none'; };
+    }
+    if (modal) {
+        window.onclick = function (event) { if (event.target == modal) { modal.style.display = "none"; } };
+    }
 
     $('#spec_id').change(function () {
         let opt = $(this).find('option:selected');
@@ -1521,11 +1599,9 @@ function renderBulkAllModelsForm(models, timeLabels) {
             grouped[proc].push(item);
         });
 
-        let globalSeq = 1;
-
-        for (let procName in grouped) {
+        let globalSeq = 1;        for (let procName in grouped) {
             html += `
-            <div style="background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; margin-bottom: 20px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+            <div class="bulk-process-block" style="background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
                 <!-- Integrated Compact Header (Model + Process) -->
                 <div style="background: rgba(30,41,59,0.85); border-bottom: 1px solid rgba(255,255,255,0.1); padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
                     <div style="display: flex; align-items: center; gap: 10px;">
@@ -1541,13 +1617,14 @@ function renderBulkAllModelsForm(models, timeLabels) {
                         ${grouped[procName].length} Item
                     </span>
                 </div>
-                <div style="padding: 8px; overflow-x: auto;">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 12px; color: #f8fafc;">
+
+                <div class="bulk-table-container" style="padding: 8px; overflow-x: auto; cursor: grab; user-select: none;">
+                    <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; color: #f8fafc;">
                         <thead>
-                            <tr style="background: rgba(15,23,42,0.9); border-bottom: 2px solid rgba(255,255,255,0.1); color: #94a3b8; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;">
-                                <th style="padding: 8px; text-align: center; width: 35px;">No</th>
-                                <th style="padding: 8px; text-align: left; min-width: 180px;">Item Check & Kategori</th>
-                                <th style="padding: 8px; text-align: left; min-width: 190px;">Checkpoint & Spesifikasi</th>
+                            <tr style="background: rgba(15,23,42,0.95); border-bottom: 2px solid rgba(255,255,255,0.1); color: #94a3b8; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;">
+                                <th style="position: sticky; left: 0; top: 0; z-index: 25; background: #0f172a; padding: 10px 6px; text-align: center; width: 40px; min-width: 40px; border-right: 1px solid rgba(255,255,255,0.08); border-bottom: 2px solid rgba(255,255,255,0.1);">No</th>
+                                <th style="position: sticky; left: 40px; top: 0; z-index: 25; background: #0f172a; padding: 10px; text-align: left; min-width: 280px; width: 280px; border-right: 1px solid rgba(255,255,255,0.08); border-bottom: 2px solid rgba(255,255,255,0.1);">Item Check & Kategori</th>
+                                <th style="position: sticky; left: 320px; top: 0; z-index: 25; background: #0f172a; padding: 10px; text-align: left; min-width: 170px; width: 170px; border-right: 2px solid rgba(59, 130, 246, 0.4); box-shadow: 4px 0 10px rgba(0,0,0,0.5); border-bottom: 2px solid rgba(255,255,255,0.1);">Checkpoint & Spesifikasi</th>
             `;
 
             (timeLabels || []).forEach((lbl, idx) => {
@@ -1560,7 +1637,7 @@ function renderBulkAllModelsForm(models, timeLabels) {
                     : 'background: rgba(30,41,59,0.5); border-left: 1px solid rgba(255,255,255,0.05);';
 
                 html += `
-                    <th style="padding: 8px 4px; text-align: center; min-width: 85px; ${thStyle}">
+                    <th style="position: sticky; top: 0; z-index: 15; padding: 8px 4px; text-align: center; min-width: 85px; border-bottom: 2px solid rgba(255,255,255,0.1); ${thStyle}">
                         S${idx + 1} ${isCurrentSlotHeader ? '<span style="color:#38bdf8; font-size:9px; font-weight:900;">● AKTIF</span>' : ''}<br><span style="font-size:10px; color:${isCurrentSlotHeader ? '#38bdf8' : '#60a5fa'}; font-weight:${isCurrentSlotHeader ? '900' : 'normal'}; text-transform:none;">${lbl}</span>
                     </th>
                 `;
@@ -1593,53 +1670,72 @@ function renderBulkAllModelsForm(models, timeLabels) {
                     if (!specText) specText = '-';
 
                     html += `
-                    <tr class="bulk-item-row" data-model="${m.model_name}" data-param="${p.parameter_id}" data-cp="${cp.checkpoint_id}" data-type="${isQuant ? 'Quantitative' : 'Qualitative'}" data-name="${m.model_name} - ${p.item_check_name} - ${cp.checkpoint_name}" style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                        <td style="padding: 8px 4px; text-align: center; color: #64748b; font-weight: 600;">${globalSeq++}</td>
+                    <tr class="bulk-item-row" data-model="${m.model_name}" data-param="${p.parameter_id}" data-cp="${cp.checkpoint_id}" data-type="${isQuant ? 'Quantitative' : 'Qualitative'}" data-name="${m.model_name} - ${p.item_check_name} - ${cp.checkpoint_name}" style="border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(15,23,42,0.3);">
+                        <td style="position: sticky; left: 0; z-index: 10; background: #0f172a; padding: 12px 6px; text-align: center; color: #64748b; font-weight: 700; vertical-align: middle; width: 40px; min-width: 40px; border-right: 1px solid rgba(255,255,255,0.08); border-bottom: 1px solid rgba(255,255,255,0.05);">${globalSeq++}</td>
                         
-                        <td style="padding: 8px; vertical-align: top;">
-                            <div style="font-weight: 700; color: #f8fafc; margin-bottom: 3px;">${p.item_check_name}</div>
-                            ${p.sub_item_check_name ? `<div style="font-size:10px; color:#cbd5e1; margin-bottom:3px;">Sub: ${p.sub_item_check_name}</div>` : ''}
-                            <span style="background: ${badgeBg}; color: ${badgeColor}; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600;">
-                                ${dtype}
-                            </span>
-                        </td>
-
-                        <td style="padding: 8px; vertical-align: top;">
-                            <div style="font-weight: 600; color: #38bdf8; margin-bottom: 2px;">
-                                <i class="fa-regular fa-circle-dot" style="font-size:10px;"></i> ${cp.checkpoint_name}
-                            </div>
-                            <div style="font-size: 10px; color: #94a3b8; margin-bottom: 4px;">
-                                Spec: <strong style="color:#e2e8f0;">${specText}</strong> ${p.uom ? `(${p.uom})` : ''}
-                            </div>
-                            ${cp.reference_image ? `
-                                <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px; background: rgba(0,0,0,0.3); padding: 4px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);">
-                                    <img src="${cp.reference_image}" alt="Ref Image" class="btn-preview-bulk-img" data-img="${cp.reference_image}" data-title="${m.model_name} - ${p.item_check_name} (${cp.checkpoint_name})"
-                                         style="width: 50px; height: 38px; object-fit: cover; border-radius: 5px; border: 1px solid rgba(59,130,246,0.5); cursor: pointer; background: #0f172a;"
-                                         title="Klik untuk memperbesar gambar acuan bagian">
-                                    <span class="btn-preview-bulk-img" data-img="${cp.reference_image}" data-title="${m.model_name} - ${p.item_check_name} (${cp.checkpoint_name})" 
-                                          style="font-size: 10px; color: #60a5fa; cursor: pointer; font-weight: 700; display: inline-flex; align-items: center; gap: 3px;">
-                                        <i class="fa-solid fa-magnifying-glass-plus"></i> Acuan
+                        <!-- ITEM CHECK & KATEGORI (FIXED STICKY WITH LARGE REFERENCE IMAGE) -->
+                        <td style="position: sticky; left: 40px; z-index: 10; background: #0f172a; padding: 12px 10px; vertical-align: middle; min-width: 280px; width: 280px; border-right: 1px solid rgba(255,255,255,0.08); border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                ${cp.reference_image ? `
+                                    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; background: rgba(0,0,0,0.4); padding: 5px; border-radius: 8px; border: 1px solid rgba(59,130,246,0.4); box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                                        <img src="${cp.reference_image}" alt="Ref Image" class="btn-preview-bulk-img" data-img="${cp.reference_image}" data-title="${m.model_name} - ${p.item_check_name} (${cp.checkpoint_name})"
+                                             style="width: 115px; height: 155px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(59,130,246,0.6); cursor: pointer; background: #0f172a; transition: transform 0.2s;"
+                                             title="Klik untuk memperbesar gambar acuan">
+                                        <span class="btn-preview-bulk-img" data-img="${cp.reference_image}" data-title="${m.model_name} - ${p.item_check_name} (${cp.checkpoint_name})" 
+                                              style="font-size: 10px; color: #60a5fa; cursor: pointer; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; margin-top: 1px;">
+                                            <i class="fa-solid fa-magnifying-glass-plus"></i> Acuan
+                                        </span>
+                                    </div>
+                                ` : `
+                                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 115px; height: 140px; flex-shrink: 0; background: rgba(15,23,42,0.5); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.1); font-size: 10px; color: #64748b;" title="Tanpa Gambar Acuan">
+                                        <i class="fa-regular fa-image" style="font-size: 20px; opacity: 0.4; margin-bottom: 4px;"></i>
+                                        <span style="font-size: 9px;">Tanpa Gambar</span>
+                                    </div>
+                                `}
+                                <div style="flex: 1; text-align: left;">
+                                    <div style="font-weight: 700; color: #f8fafc; margin-bottom: 4px; font-size: 13px;">${p.item_check_name}</div>
+                                    ${p.sub_item_check_name ? `<div style="font-size:11px; color:#cbd5e1; margin-bottom:4px;">Sub: ${p.sub_item_check_name}</div>` : ''}
+                                    <span style="background: ${badgeBg}; color: ${badgeColor}; padding: 3px 10px; border-radius: 12px; font-size: 10px; font-weight: 700; display: inline-block;">
+                                        ${dtype}
                                     </span>
                                 </div>
-                            ` : `
-                                <div style="font-size: 9px; color: #64748b; font-style: italic; margin-top: 2px;">
-                                    <i class="fa-regular fa-image" style="opacity: 0.4;"></i> Tanpa Gambar
-                                </div>
-                            `}
+                            </div>
+                        </td>
+
+                        <!-- CHECKPOINT & SPESIFIKASI (FIXED STICKY WITH DIVIDER LINE) -->
+                        <td style="position: sticky; left: 320px; z-index: 10; background: #0f172a; padding: 12px 10px; vertical-align: middle; min-width: 170px; width: 170px; border-right: 2px solid rgba(59, 130, 246, 0.4); box-shadow: 4px 0 10px rgba(0,0,0,0.5); border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <div style="font-size: 13px; font-weight: 700; color: #38bdf8; margin-bottom: 4px; display: flex; align-items: center; gap: 5px;">
+                                <i class="fa-regular fa-circle-dot" style="font-size:10px; color: #60a5fa;"></i> ${cp.checkpoint_name}
+                            </div>
+                            <div style="font-size: 11px; color: #94a3b8; line-height: 1.35;">
+                                Spec: <strong style="color:#e2e8f0;">${specText}</strong> ${p.uom ? `(${p.uom})` : ''}
+                            </div>
                         </td>
                     `;
 
-                    (timeLabels || []).forEach(lbl => {
+                    let dateVal = $('#bulk_date_input').val() || (typeof getManufacturingProdDateStr === 'function' ? getManufacturingProdDateStr() : '');
+
+                    (timeLabels || []).forEach((lbl, slotIdx) => {
                         let slotData = (cp.slots && cp.slots[lbl]) ? cp.slots[lbl] : ((cp.measurements_by_slot && cp.measurements_by_slot[lbl]) ? cp.measurements_by_slot[lbl] : {});
                         let slotVal = (slotData.val !== undefined && slotData.val !== null) ? String(slotData.val).trim() : '';
-                        let due = isSlotDue(lbl);
                         let isFilled = (slotVal !== '');
                         let isLockedForUser = isFilled && !window.currentIsAdmin;
+
+                        let isBeforeCreation = isSlotBeforeModelCreation(lbl, timeLabels, slotIdx, m.created_at, dateVal);
+                        let isOpen = isSlotOpenForInput(lbl, timeLabels, slotIdx, m.created_at, dateVal);
 
                         html += `<td style="padding: 6px 3px; text-align: center; vertical-align: middle; border-left: 1px solid rgba(255,255,255,0.03);">`;
 
                         if (isQuant) {
-                            if (isLockedForUser) {
+                            if (isBeforeCreation) {
+                                let createdTimeDisplay = m.created_at ? m.created_at.substring(11, 16) : '';
+                                html += `
+                                    <input type="text" class="bulk-sample-quant-input slot-disabled-before-creation" disabled 
+                                           data-model="${m.model_name}" data-line="${m.line_name}" data-section="${m.section_name}" data-param="${p.parameter_id}" data-cp="${cp.checkpoint_id}" data-slot="${lbl}" 
+                                           value="-" title="Model baru di-add pada jam ${createdTimeDisplay}. Slot jam ${lbl} (jam sebelumnya) tidak perlu diisi." 
+                                           style="width: 100%; max-width: 75px; padding: 5px 3px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.05); background: rgba(15,23,42,0.6); color: #64748b; font-size: 11px; font-weight: 600; text-align: center; cursor: not-allowed; opacity: 0.5;">
+                                `;
+                            } else if (isLockedForUser) {
                                 html += `
                                     <input type="number" step="any" class="bulk-sample-quant-input slot-filled-locked" disabled 
                                            data-model="${m.model_name}" data-line="${m.line_name}" data-section="${m.section_name}" data-param="${p.parameter_id}" data-cp="${cp.checkpoint_id}" data-slot="${lbl}" 
@@ -1647,7 +1743,7 @@ function renderBulkAllModelsForm(models, timeLabels) {
                                            value="${slotVal}" title="Sudah terisi (${slotVal}). Hanya Admin yang dapat mengubah data." 
                                            style="width: 100%; max-width: 75px; padding: 5px 3px; border-radius: 5px; border: 1px solid rgba(16,185,129,0.4); background: rgba(16,185,129,0.18); color: #34d399; font-size: 11px; font-weight: 800; text-align: center; cursor: not-allowed;">
                                 `;
-                            } else if (!due) {
+                            } else if (!isOpen) {
                                 html += `
                                     <input type="number" step="any" class="bulk-sample-quant-input slot-disabled" disabled 
                                            data-model="${m.model_name}" data-line="${m.line_name}" data-section="${m.section_name}" data-param="${p.parameter_id}" data-cp="${cp.checkpoint_id}" data-slot="${lbl}" 
@@ -1671,17 +1767,25 @@ function renderBulkAllModelsForm(models, timeLabels) {
                             let isOk = (slotVal.toUpperCase() === 'OK');
                             let isNg = (slotVal.toUpperCase() === 'NG');
 
-                            if (isLockedForUser) {
+                            if (isBeforeCreation) {
+                                let createdTimeDisplay = m.created_at ? m.created_at.substring(11, 16) : '';
+                                html += `
+                                    <div class="btn-group-mini-qual slot-disabled-before-creation" style="display: flex; gap: 3px; justify-content: center; opacity: 0.4; pointer-events: none;" title="Model baru di-add pada jam ${createdTimeDisplay}. Slot jam ${lbl} (jam sebelumnya) tidak perlu diisi.">
+                                        <button type="button" disabled class="btn-mini-qual" style="padding: 3px 6px; font-size: 9px; font-weight: 700; border-radius: 4px; border: 1px solid rgba(255,255,255,0.05); background: rgba(15,23,42,0.4); color: #475569; cursor: not-allowed;">-</button>
+                                        <input type="hidden" class="bulk-sample-qual-input slot-disabled-before-creation" data-model="${m.model_name}" data-line="${m.line_name}" data-section="${m.section_name}" data-param="${p.parameter_id}" data-cp="${cp.checkpoint_id}" data-slot="${lbl}" value="">
+                                    </div>
+                                `;
+                            } else if (isLockedForUser) {
                                 html += `
                                     <div class="btn-group-mini-qual slot-filled-locked" style="display: flex; gap: 3px; justify-content: center; opacity: 0.85;" title="Sudah terisi (${slotVal}). Hanya Admin yang dapat mengubah data.">
                                         <button type="button" disabled class="btn-mini-qual ${isOk ? 'active-ok' : ''}" data-val="OK" 
                                                 style="padding: 3px 6px; font-size: 9px; font-weight: 700; border-radius: 4px; border: 1px solid ${isOk ? '#10b981' : 'rgba(255,255,255,0.1)'}; background: ${isOk ? '#10b981' : 'rgba(15,23,42,0.4)'}; color: ${isOk ? '#ffffff' : '#64748b'}; cursor: not-allowed;">OK</button>
                                         <button type="button" disabled class="btn-mini-qual ${isNg ? 'active-ng' : ''}" data-val="NG" 
-                                                style="padding: 3px 6px; font-size: 9px; font-weight: 700; border-radius: 4px; border: 1px solid ${isNg ? '#ef4444' : 'rgba(255,255,255,0.1)'}; background: ${isNg ? '#ef4444' : 'rgba(15,23,42,0.4)'}; color: ${isNg ? '#ffffff' : '#64748b'}; cursor: not-allowed;">NG</button>
+                                                style="padding: 3px 6px; font-size: 9px; font-weight: 700; border-radius: 4px; border: 1px solid ${isNg ? '#ef4444' : 'rgba(255,255,255,0.1)'}; background: ${isNg ? '#ef4444' : 'rgba(15,23,42,0.4)'}; color: ${isNg ? '#ffffff' : '#f87171'}; cursor: not-allowed;">NG</button>
                                         <input type="hidden" class="bulk-sample-qual-input" data-model="${m.model_name}" data-line="${m.line_name}" data-section="${m.section_name}" data-param="${p.parameter_id}" data-cp="${cp.checkpoint_id}" data-slot="${lbl}" value="${slotVal}">
                                     </div>
                                 `;
-                            } else if (!due) {
+                            } else if (!isOpen) {
                                 html += `
                                     <div class="btn-group-mini-qual slot-disabled" style="display: flex; gap: 3px; justify-content: center; opacity: 0.35; pointer-events: none;">
                                         <button type="button" disabled class="btn-mini-qual btn-mini-ok ${isOk ? 'active-ok' : ''}" data-val="OK" 
@@ -1724,6 +1828,24 @@ function renderBulkAllModelsForm(models, timeLabels) {
         container.html('<div style="text-align:center; padding:40px; color:#94a3b8;"><i class="fa-solid fa-folder-open fa-2x" style="margin-bottom:10px; display:block; opacity:0.5;"></i><p style="font-size:14px; font-weight:600;">Tidak ada item parameter aktif yang ditemukan untuk filter section/line Anda saat ini.</p></div>');
     } else {
         container.html(html);
+
+        // Auto-scroll to active slot column
+        setTimeout(() => {
+            $('.bulk-process-block').each(function () {
+                let $procBlock = $(this);
+                let $table = $procBlock.find('table');
+                let $tableContainer = $procBlock.find('.bulk-table-container');
+
+                if ($table.length > 0) {
+                    let $activeTh = $table.find('th:contains("● AKTIF")');
+                    if ($activeTh.length > 0) {
+                        let activeLeft = $activeTh[0].offsetLeft;
+                        let scrollTarget = Math.max(0, activeLeft - 350);
+                        $tableContainer.scrollLeft(scrollTarget);
+                    }
+                }
+            });
+        }, 150);
     }
     $('.bulk-sample-quant-input').trigger('input');
     highlightUnfilledCellsAndAlarm();
@@ -1736,6 +1858,40 @@ function renderBulkAllModelsForm(models, timeLabels) {
         }
     }, 150);
 }
+
+// --- Drag to Scroll (Mouse Click & Drag Horizontal Panning) ---
+let isBulkDragging = false;
+let bulkDragStartX = 0;
+let bulkDragScrollLeft = 0;
+let $activeDragContainer = null;
+
+$(document).on('mousedown', '.bulk-table-container', function (e) {
+    if ($(e.target).closest('input, button, a, select, textarea, .btn-preview-bulk-img').length > 0) {
+        return;
+    }
+    isBulkDragging = true;
+    $activeDragContainer = $(this);
+    bulkDragStartX = e.pageX - $activeDragContainer.offset().left;
+    bulkDragScrollLeft = $activeDragContainer.scrollLeft();
+    $activeDragContainer.css('cursor', 'grabbing');
+});
+
+$(document).on('mousemove', function (e) {
+    if (!isBulkDragging || !$activeDragContainer) return;
+    let x = e.pageX - $activeDragContainer.offset().left;
+    let walk = (x - bulkDragStartX) * 1.5;
+    $activeDragContainer.scrollLeft(bulkDragScrollLeft - walk);
+});
+
+$(document).on('mouseup mouseleave', function () {
+    if (isBulkDragging) {
+        isBulkDragging = false;
+        if ($activeDragContainer) {
+            $activeDragContainer.css('cursor', 'grab');
+            $activeDragContainer = null;
+        }
+    }
+});
 
 // Web Audio API Synthesizer for Bulk Input Alarm
 function playBulkAlarmSound() {
@@ -1788,6 +1944,67 @@ function playBulkAlarmSound() {
     } catch (e) {
         console.warn('Web Audio Alarm error:', e);
     }
+}
+
+function parseSlotMinutes(slotLabel) {
+    if (!slotLabel) return 0;
+    let parts = slotLabel.trim().split(':');
+    if (parts.length < 2) return 0;
+    let h = parseInt(parts[0], 10);
+    let m = parseInt(parts[1], 10);
+    if (h === 24) h = 0;
+    let mins = (h < 7 ? h + 24 : h) * 60 + m;
+    return mins;
+}
+
+function isSlotBeforeModelCreation(slotLabel, timeLabels, slotIdx, createdAtStr, inspectionDateStr) {
+    if (!createdAtStr || !inspectionDateStr || !slotLabel) return false;
+    
+    let parts = createdAtStr.trim().split(' ');
+    if (parts.length < 2) return false;
+    let createdDate = parts[0];
+    let createdTime = parts[1];
+    
+    if (createdDate < inspectionDateStr) return false;
+    if (createdDate > inspectionDateStr) return true;
+    
+    let timeParts = createdTime.split(':');
+    let cH = parseInt(timeParts[0] || '0', 10);
+    let cM = parseInt(timeParts[1] || '0', 10);
+    let createdMinutesFrom7 = (cH < 7 ? cH + 24 : cH) * 60 + cM;
+
+    let nextSlotLabel = (timeLabels && timeLabels[slotIdx + 1]) ? timeLabels[slotIdx + 1] : null;
+    let nextSlotMins;
+    if (nextSlotLabel) {
+        nextSlotMins = parseSlotMinutes(nextSlotLabel);
+    } else {
+        let curSlotMins = parseSlotMinutes(slotLabel);
+        nextSlotMins = curSlotMins + 120;
+    }
+
+    return createdMinutesFrom7 >= nextSlotMins;
+}
+
+function isSlotOpenForInput(slotLabel, timeLabels, slotIdx, createdAtStr, inspectionDateStr) {
+    if (!slotLabel) return false;
+    
+    if (isSlotBeforeModelCreation(slotLabel, timeLabels, slotIdx, createdAtStr, inspectionDateStr)) {
+        return false;
+    }
+    
+    let curSlotMins = parseSlotMinutes(slotLabel);
+    
+    let now = new Date();
+    let curH = now.getHours();
+    let curM = now.getMinutes();
+    let nowMinutesFrom7 = (curH < 7 ? curH + 24 : curH) * 60 + curM;
+    
+    let todayStr = typeof getManufacturingProdDateStr === 'function' ? getManufacturingProdDateStr() : new Date().toISOString().slice(0,10);
+    if (inspectionDateStr < todayStr) return true;
+    if (inspectionDateStr > todayStr) return false;
+    
+    // Slot jam (seperti 14:40) HANYA terbuka 30 menit sebelum waktunya (mulai jam 14:10 ke atas)
+    return nowMinutesFrom7 >= (curSlotMins - 30);
 }
 
 // Check if a time slot (e.g. "07:30", "09:40", "02:30") is due relative to current shift time
@@ -1902,6 +2119,7 @@ function highlightUnfilledCellsAndAlarm() {
     let unfilledByModel = {};
 
     $('.bulk-sample-quant-input').each(function () {
+        if ($(this).hasClass('slot-disabled-before-creation') || $(this).is(':disabled')) return;
         let val = $(this).val().trim();
         let slot = $(this).data('slot');
         let due = isSlotDue(slot);
@@ -1933,6 +2151,7 @@ function highlightUnfilledCellsAndAlarm() {
     });
 
     $('.bulk-sample-qual-input').each(function () {
+        if ($(this).hasClass('slot-disabled-before-creation') || $(this).is(':disabled')) return;
         let val = $(this).val().trim();
         let slot = $(this).data('slot');
         let due = isSlotDue(slot);

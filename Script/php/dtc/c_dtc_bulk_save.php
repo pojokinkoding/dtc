@@ -94,14 +94,76 @@ try {
         }
     }
 
+    // 1b. Validasi Slot Sebelum Waktu Pembuatan/Aktivasi Running Model
+    if (!empty($model_name)) {
+        $stmtCheckRM = $conn->prepare("
+            SELECT created_at FROM dtc_running_models 
+            WHERE target_month = :m AND UPPER(TRIM(model_name)) = UPPER(TRIM(:mname)) AND is_active = 1 
+            LIMIT 1
+        ");
+        $stmtCheckRM->execute([':m' => substr($inspection_date, 0, 7), ':mname' => $model_name]);
+        $rmCreatedAt = $stmtCheckRM->fetchColumn();
+
+        if ($rmCreatedAt) {
+            $createdParts = explode(' ', trim($rmCreatedAt));
+            $cDate = $createdParts[0] ?? '';
+            $cTime = $createdParts[1] ?? '';
+
+            if ($cDate === $inspection_date && !empty($cTime)) {
+                $tp = explode(':', $cTime);
+                $cH = (int)($tp[0] ?? 0);
+                $cM = (int)($tp[1] ?? 0);
+                $createdMinsFrom7 = ($cH < 7 ? $cH + 24 : $cH) * 60 + $cM;
+
+                if (preg_match('/^(\d{1,2}):(\d{2})$/', $time_label, $sMatches)) {
+                    $sH = (int)$sMatches[1];
+                    $sM = (int)$sMatches[2];
+                    if ($sH >= 24) $sH -= 24;
+                    $slotMinsFrom7 = ($sH < 7 ? $sH + 24 : $sH) * 60 + $sM;
+
+                    $defaultTimeLabels = ['07:30','09:40','12:40','14:40','16:40','18:40','20:05','22:30','24:30','02:30','04:30'];
+                    $idxInLabels = array_search($time_label, $defaultTimeLabels);
+                    $nextSlotMinsFrom7 = null;
+                    if ($idxInLabels !== false && isset($defaultTimeLabels[$idxInLabels + 1])) {
+                        if (preg_match('/^(\d{1,2}):(\d{2})$/', $defaultTimeLabels[$idxInLabels + 1], $nMatches)) {
+                            $nH = (int)$nMatches[1];
+                            $nM = (int)$nMatches[2];
+                            if ($nH >= 24) $nH -= 24;
+                            $nextSlotMinsFrom7 = ($nH < 7 ? $nH + 24 : $nH) * 60 + $nM;
+                        }
+                    }
+                    if (!$nextSlotMinsFrom7) {
+                        $nextSlotMinsFrom7 = $slotMinsFrom7 + 120;
+                    }
+
+                    if ($createdMinsFrom7 >= $nextSlotMinsFrom7 && !$is_admin) {
+                        $timeDisplay = substr($cTime, 0, 5);
+                        echo json_encode([
+                            'status' => 'error',
+                            'message' => "Model '$model_name' baru di-add pada jam $timeDisplay. Slot jam '$time_label' (jam sebelumnya) tidak perlu diisi."
+                        ]);
+                        exit;
+                    }
+                }
+            }
+        }
+    }
+
+    if (!function_exists('isUnmeasuredValue')) {
+        function isUnmeasuredValue($val) {
+            return ($val === '' || $val === null);
+        }
+    }
+
     // 2. Pre-validate values
     $validCount = 0;
     foreach ($items as $idx => $item) {
         $val = trim((string)($item['value'] ?? ''));
-        if ($val === '') continue;
+        $ctype = $item['checkpoint_type'] ?? 'Quantitative';
+
+        if (isUnmeasuredValue($val)) continue;
 
         $validCount++;
-        $ctype = $item['checkpoint_type'] ?? 'Quantitative';
         $itemLabel = $item['name'] ?? ("Item #" . ($idx + 1));
 
         if (strcasecmp($ctype, 'Quantitative') === 0) {
@@ -152,7 +214,7 @@ try {
         $val = trim((string)($item['value'] ?? ''));
         $remarks = trim((string)($item['remarks'] ?? ''));
 
-        if (!$param_id || $val === '') continue;
+        if (!$param_id || isUnmeasuredValue($val)) continue;
 
         // Fetch or create session for this parameter_id & inspection_date
         if (!isset($sessionCache[$param_id])) {

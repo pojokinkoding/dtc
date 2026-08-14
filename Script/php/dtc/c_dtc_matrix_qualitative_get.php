@@ -138,7 +138,7 @@ function sortShiftTimeLabels($labels) {
     }
 
     if (!empty($distinct_labels)) {
-        $raw_labels = (count($distinct_labels) >= 5) ? $distinct_labels : array_merge($distinct_labels, $base_labels);
+        $raw_labels = array_merge($base_labels, $distinct_labels);
     } else {
         $raw_labels = $base_labels;
     }

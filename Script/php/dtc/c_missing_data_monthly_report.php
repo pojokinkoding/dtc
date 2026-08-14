@@ -105,7 +105,7 @@ try {
     // Load all inspection sessions for target month
     $sqlSessions = "
         SELECT s.parameter_id, DATE_FORMAT(s.inspection_date, '%Y-%m-%d') as inspection_date, s.is_closed, s.session_id,
-               (SELECT GROUP_CONCAT(DISTINCT m.sample_sequence) FROM dtc_measurements m WHERE m.session_id = s.session_id AND m.sample_value != '') as filled_sequences
+               (SELECT GROUP_CONCAT(DISTINCT m.sample_label) FROM dtc_measurements m WHERE m.session_id = s.session_id AND m.sample_value != '') as filled_sequences
         FROM dtc_inspection_sessions s
         WHERE DATE_FORMAT(s.inspection_date, '%Y-%m') = :month AND s.is_active = 1
     ";
@@ -392,6 +392,12 @@ try {
 } catch (Exception $e) {
     if ($format === 'excel') {
         echo "Error generating report: " . $e->getMessage();
+    } else {
+        header('Content-Type: application/json');
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    }
+}
+?>
     } else {
         header('Content-Type: application/json');
         echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);

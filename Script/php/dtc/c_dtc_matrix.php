@@ -73,41 +73,27 @@ try {
         $zlt_data[] = null;
     }
     
-    // Fetch time labels from settings
-    $stmtSetting = $conn->prepare("SELECT setting_value FROM dtc_app_settings WHERE setting_key = 'time_matrix_labels'");
-    $stmtSetting->execute();
-    $rowSetting = $stmtSetting->fetch(PDO::FETCH_ASSOC);
+    // Get line name for this parameter
+    $stmtLine = $conn->prepare("SELECT COALESCE(p.line_name, s.line_name) as line_name 
+                                FROM dtc_master_parameters p 
+                                LEFT JOIN dtc_master_dtc_specs s ON p.spec_id = s.spec_id 
+                                WHERE p.parameter_id = :pid");
+    $stmtLine->execute([':pid' => $param_id]);
+    $lineRow = $stmtLine->fetch(PDO::FETCH_ASSOC);
+    $line_name = $lineRow ? trim($lineRow['line_name']) : '';
+
     $time_labels = [];
-    if ($rowSetting && $rowSetting['setting_value']) {
-        $val = is_resource($rowSetting['setting_value']) ? stream_get_contents($rowSetting['setting_value']) : $rowSetting['setting_value'];
-        $time_labels = json_decode($val, true);
+    if (!empty($line_name)) {
+        $stmtSetting = $conn->prepare("SELECT setting_value FROM dtc_app_settings WHERE setting_key = :k");
+        $stmtSetting->execute([':k' => 'time_matrix_labels_' . $line_name]);
+        $rowSetting = $stmtSetting->fetch(PDO::FETCH_ASSOC);
+        if ($rowSetting && $rowSetting['setting_value']) {
+            $val = is_resource($rowSetting['setting_value']) ? stream_get_contents($rowSetting['setting_value']) : $rowSetting['setting_value'];
+            $time_labels = json_decode($val, true);
+        }
     }
     if (empty($time_labels)) {
-        $time_labels = ['07:30', '09:40', '12:40', '14:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30'];
-    }
-    
-    // Fetch existing labels for this parameter to lock in the initial pattern
-    $stmtExistingLabels = $conn->prepare("
-        SELECT m.sample_sequence, m.sample_label 
-        FROM dtc_measurements m 
-        JOIN dtc_inspection_sessions s ON m.session_id = s.session_id 
-        WHERE s.parameter_id = :pid AND s.is_active = 1
-        ORDER BY s.inspection_date ASC, m.measurement_id ASC
-    ");
-    $stmtExistingLabels->execute([':pid' => $param_id]);
-    $existing_labels = [];
-    while ($r = $stmtExistingLabels->fetch(PDO::FETCH_ASSOC)) {
-        $seq = intval($r['sample_sequence']);
-        $lbl = trim($r['sample_label'] ?? '');
-        if ($lbl && strtolower($lbl) !== 'null' && !isset($existing_labels[$seq])) {
-            $existing_labels[$seq] = preg_replace('/^Jam\s+/i', '', $lbl);
-        }
-    }
-    
-    for ($i = 0; $i < 10; $i++) {
-        if (isset($existing_labels[$i + 1])) {
-            $time_labels[$i] = $existing_labels[$i + 1];
-        }
+        $time_labels = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30'];
     }
 
     // Pre-initialize pivot_data to guarantee ordered rows s1 to s10
@@ -124,8 +110,20 @@ try {
     foreach($results as $row) {
         $day = intval($row['day_of_month']);
         $day_key = "day_$day";
-        $seq = intval($row['sample_sequence']);
-        $row_key = $seq;
+        
+        $lbl = trim($row['sample_label'] ?? '');
+        $lblClean = preg_replace('/^Jam\s+/i', '', $lbl);
+        
+        $row_key = null;
+        foreach ($time_labels as $idx => $tLabel) {
+            if (trim($tLabel) === $lblClean) {
+                $row_key = $idx + 1;
+                break;
+            }
+        }
+        if ($row_key === null) {
+            $row_key = intval($row['sample_sequence']);
+        }
         
         // Removed dynamic initialization here since it's pre-initialized
         

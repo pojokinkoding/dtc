@@ -64,14 +64,16 @@ if (!function_exists('isSlotBeforeCreationHelper')) {
             return $mins;
         };
         
+        $curSlotMins = $parseMins($slotTime);
+        
         $nextSlotTime = $timeLabels[$slotIdx + 1] ?? null;
         if ($nextSlotTime) {
             $nextSlotMins = $parseMins($nextSlotTime);
         } else {
-            $curSlotMins = $parseMins($slotTime);
-            $nextSlotMins = $curSlotMins + 120;
+            $nextSlotMins = $curSlotMins + 120; // fallback to 2 hours
         }
         
+        // If the model was created on or after this slot's window ended, then this slot is before creation
         return $createdMinutesFrom7 >= $nextSlotMins;
     }
 }
@@ -152,7 +154,7 @@ try {
     // Fetch today's inspection sessions
     $sqlSessions = "
         SELECT s.parameter_id, s.is_closed, s.session_id,
-               (SELECT GROUP_CONCAT(m.sample_sequence) FROM dtc_measurements m WHERE m.session_id = s.session_id AND m.sample_value != '') as filled_sequences
+               (SELECT GROUP_CONCAT(m.sample_label) FROM dtc_measurements m WHERE m.session_id = s.session_id AND m.sample_value != '') as filled_sequences
         FROM dtc_inspection_sessions s
         WHERE DATE(s.inspection_date) = :date_val AND s.is_active = 1
     ";
@@ -225,7 +227,7 @@ try {
                 $status = 2;
                 $filledCount++;
                 $expectedCount++;
-            } else if (in_array((string)$seq, $filled)) {
+            } else if (in_array($slotTime, $filled)) {
                 $status = 1;
                 $filledCount++;
                 $expectedCount++;

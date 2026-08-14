@@ -147,7 +147,7 @@ try {
     
     if (!function_exists('isUnmeasuredValue')) {
         function isUnmeasuredValue($val) {
-            return ($val === '' || $val === null);
+            return ($val === '' || $val === null || $val === '-');
         }
     }
     

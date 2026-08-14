@@ -84,9 +84,9 @@ try {
         $closedSet[$rc['parameter_id']] = true;
     }
 
-    // 5. Load today's filled sample sequences
+    // 5. Load today's filled sample labels
     $stmtM = $conn->prepare("
-        SELECT s.parameter_id, m.sample_sequence
+        SELECT s.parameter_id, m.sample_label
         FROM dtc_inspection_sessions s
         JOIN dtc_measurements m ON s.session_id = m.session_id
         WHERE s.inspection_date = :today AND m.sample_value IS NOT NULL AND m.sample_value != ''
@@ -94,7 +94,7 @@ try {
     $stmtM->execute([':today' => $today]);
     $filledMap = [];
     while ($rowM = $stmtM->fetch(PDO::FETCH_ASSOC)) {
-        $filledMap[$rowM['parameter_id']][(int)$rowM['sample_sequence']] = true;
+        $filledMap[$rowM['parameter_id']][$rowM['sample_label']] = true;
     }
 
     // 6. Helper to check if a time slot has passed
@@ -147,26 +147,23 @@ try {
             if (isset($closedSet[$pid])) $closedCount++;
 
             foreach ($slots as $idx => $timeStr) {
-                $seq = $idx + 1;
-                if (isset($filledMap[$pid][$seq])) continue;
+                if (isset($filledMap[$pid][$timeStr])) continue;
+
+                $stp = explode(':', trim($timeStr));
+                $sh = (int)($stp[0] ?? 0);
+                $sm = (int)($stp[1] ?? 0);
+                if ($sh >= 24) $sh -= 24;
+                $curSlotMinsFrom7 = ($sh < 7 ? $sh + 24 : $sh) * 60 + $sm;
 
                 $nextTimeStr = $slots[$idx + 1] ?? null;
-                $nextSlotMinsFrom7 = null;
                 if ($nextTimeStr) {
                     $ntp = explode(':', trim($nextTimeStr));
-                    if (count($ntp) >= 2) {
-                        $nh = (int)$ntp[0];
-                        $nm = (int)$ntp[1];
-                        if ($nh >= 24) $nh -= 24;
-                        $nextSlotMinsFrom7 = ($nh < 7 ? $nh + 24 : $nh) * 60 + $nm;
-                    }
-                }
-                if (!$nextSlotMinsFrom7) {
-                    $stp = explode(':', trim($timeStr));
-                    $sh = (int)($stp[0] ?? 0);
-                    $sm = (int)($stp[1] ?? 0);
-                    if ($sh >= 24) $sh -= 24;
-                    $nextSlotMinsFrom7 = (($sh < 7 ? $sh + 24 : $sh) * 60 + $sm) + 120;
+                    $nsh = (int)($ntp[0] ?? 0);
+                    $nsm = (int)($ntp[1] ?? 0);
+                    if ($nsh >= 24) $nsh -= 24;
+                    $nextSlotMinsFrom7 = ($nsh < 7 ? $nsh + 24 : $nsh) * 60 + $nsm;
+                } else {
+                    $nextSlotMinsFrom7 = $curSlotMinsFrom7 + 120;
                 }
 
                 // If running model was created AFTER this slot's session window ended -> NOT OVERDUE!

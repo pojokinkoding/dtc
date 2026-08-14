@@ -51,13 +51,42 @@ try {
     $stmt->execute([':param_id' => $param_id, ':idate' => $date]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
+    // Fetch time labels from settings using line_name
+    $line_name = $pRow ? trim($pRow['line_name']) : '';
+    $time_labels = [];
+    if (!empty($line_name)) {
+        $stmtSetting = $conn->prepare("SELECT setting_value FROM dtc_app_settings WHERE setting_key = :k");
+        $stmtSetting->execute([':k' => 'time_matrix_labels_' . $line_name]);
+        $rowSetting = $stmtSetting->fetch(PDO::FETCH_ASSOC);
+        if ($rowSetting && $rowSetting['setting_value']) {
+            $val = is_resource($rowSetting['setting_value']) ? stream_get_contents($rowSetting['setting_value']) : $rowSetting['setting_value'];
+            $time_labels = json_decode($val, true);
+        }
+    }
+    if (empty($time_labels)) {
+        $time_labels = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30'];
+    }
+
     if (count($rows) > 0) {
         $data = [
             'remarks' => $rows[0]['remarks'],
             'is_closed' => intval($rows[0]['is_closed'])
         ];
         foreach ($rows as $r) {
-            $seq = intval($r['sample_sequence']);
+            $lbl = trim($r['sample_label'] ?? '');
+            $lblClean = preg_replace('/^Jam\s+/i', '', $lbl);
+            
+            $seq = null;
+            foreach ($time_labels as $idx => $tLabel) {
+                if (trim($tLabel) === $lblClean) {
+                    $seq = $idx + 1;
+                    break;
+                }
+            }
+            if ($seq === null) {
+                $seq = intval($r['sample_sequence']);
+            }
+            
             $data["sample_$seq"] = $r['sample_value'];
             if (!empty($r['sample_label'])) {
                 $data["label_$seq"] = $r['sample_label'];

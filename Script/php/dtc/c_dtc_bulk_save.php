@@ -151,7 +151,7 @@ try {
 
     if (!function_exists('isUnmeasuredValue')) {
         function isUnmeasuredValue($val) {
-            return ($val === '' || $val === null);
+            return ($val === '' || $val === null || $val === '-');
         }
     }
 
@@ -166,7 +166,9 @@ try {
         $validCount++;
         $itemLabel = $item['name'] ?? ("Item #" . ($idx + 1));
 
-        if (strcasecmp($ctype, 'Quantitative') === 0) {
+        if ($val === '__DELETE__') {
+            // Bypass validation for delete command
+        } else if (strcasecmp($ctype, 'Quantitative') === 0) {
             if (!is_numeric($val)) {
                 echo json_encode([
                     'status' => 'error', 
@@ -273,17 +275,24 @@ try {
 
         if ($existingMeas) {
             $oldVal = trim((string)($existingMeas['sample_value'] ?? ''));
-            if ($oldVal !== '' && $oldVal !== $val) {
-                if (!$is_admin) {
-                    $itemLabel = $item['name'] ?? ("Checkpoint #$checkpoint_id");
-                    throw new Exception("Akses Ditolak: Data pengukuran '$itemLabel' untuk slot jam '$itemSlot' sudah pernah diisi dan tidak dapat diubah (Hanya Admin yang diizinkan mengubah data yang telah tersimpan).");
-                }
+            
+            if ($val === '__DELETE__') {
+                $sql_del = "DELETE FROM dtc_measurements WHERE measurement_id = :mid";
+                $stmt_del = $conn->prepare($sql_del);
+                $stmt_del->execute([':mid' => $existingMeas['measurement_id']]);
+                $updatedCount++;
+                continue;
+            }
+
+            if ($oldVal !== $val) {
                 $sql_upd = "UPDATE dtc_measurements SET sample_value = :val, modified_by = :uid, modified_date = NOW() WHERE measurement_id = :mid";
                 $stmt_upd = $conn->prepare($sql_upd);
                 $stmt_upd->execute([':val' => $val, ':uid' => $user_id, ':mid' => $existingMeas['measurement_id']]);
                 $updatedCount++;
             }
         } else {
+            if ($val === '__DELETE__') continue;
+            
             // Determine next sample sequence
             $sql_seq = "SELECT COALESCE(MAX(sample_sequence), 0) + 1 FROM dtc_measurements WHERE session_id = :sid";
             $stmt_seq = $conn->prepare($sql_seq);

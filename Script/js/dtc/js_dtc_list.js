@@ -1599,7 +1599,7 @@ function renderBulkAllModelsForm(models, timeLabels) {
             grouped[proc].push(item);
         });
 
-        let globalSeq = 1;        for (let procName in grouped) {
+        let globalSeq = 1; for (let procName in grouped) {
             html += `
             <div class="bulk-process-block" style="background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
                 <!-- Integrated Compact Header (Model + Process) -->
@@ -1707,9 +1707,12 @@ function renderBulkAllModelsForm(models, timeLabels) {
                             <div style="font-size: 13px; font-weight: 700; color: #38bdf8; margin-bottom: 4px; display: flex; align-items: center; gap: 5px;">
                                 <i class="fa-regular fa-circle-dot" style="font-size:10px; color: #60a5fa;"></i> ${cp.checkpoint_name}
                             </div>
-                            <div style="font-size: 11px; color: #94a3b8; line-height: 1.35;">
+                            <div style="font-size: 11px; color: #94a3b8; line-height: 1.35; margin-bottom: 6px;">
                                 Spec: <strong style="color:#e2e8f0;">${specText}</strong> ${p.uom ? `(${p.uom})` : ''}
                             </div>
+                            <button type="button" class="btn-reset-row-null" title="Kosongkan/Reset seluruh slot jam sampel checkpoint ini ke NULL" style="padding: 3px 8px; font-size: 9.5px; font-weight: 700; border-radius: 4px; border: 1px solid rgba(239,68,68,0.4); background: rgba(239,68,68,0.15); color: #f87171; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: all 0.2s;">
+                                <i class="fa-solid fa-rotate-left" style="font-size: 9px;"></i> Reset Checkpoint (NULL)
+                            </button>
                         </td>
                     `;
 
@@ -1756,11 +1759,16 @@ function renderBulkAllModelsForm(models, timeLabels) {
                                 let inputColor = isFilled ? '#34d399' : 'white';
                                 let inputBorder = isFilled ? '1px solid rgba(16,185,129,0.5)' : '1px solid rgba(255,255,255,0.15)';
                                 html += `
-                                    <input type="number" step="any" class="bulk-sample-quant-input" 
-                                           data-model="${m.model_name}" data-line="${m.line_name}" data-section="${m.section_name}" data-param="${p.parameter_id}" data-cp="${cp.checkpoint_id}" data-slot="${lbl}" 
-                                           data-lsl="${lslAttr}" data-usl="${uslAttr}" data-target="${targetAttr}" 
-                                           value="${slotVal}" placeholder="-" 
-                                           style="width: 100%; max-width: 75px; padding: 5px 3px; border-radius: 5px; border: ${inputBorder}; background: ${inputBg}; color: ${inputColor}; font-size: 11px; font-weight: 700; text-align: center;">
+                                    <div style="display: inline-flex; align-items: center; gap: 2px; justify-content: center;">
+                                        <input type="number" step="any" class="bulk-sample-quant-input" 
+                                               data-model="${m.model_name}" data-line="${m.line_name}" data-section="${m.section_name}" data-param="${p.parameter_id}" data-cp="${cp.checkpoint_id}" data-slot="${lbl}" 
+                                               data-lsl="${lslAttr}" data-usl="${uslAttr}" data-target="${targetAttr}" data-orig="${slotVal}" 
+                                               value="${slotVal}" placeholder="-" 
+                                               style="width: 100%; max-width: 70px; padding: 5px 3px; border-radius: 5px; border: ${inputBorder}; background: ${inputBg}; color: ${inputColor}; font-size: 11px; font-weight: 700; text-align: center;">
+                                        <button type="button" class="btn-quant-sample-reset" title="Reset sample jam ${lbl} ke NULL" style="padding: 3px 4px; font-size: 9px; font-weight: 700; border-radius: 4px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05); color: #f87171; cursor: pointer; display: ${isFilled ? 'inline-flex' : 'none'}; align-items: center; justify-content: center;">
+                                            <i class="fa-solid fa-xmark" style="font-size: 8px;"></i>
+                                        </button>
+                                    </div>
                                 `;
                             }
                         } else {
@@ -1772,7 +1780,7 @@ function renderBulkAllModelsForm(models, timeLabels) {
                                 html += `
                                     <div class="btn-group-mini-qual slot-disabled-before-creation" style="display: flex; gap: 3px; justify-content: center; opacity: 0.4; pointer-events: none;" title="Model baru di-add pada jam ${createdTimeDisplay}. Slot jam ${lbl} (jam sebelumnya) tidak perlu diisi.">
                                         <button type="button" disabled class="btn-mini-qual" style="padding: 3px 6px; font-size: 9px; font-weight: 700; border-radius: 4px; border: 1px solid rgba(255,255,255,0.05); background: rgba(15,23,42,0.4); color: #475569; cursor: not-allowed;">-</button>
-                                        <input type="hidden" class="bulk-sample-qual-input slot-disabled-before-creation" data-model="${m.model_name}" data-line="${m.line_name}" data-section="${m.section_name}" data-param="${p.parameter_id}" data-cp="${cp.checkpoint_id}" data-slot="${lbl}" value="">
+                                        <input type="hidden" class="bulk-sample-qual-input slot-disabled-before-creation" data-model="${m.model_name}" data-line="${m.line_name}" data-section="${m.section_name}" data-param="${p.parameter_id}" data-cp="${cp.checkpoint_id}" data-slot="${lbl}" data-orig="" value="">
                                     </div>
                                 `;
                             } else if (isLockedForUser) {
@@ -1782,7 +1790,7 @@ function renderBulkAllModelsForm(models, timeLabels) {
                                                 style="padding: 3px 6px; font-size: 9px; font-weight: 700; border-radius: 4px; border: 1px solid ${isOk ? '#10b981' : 'rgba(255,255,255,0.1)'}; background: ${isOk ? '#10b981' : 'rgba(15,23,42,0.4)'}; color: ${isOk ? '#ffffff' : '#64748b'}; cursor: not-allowed;">OK</button>
                                         <button type="button" disabled class="btn-mini-qual ${isNg ? 'active-ng' : ''}" data-val="NG" 
                                                 style="padding: 3px 6px; font-size: 9px; font-weight: 700; border-radius: 4px; border: 1px solid ${isNg ? '#ef4444' : 'rgba(255,255,255,0.1)'}; background: ${isNg ? '#ef4444' : 'rgba(15,23,42,0.4)'}; color: ${isNg ? '#ffffff' : '#f87171'}; cursor: not-allowed;">NG</button>
-                                        <input type="hidden" class="bulk-sample-qual-input" data-model="${m.model_name}" data-line="${m.line_name}" data-section="${m.section_name}" data-param="${p.parameter_id}" data-cp="${cp.checkpoint_id}" data-slot="${lbl}" value="${slotVal}">
+                                        <input type="hidden" class="bulk-sample-qual-input" data-model="${m.model_name}" data-line="${m.line_name}" data-section="${m.section_name}" data-param="${p.parameter_id}" data-cp="${cp.checkpoint_id}" data-slot="${lbl}" data-orig="${slotVal}" value="${slotVal}">
                                     </div>
                                 `;
                             } else if (!isOpen) {
@@ -1792,17 +1800,21 @@ function renderBulkAllModelsForm(models, timeLabels) {
                                                 style="padding: 3px 6px; font-size: 9px; font-weight: 700; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #64748b; cursor: not-allowed;">OK</button>
                                         <button type="button" disabled class="btn-mini-qual btn-mini-ng ${isNg ? 'active-ng' : ''}" data-val="NG" 
                                                 style="padding: 3px 6px; font-size: 9px; font-weight: 700; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #64748b; cursor: not-allowed;">NG</button>
-                                        <input type="hidden" class="bulk-sample-qual-input" data-model="${m.model_name}" data-line="${m.line_name}" data-section="${m.section_name}" data-param="${p.parameter_id}" data-cp="${cp.checkpoint_id}" data-slot="${lbl}" value="${slotVal}">
+                                        <input type="hidden" class="bulk-sample-qual-input" data-model="${m.model_name}" data-line="${m.line_name}" data-section="${m.section_name}" data-param="${p.parameter_id}" data-cp="${cp.checkpoint_id}" data-slot="${lbl}" data-orig="${slotVal}" value="${slotVal}">
                                     </div>
                                 `;
                             } else {
                                 html += `
-                                    <div class="btn-group-mini-qual" style="display: flex; gap: 3px; justify-content: center;">
+                                    <div class="btn-group-mini-qual" style="display: flex; gap: 2px; justify-content: center; align-items: center;">
                                         <button type="button" class="btn-mini-qual btn-mini-ok ${isOk ? 'active-ok' : ''}" data-val="OK" 
-                                                style="padding: 3px 6px; font-size: 9px; font-weight: 700; border-radius: 4px; border: 1px solid rgba(16,185,129,0.4); background: ${isOk ? '#10b981' : 'rgba(16,185,129,0.15)'}; color: ${isOk ? '#ffffff' : '#34d399'}; cursor: pointer;">OK</button>
+                                                style="padding: 3px 5px; font-size: 9px; font-weight: 700; border-radius: 4px; border: 1px solid rgba(16,185,129,0.4); background: ${isOk ? '#10b981' : 'rgba(16,185,129,0.15)'}; color: ${isOk ? '#ffffff' : '#34d399'}; cursor: pointer;">OK</button>
                                         <button type="button" class="btn-mini-qual btn-mini-ng ${isNg ? 'active-ng' : ''}" data-val="NG" 
-                                                style="padding: 3px 6px; font-size: 9px; font-weight: 700; border-radius: 4px; border: 1px solid rgba(239,68,68,0.4); background: ${isNg ? '#ef4444' : 'rgba(239,68,68,0.15)'}; color: ${isNg ? '#ffffff' : '#f87171'}; cursor: pointer;">NG</button>
-                                        <input type="hidden" class="bulk-sample-qual-input" data-model="${m.model_name}" data-line="${m.line_name}" data-section="${m.section_name}" data-param="${p.parameter_id}" data-cp="${cp.checkpoint_id}" data-slot="${lbl}" value="${slotVal}">
+                                                style="padding: 3px 5px; font-size: 9px; font-weight: 700; border-radius: 4px; border: 1px solid rgba(239,68,68,0.4); background: ${isNg ? '#ef4444' : 'rgba(239,68,68,0.15)'}; color: ${isNg ? '#ffffff' : '#f87171'}; cursor: pointer;">NG</button>
+                                        <button type="button" class="btn-mini-qual-reset" title="Reset sample jam ${lbl} ke NULL" 
+                                                style="padding: 3px 4px; font-size: 9px; font-weight: 700; border-radius: 4px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05); color: ${isOk || isNg ? '#f87171' : '#64748b'}; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;">
+                                            <i class="fa-solid fa-xmark" style="font-size: 9px;"></i>
+                                        </button>
+                                        <input type="hidden" class="bulk-sample-qual-input" data-model="${m.model_name}" data-line="${m.line_name}" data-section="${m.section_name}" data-param="${p.parameter_id}" data-cp="${cp.checkpoint_id}" data-slot="${lbl}" data-orig="${slotVal}" value="${slotVal}">
                                     </div>
                                 `;
                             }
@@ -1959,15 +1971,15 @@ function parseSlotMinutes(slotLabel) {
 
 function isSlotBeforeModelCreation(slotLabel, timeLabels, slotIdx, createdAtStr, inspectionDateStr) {
     if (!createdAtStr || !inspectionDateStr || !slotLabel) return false;
-    
+
     let parts = createdAtStr.trim().split(' ');
     if (parts.length < 2) return false;
     let createdDate = parts[0];
     let createdTime = parts[1];
-    
+
     if (createdDate < inspectionDateStr) return false;
     if (createdDate > inspectionDateStr) return true;
-    
+
     let timeParts = createdTime.split(':');
     let cH = parseInt(timeParts[0] || '0', 10);
     let cM = parseInt(timeParts[1] || '0', 10);
@@ -1987,24 +1999,24 @@ function isSlotBeforeModelCreation(slotLabel, timeLabels, slotIdx, createdAtStr,
 
 function isSlotOpenForInput(slotLabel, timeLabels, slotIdx, createdAtStr, inspectionDateStr) {
     if (!slotLabel) return false;
-    
+
     if (isSlotBeforeModelCreation(slotLabel, timeLabels, slotIdx, createdAtStr, inspectionDateStr)) {
         return false;
     }
-    
+
     let curSlotMins = parseSlotMinutes(slotLabel);
-    
+
     let now = new Date();
     let curH = now.getHours();
     let curM = now.getMinutes();
     let nowMinutesFrom7 = (curH < 7 ? curH + 24 : curH) * 60 + curM;
-    
-    let todayStr = typeof getManufacturingProdDateStr === 'function' ? getManufacturingProdDateStr() : new Date().toISOString().slice(0,10);
+
+    let todayStr = typeof getManufacturingProdDateStr === 'function' ? getManufacturingProdDateStr() : new Date().toISOString().slice(0, 10);
     if (inspectionDateStr < todayStr) return true;
     if (inspectionDateStr > todayStr) return false;
-    
+
     // Slot jam (seperti 14:40) HANYA terbuka 30 menit sebelum waktunya (mulai jam 14:10 ke atas)
-    return nowMinutesFrom7 >= (curSlotMins - 30);
+    return nowMinutesFrom7 >= curSlotMins;
 }
 
 // Check if a time slot (e.g. "07:30", "09:40", "02:30") is due relative to current shift time
@@ -2203,13 +2215,19 @@ function updateBulkSummaryCount() {
     let filledCells = 0;
 
     $('.bulk-sample-quant-input').each(function () {
-        totalCells++;
-        if ($(this).val().trim() !== '') filledCells++;
+        if (!$(this).hasClass('slot-disabled-before-creation')) {
+            totalCells++;
+            let val = $(this).val().trim();
+            if (val !== '' && val !== '-') filledCells++;
+        }
     });
 
     $('.bulk-sample-qual-input').each(function () {
-        totalCells++;
-        if ($(this).val().trim() !== '') filledCells++;
+        if (!$(this).hasClass('slot-disabled-before-creation')) {
+            totalCells++;
+            let val = $(this).val().trim();
+            if (val !== '' && val !== '-') filledCells++;
+        }
     });
 
     $('#bulk-total-count').text(totalCells);
@@ -2317,8 +2335,10 @@ $(document).on('input', '.bulk-sample-quant-input', function () {
     let lsl = $(this).data('lsl');
     let usl = $(this).data('usl');
     let slot = $(this).data('slot');
+    let resetBtn = $(this).siblings('.btn-quant-sample-reset');
 
     if (valStr === '') {
+        resetBtn.hide();
         if (isSlotDue(slot)) {
             $(this).css({ 'border': '1px dashed #ef4444', 'background': 'rgba(239,68,68,0.25)', 'color': '#fca5a5' });
         } else {
@@ -2327,6 +2347,8 @@ $(document).on('input', '.bulk-sample-quant-input', function () {
         updateBulkSummaryCount();
         return;
     }
+
+    resetBtn.show();
 
     let val = parseFloat(valStr);
     if (isNaN(val)) {
@@ -2350,27 +2372,100 @@ $(document).on('input', '.bulk-sample-quant-input', function () {
     updateBulkSummaryCount();
 });
 
+// Quantitative per-sample reset button
+$(document).on('click', '.btn-quant-sample-reset', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    let wrapper = $(this).closest('div');
+    let quantInput = wrapper.find('.bulk-sample-quant-input');
+    quantInput.val('').data('cleared', 1).attr('data-cleared', '1').trigger('input');
+    $(this).hide();
+});
+
+function resetQualButtonGroup(group) {
+    group.css({ 'border': 'none', 'padding': '0', 'background': 'transparent' });
+    group.find('.btn-mini-qual').removeClass('active-ok active-ng');
+    group.find('.btn-mini-ok').css({ 'background': 'rgba(16,185,129,0.15)', 'color': '#34d399', 'border-color': 'rgba(16,185,129,0.4)' });
+    group.find('.btn-mini-ng').css({ 'background': 'rgba(239,68,68,0.15)', 'color': '#f87171', 'border-color': 'rgba(239,68,68,0.4)' });
+    let input = group.find('.bulk-sample-qual-input');
+    input.val('').data('cleared', 1).attr('data-cleared', '1');
+    group.find('.btn-mini-qual-reset').css('color', '#64748b');
+}
+
 // Qualitative mini toggle buttons
 $(document).on('click', '.btn-mini-qual', function () {
     let group = $(this).closest('.btn-group-mini-qual');
-    group.css({ 'border': 'none', 'padding': '0', 'background': 'transparent' });
     let hiddenInput = group.find('.bulk-sample-qual-input');
     let clickedVal = $(this).data('val');
+    let resetBtn = group.find('.btn-mini-qual-reset');
+    let isAlreadyActive = $(this).hasClass('active-ok') || $(this).hasClass('active-ng');
 
-    if ($(this).hasClass('active-ok') || $(this).hasClass('active-ng')) {
-        group.find('.btn-mini-qual').removeClass('active-ok active-ng').css({ 'background': '', 'color': '' });
-        hiddenInput.val('');
-    } else {
-        group.find('.btn-mini-qual').removeClass('active-ok active-ng').css({ 'background': '', 'color': '' });
+    resetQualButtonGroup(group);
+
+    if (!isAlreadyActive) {
         if (clickedVal === 'OK') {
-            $(this).addClass('active-ok').css({ 'background': '#10b981', 'color': '#ffffff' });
+            group.find('.btn-mini-ok').addClass('active-ok').css({ 'background': '#10b981', 'color': '#ffffff' });
         } else {
-            $(this).addClass('active-ng').css({ 'background': '#ef4444', 'color': '#ffffff' });
+            group.find('.btn-mini-ng').addClass('active-ng').css({ 'background': '#ef4444', 'color': '#ffffff' });
         }
-        hiddenInput.val(clickedVal);
+        hiddenInput.val(clickedVal).data('cleared', 0).attr('data-cleared', '0');
+        resetBtn.css('color', '#f87171');
     }
     updateBulkSummaryCount();
 });
+
+// Qualitative per-sample reset button (NULL)
+$(document).on('click', '.btn-mini-qual-reset', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    let group = $(this).closest('.btn-group-mini-qual');
+    resetQualButtonGroup(group);
+    updateBulkSummaryCount();
+});
+
+// Reset Checkpoint (NULL) for all sample slots in a row
+$(document).on('click', '.btn-reset-row-null', function (e) {
+    e.preventDefault();
+    let row = $(this).closest('tr');
+    let cpName = row.data('name') || 'checkpoint ini';
+
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: 'Reset Checkpoint ke NULL?',
+            text: `Apakah Anda yakin ingin mengosongkan/meng-reset seluruh nilai sampel untuk "${cpName}"?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Ya, Reset NULL',
+            cancelButtonText: 'Batal',
+            background: '#1e293b',
+            color: '#f8fafc'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                executeRowResetNull(row);
+            }
+        });
+    } else {
+        if (confirm(`Apakah Anda yakin ingin mengosongkan seluruh nilai sampel untuk "${cpName}"?`)) {
+            executeRowResetNull(row);
+        }
+    }
+});
+
+function executeRowResetNull(row) {
+    row.find('.bulk-sample-quant-input:not(:disabled)').each(function () {
+        $(this).val('').data('cleared', 1).attr('data-cleared', '1').trigger('input');
+    });
+
+    row.find('.btn-group-mini-qual:not(.slot-disabled):not(.slot-disabled-before-creation):not(.slot-filled-locked)').each(function () {
+        resetQualButtonGroup($(this));
+    });
+
+    if (typeof updateBulkSummaryCount === 'function') {
+        updateBulkSummaryCount();
+    }
+}
 
 // Submit Bulk Save for ALL Models and ALL Slots
 $(document).on('click', '#btn-submit-bulk-save', function () {
@@ -2392,7 +2487,13 @@ $(document).on('click', '#btn-submit-bulk-save', function () {
 
     $('.bulk-sample-quant-input').each(function () {
         let val = $(this).val().trim();
-        if (val !== '') {
+        let orig = String($(this).data('orig') || $(this).attr('data-orig') || $(this).attr('value') || '').trim();
+        let userCleared = $(this).data('cleared') == 1 || $(this).attr('data-cleared') === '1';
+        let isFilled = (val !== '' && val !== '-');
+        let isChanged = (val !== orig) || userCleared;
+
+        if (isFilled || isChanged) {
+            let sendVal = !isFilled ? '__DELETE__' : val;
             let row = $(this).closest('tr');
             itemsToSave.push({
                 model_name: $(this).data('model') || row.data('model'),
@@ -2401,7 +2502,7 @@ $(document).on('click', '#btn-submit-bulk-save', function () {
                 checkpoint_type: 'Quantitative',
                 sample_label: $(this).data('slot'),
                 name: row.data('name'),
-                value: val,
+                value: sendVal,
                 remarks: ''
             });
         }
@@ -2409,7 +2510,13 @@ $(document).on('click', '#btn-submit-bulk-save', function () {
 
     $('.bulk-sample-qual-input').each(function () {
         let val = $(this).val().trim();
-        if (val !== '') {
+        let orig = String($(this).data('orig') || $(this).attr('data-orig') || $(this).attr('value') || '').trim();
+        let userCleared = $(this).data('cleared') == 1 || $(this).attr('data-cleared') === '1';
+        let isFilled = (val !== '' && val !== '-');
+        let isChanged = (val !== orig) || userCleared;
+
+        if (isFilled || isChanged) {
+            let sendVal = !isFilled ? '__DELETE__' : val;
             let row = $(this).closest('tr');
             itemsToSave.push({
                 model_name: $(this).data('model') || row.data('model'),
@@ -2418,7 +2525,7 @@ $(document).on('click', '#btn-submit-bulk-save', function () {
                 checkpoint_type: 'Qualitative',
                 sample_label: $(this).data('slot'),
                 name: row.data('name'),
-                value: val,
+                value: sendVal,
                 remarks: ''
             });
         }

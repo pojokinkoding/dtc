@@ -36,14 +36,16 @@ try {
     $stmtParams->execute([':sec' => $section_name, ':lin' => $line_name, ':mon' => $actual_month]);
     $parameters = $stmtParams->fetchAll(PDO::FETCH_ASSOC);
     
-    // Fetch time labels from settings
-    $stmtSetting = $conn->prepare("SELECT setting_value FROM dtc_app_settings WHERE setting_key = 'time_matrix_labels'");
-    $stmtSetting->execute();
-    $rowSetting = $stmtSetting->fetch(PDO::FETCH_ASSOC);
+    // Fetch time labels from settings using line_name
     $time_labels = [];
-    if ($rowSetting && $rowSetting['setting_value']) {
-        $val = is_resource($rowSetting['setting_value']) ? stream_get_contents($rowSetting['setting_value']) : $rowSetting['setting_value'];
-        $time_labels = json_decode($val, true);
+    if (!empty($line_name)) {
+        $stmtSetting = $conn->prepare("SELECT setting_value FROM dtc_app_settings WHERE setting_key = :k");
+        $stmtSetting->execute([':k' => 'time_matrix_labels_' . $line_name]);
+        $rowSetting = $stmtSetting->fetch(PDO::FETCH_ASSOC);
+        if ($rowSetting && $rowSetting['setting_value']) {
+            $val = is_resource($rowSetting['setting_value']) ? stream_get_contents($rowSetting['setting_value']) : $rowSetting['setting_value'];
+            $time_labels = json_decode($val, true);
+        }
     }
     if (empty($time_labels)) {
         $time_labels = ['07:30', '09:40', '12:40', '14:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30'];
@@ -54,30 +56,7 @@ try {
     foreach ($parameters as $index => $param) {
         $pid = $param['parameter_id'];
         
-        // Fetch existing labels for this parameter to lock in the initial pattern
-        $stmtExistingLabels = $conn->prepare("
-            SELECT m.sample_sequence, m.sample_label 
-            FROM dtc_measurements m 
-            JOIN dtc_inspection_sessions s ON m.session_id = s.session_id 
-            WHERE s.parameter_id = :pid AND s.is_active = 1
-            ORDER BY s.inspection_date ASC, m.measurement_id ASC
-        ");
-        $stmtExistingLabels->execute([':pid' => $pid]);
-        $existing_labels = [];
-        while ($r = $stmtExistingLabels->fetch(PDO::FETCH_ASSOC)) {
-            $seq = intval($r['sample_sequence']);
-            $lbl = trim($r['sample_label'] ?? '');
-            if ($lbl && strtolower($lbl) !== 'null' && !isset($existing_labels[$seq])) {
-                $existing_labels[$seq] = preg_replace('/^Jam\s+/i', '', $lbl);
-            }
-        }
-        
         $local_time_labels = $time_labels;
-        for ($i = 0; $i < 10; $i++) {
-            if (isset($existing_labels[$i + 1])) {
-                $local_time_labels[$i] = $existing_labels[$i + 1];
-            }
-        }
         
         // Prepare the structure for this parameter
         $paramData = [
@@ -116,8 +95,20 @@ try {
         
         foreach ($measurements as $m) {
             $day = intval($m['day_of_month']);
-            $seq = intval($m['sample_sequence']);
             $val = $m['sample_value'];
+            $lbl = trim($m['sample_label'] ?? '');
+            $lblClean = preg_replace('/^Jam\s+/i', '', $lbl);
+            
+            $seq = null;
+            foreach ($local_time_labels as $idx => $tLabel) {
+                if (trim($tLabel) === $lblClean) {
+                    $seq = $idx + 1;
+                    break;
+                }
+            }
+            if ($seq === null) {
+                $seq = intval($m['sample_sequence']);
+            }
             
             if (isset($paramData['times'][$seq])) {
                 $paramData['times'][$seq]['days'][$day] = $val;

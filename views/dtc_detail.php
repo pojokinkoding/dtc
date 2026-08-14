@@ -641,7 +641,6 @@ if ($param_id > 0) {
                     
                     <div style="margin-top: 25px; display: flex; justify-content: flex-end; gap: 10px; width: 100%; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
                         <button type="button" id="btn-close-data" class="btn-rich-danger" style="display: none;"><i class="fa-solid fa-lock"></i> Close Measurement</button>
-                        <button type="button" id="btn-delete-data" class="btn-rich-danger" style="display: none; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.5); color: #f87171;"><i class="fa-solid fa-trash-can"></i> Delete / Reset (NULL)</button>
                         <div style="flex-grow: 1;"></div>
                         <button type="button" id="btn-cancel-input" class="btn-rich-secondary">Cancel</button>
                         <button type="submit" id="btn-save-input" class="btn-rich-primary"><i class="fa-solid fa-floppy-disk"></i> Save Data</button>
@@ -767,3 +766,4 @@ if ($param_id > 0) {
         const userRole = "<?= $_SESSION['role'] ?? 'Operator' ?>";
         const isAdmin = (userRole.toLowerCase() === 'admin');
     </script>
+    <script src="Script/js/dtc/js_dtc_detail.js?v=<?= time() ?>"></script>

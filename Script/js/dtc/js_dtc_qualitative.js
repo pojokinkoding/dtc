@@ -134,7 +134,7 @@ $(document).ready(function () {
             }
         });
 
-        let isExistingData = $("#btn-delete-data").is(":visible");
+        let isExistingData = false;
 
         if (!hasData && !isExistingData) {
             Swal.fire({

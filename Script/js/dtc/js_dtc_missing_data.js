@@ -625,7 +625,7 @@ $(document).ready(function () {
                         border: 'rgba(16, 185, 129, 0.5)',
                         bg: 'rgba(16, 185, 129, 0.15)',
                         barGradient: 'linear-gradient(90deg, #10b981, #34d399)',
-                        displayText: 'GOOD'
+                        displayText: 'DONE'
                     };
                 } else if (pct <= 15) {
                     return {
@@ -701,7 +701,7 @@ $(document).ready(function () {
                     <!-- Main Overdue Rate KPI Display -->
                     <div style="background: rgba(0,0,0,0.45); padding: 10px 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); text-align: center; margin-bottom: 8px;">
                         <div style="font-size: 10px; color: #94a3b8; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;">
-                            <i class="fa-solid fa-clock-rotate-left" style="color: ${mainOverdueStyle.text}; margin-right: 3px;"></i> OVERDUE RATE
+                            <i class="fa-solid fa-clock-rotate-left" style="color: ${mainOverdueStyle.text}; margin-right: 3px;"></i> INSPECTION ACTIVITIES
                         </div>
                         <div style="font-size: ${item.pct_overdue === 0 ? '30px' : '38px'}; font-weight: 900; color: ${mainOverdueStyle.text}; line-height: 1; letter-spacing: -1px; margin: 2px 0;">
                             ${mainOverdueStyle.displayText}

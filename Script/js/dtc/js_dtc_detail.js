@@ -818,7 +818,7 @@ $(document).ready(function () {
     if (!noPopup && !isPastMonthDetail && typeof isQualitative !== 'undefined' && !isQualitative) {
         let todayStr = getManufacturingProdDateStr();
         let targetDate = urlParams.get('auto_add') || urlParams.get('date') || todayStr;
-        
+
         setTimeout(() => {
             if ($("#input_inspection_date").length > 0 && modalInput) {
                 if (!$("#input_inspection_date").val()) {
@@ -874,8 +874,8 @@ $(document).ready(function () {
         if (sH < 7) sH += 24;
         let slotMins = sH * 60 + sM;
 
-        // Slot is future if current shift time is prior to (slotMins - 30)
-        return curMins < (slotMins - 30);
+        // Slot is future if current shift time is prior to slotMins
+        return curMins < slotMins;
     }
 
     function isTimeSlotBeforeModelStartDetail(dateStr, labelText, rmCreatedAt) {
@@ -896,7 +896,7 @@ $(document).ready(function () {
 
         let modelMins = (mH < 7 ? mH + 24 : mH) * 60 + mM;
 
-        let defaultLabels = ['07:30','09:40','12:40','14:40','16:40','18:40','20:05','22:30','24:30','02:30','04:30'];
+        let defaultLabels = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30'];
         let clean = String(labelText).replace('.', ':');
         let idx = defaultLabels.findIndex(l => l.replace('.', ':').startsWith(clean));
 
@@ -924,19 +924,60 @@ $(document).ready(function () {
         return modelMins >= nextSlotMins;
     }
 
-    $(document).on('input keyup change', ".sample-input, input[name^='sample_']", function () {
-        let val = $(this).val();
-        let $clearBtn = $(this).siblings('.btn-clear-sample');
-        if (val !== null && val !== undefined && String(val).trim() !== '') {
-            $(this).removeClass('slot-overdue-glowing');
-            if (!$(this).prop('readonly')) {
+    function updateSampleInputValidation($input) {
+        if ($input.length === 0) return;
+        let valStr = $input.val();
+        let $clearBtn = $input.siblings('.btn-clear-sample');
+
+        if ($input.prop('readonly') && ($input.hasClass('slot-disabled-before-creation') || ($input.attr('title') && $input.attr('title').includes('sebelum')))) {
+            return;
+        }
+
+        if (valStr !== null && valStr !== undefined && String(valStr).trim() !== '') {
+            $input.removeClass('slot-overdue-glowing');
+            if (!$input.prop('readonly')) {
                 $clearBtn.show();
             } else {
                 $clearBtn.hide();
             }
+
+            let val = parseFloat(valStr);
+            if (!isNaN(val)) {
+                let isOos = false;
+                if (LSL !== null && LSL !== undefined && !isNaN(LSL) && val < LSL) isOos = true;
+                if (USL !== null && USL !== undefined && !isNaN(USL) && val > USL) isOos = true;
+
+                if (isOos) {
+                    $input.css({
+                        'border': '1.5px solid #ef4444',
+                        'background-color': 'rgba(239, 68, 68, 0.25)',
+                        'color': '#fca5a5',
+                        'box-shadow': '0 0 10px rgba(239, 68, 68, 0.4)'
+                    });
+                } else {
+                    $input.css({
+                        'border': '1px solid rgba(16, 185, 129, 0.5)',
+                        'background-color': 'rgba(16, 185, 129, 0.15)',
+                        'color': '#34d399',
+                        'box-shadow': 'none'
+                    });
+                }
+            }
         } else {
             $clearBtn.hide();
+            if (!$input.hasClass('slot-overdue-glowing')) {
+                $input.css({
+                    'border': '1px solid rgba(255, 255, 255, 0.15)',
+                    'background-color': 'rgba(15, 23, 42, 0.5)',
+                    'color': '#ffffff',
+                    'box-shadow': 'none'
+                });
+            }
         }
+    }
+
+    $(document).on('input keyup change', ".sample-input, input[name^='sample_']", function () {
+        updateSampleInputValidation($(this));
     });
 
     $(document).on('click', '.btn-clear-sample', function (e) {
@@ -945,6 +986,7 @@ $(document).ready(function () {
         let seq = $(this).data('sample');
         let $input = $("input[name='sample_" + seq + "']");
         $input.val("").removeClass('slot-overdue-glowing').trigger('change').focus();
+        updateSampleInputValidation($input);
         $(this).hide();
     });
 
@@ -959,7 +1001,6 @@ $(document).ready(function () {
         $("input[name='remarks']").val("").prop("readonly", false);
         $("#btn-save-input").show();
         $("#btn-close-data").hide();
-        $("#btn-delete-data").hide();
 
         $.ajax({
             url: `Script/php/dtc/c_dtc_measurement_get.php?parameter_id=${paramId}&date=${selectedDate}`,
@@ -973,12 +1014,7 @@ $(document).ready(function () {
                 let isClosed = (response.status === "found" && parseInt(d.is_closed) === 1);
                 let unfilledOverdueCount = 0;
                 let totalSlotsCount = $("input[name^='sample_']").length || 11;
-
-                if (response.status === "found") {
-                    $("#btn-delete-data").show();
-                } else {
-                    $("#btn-delete-data").hide();
-                }
+                window.selectedDateHasData = (response.status === "found");
 
                 for (let i = 1; i <= totalSlotsCount; i++) {
                     let sampleVal = d["sample_" + i];
@@ -1019,18 +1055,18 @@ $(document).ready(function () {
                         if (!isAdmin) {
                             $input.prop("readonly", true).css({
                                 'opacity': '0.7',
-                                'cursor': 'not-allowed',
-                                'background-color': 'rgba(255,255,255,0.05)'
+                                'cursor': 'not-allowed'
                             });
                             $clearBtn.hide();
                         } else {
                             $input.prop("readonly", false).css({
                                 'opacity': '1',
-                                'cursor': 'text',
-                                'background-color': 'rgba(15,23,42,0.5)'
+                                'cursor': 'text'
                             });
                             $clearBtn.show();
                         }
+
+                        updateSampleInputValidation($input);
 
                         if (!isNaN(val) && (val < LSL || val > USL)) {
                             hasLoadedOOS = true;
@@ -1041,14 +1077,15 @@ $(document).ready(function () {
                         // KEEP EMPTY SLOTS EDITABLE IF NOT CLOSED
                         $input.prop("readonly", false).css({
                             'opacity': '1',
-                            'cursor': 'text',
-                            'background-color': 'rgba(15,23,42,0.5)'
+                            'cursor': 'text'
                         });
 
                         // Glowing Yellow effect for overdue unfilled slots if not closed
                         if (!isClosed) {
                             $input.addClass('slot-overdue-glowing');
                             unfilledOverdueCount++;
+                        } else {
+                            updateSampleInputValidation($input);
                         }
                     }
                 }
@@ -1063,12 +1100,10 @@ $(document).ready(function () {
                         $("input[name='remarks']").prop("readonly", true);
                         $("#btn-save-input").hide();
                         $("#btn-close-data").hide();
-                        $("#btn-delete-data").hide();
                     } else {
-                        // Admin can edit/delete even if closed
+                        // Admin can edit even if closed
                         $("#btn-save-input").show();
                         $("#btn-close-data").hide();
-                        $("#btn-delete-data").show();
                     }
                 } else {
                     // Allow edits but show Close button since data exists
@@ -1099,329 +1134,298 @@ $(document).ready(function () {
                 }, 150);
             }
         });
-});
+    });
 
-// --- Delete / Reset (NULL) Action ---
-$("#btn-delete-data").click(function () {
-    const dateVal = $("#input_inspection_date").val();
-    if (!dateVal) return;
+    // --- Close Measurement Action ---
+    $("#btn-close-data").click(function () {
+        const dateVal = $("#input_inspection_date").val();
+        if (!dateVal) return;
 
-    if (typeof Swal !== 'undefined') {
-        Swal.fire({
-            title: 'Hapus / Reset Data (NULL)?',
-            text: `Apakah Anda yakin ingin menghapus / meng-reset data pengukuran pada tanggal ${dateVal} menjadi NULL?`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#ef4444',
-            cancelButtonColor: '#64748b',
-            confirmButtonText: 'Ya, Hapus (Reset NULL)',
-            cancelButtonText: 'Batal',
-            background: '#1e293b',
-            color: '#f8fafc'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $("input[name^='sample_']").val("");
-                $("#form-input-data").submit();
-            }
-        });
-    } else {
-        if (confirm(`Apakah Anda yakin ingin menghapus data tanggal ${dateVal}?`)) {
-            $("input[name^='sample_']").val("");
-            $("#form-input-data").submit();
-        }
-    }
-});
-
-// --- Close Measurement Action ---
-$("#btn-close-data").click(function () {
-    const dateVal = $("#input_inspection_date").val();
-    if (!dateVal) return;
-
-    if (typeof Swal !== 'undefined') {
-        Swal.fire({
-            title: 'Close Measurement?',
-            text: 'Setelah ditutup, data pada tanggal ini tidak bisa di-edit lagi. Lanjutkan?',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#ef4444',
-            cancelButtonColor: '#64748b',
-            confirmButtonText: 'Ya, Tutup Data',
-            cancelButtonText: 'Batal',
-            background: '#1e293b',
-            color: '#f8fafc'
-        }).then((result) => {
-            if (result.isConfirmed) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Close Measurement?',
+                text: 'Setelah ditutup, data pada tanggal ini tidak bisa di-edit lagi. Lanjutkan?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Tutup Data',
+                cancelButtonText: 'Batal',
+                background: '#1e293b',
+                color: '#f8fafc'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    executeCloseMeasurement(dateVal);
+                }
+            });
+        } else {
+            if (confirm("Setelah ditutup, data tidak bisa di-edit. Lanjutkan?")) {
                 executeCloseMeasurement(dateVal);
             }
-        });
-    } else {
-        if (confirm("Setelah ditutup, data tidak bisa di-edit. Lanjutkan?")) {
-            executeCloseMeasurement(dateVal);
-        }
-    }
-});
-
-function executeCloseMeasurement(dateVal) {
-    $.ajax({
-        url: "Script/php/dtc/c_dtc_measurement_close.php",
-        type: "POST",
-        data: { parameter_id: paramId, inspection_date: dateVal },
-        dataType: "json",
-        success: function (res) {
-            if (res.status === 'success') {
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({
-                        toast: true, position: 'top-end', icon: 'success',
-                        title: 'Data Closed', text: res.message,
-                        showConfirmButton: false, timer: 3000,
-                        background: '#1e293b', color: '#f8fafc'
-                    });
-                }
-                // Trigger reload of data in form
-                $("#input_inspection_date").trigger('change');
-                // Reload matrix
-                if (typeof isQualitative !== 'undefined' && isQualitative) {
-                    if (typeof window.loadMatrixData === 'function') {
-                        window.loadMatrixData();
-                    }
-                } else {
-                    loadData();
-                }
-            } else {
-                Swal.fire({ icon: 'error', title: 'Error!', text: res.message, background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#ef4444' });
-            }
-        },
-        error: function (xhr, status, err) {
-            Swal.fire({ icon: 'error', title: 'Koneksi Gagal!', text: "Server error: " + err, background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#ef4444' });
-        }
-    });
-}
-
-// --- Form Submit via AJAX ---
-$("#form-input-data").submit(function (e) {
-    e.preventDefault();
-
-    const dateVal = $("#input_inspection_date").val();
-    if (!dateVal) {
-        Swal.fire({
-            toast: true,
-            position: 'top-end',
-            icon: 'error',
-            title: 'Tanggal Harus Diisi!',
-            text: 'Silakan pilih tanggal inspeksi terlebih dahulu.',
-            showConfirmButton: false,
-            timer: 3000,
-            background: '#1e293b',
-            color: '#f8fafc'
-        });
-        return;
-    }
-
-    let hasData = false;
-    $('.sample-input').each(function () {
-        if ($(this).val().trim() !== "") {
-            hasData = true;
         }
     });
 
-    let isExistingData = $("#btn-delete-data").is(":visible");
-
-    if (!hasData && !isExistingData) {
-        Swal.fire({
-            title: 'Data Kosong!',
-            text: 'Minimal harus ada satu data pengukuran yang diisi sebelum menyimpan.',
-            icon: 'warning',
-            confirmButtonColor: '#3b82f6',
-            background: '#1e293b',
-            color: '#f8fafc'
-        });
-        return;
-    }
-
-    let isFutureTime = false;
-    let futureLabel = "";
-    let now = new Date();
-
-    $('.sample-input').each(function (index) {
-        let val = $(this).val().trim();
-        // Only check inputs that have a value AND are not locked
-        if (val !== "" && !$(this).prop("readonly")) {
-            let seq = index + 1;
-            let labelText = $("#label_sample_" + seq).text().trim();
-
-            // Construct Date object for this input
-            let timeParts = labelText.match(/^(\d{1,2}):(\d{2})$/);
-            if (timeParts) {
-                let inputDateStr = $("#input_inspection_date").val();
-                let dateParts = inputDateStr.split('-');
-                if (dateParts.length === 3) {
-                    let year = parseInt(dateParts[0], 10);
-                    let month = parseInt(dateParts[1], 10) - 1; // 0-indexed
-                    let day = parseInt(dateParts[2], 10);
-                    let hours = parseInt(timeParts[1], 10);
-                    let minutes = parseInt(timeParts[2], 10);
-
-                    let offsetDay = 0;
-                    if (hours >= 24) {
-                        offsetDay = Math.floor(hours / 24);
-                        hours = hours % 24;
-                    } else if (hours < 7) {
-                        // Assuming shift starts at 07:00. Times between 00:00 and 06:59 belong to the next day.
-                        offsetDay = 1;
-                    }
-
-                    let inputDateTime = new Date(year, month, day + offsetDay, hours, minutes, 0);
-                    if (inputDateTime > now) {
-                        isFutureTime = true;
-                        futureLabel = labelText;
-                        return false; // break .each loop
-                    }
-                }
-            }
-        }
-    });
-
-    if (isFutureTime) {
-        Swal.fire({
-            title: 'Waktu Input Belum Masuk!',
-            text: `Anda tidak dapat menginput data untuk sampel jam ${futureLabel} karena waktu saat ini belum mencapai jadwal tersebut.`,
-            icon: 'warning',
-            confirmButtonColor: '#3b82f6',
-            background: '#1e293b',
-            color: '#f8fafc'
-        });
-        return;
-    }
-
-    let hasOOS = false;
-    $('.sample-input').each(function () {
-        let val = parseFloat($(this).val());
-        if (!isNaN(val)) {
-            if (val < LSL || val > USL) {
-                hasOOS = true;
-            }
-        }
-    });
-
-    const proceedSave = () => {
-        const btn = $("#btn-save-input");
-        btn.prop("disabled", true).text("Saving...");
-        let formData = $("#form-input-data").serialize();
-
+    function executeCloseMeasurement(dateVal) {
         $.ajax({
-            url: "Script/php/dtc/c_dtc_measurement_save.php",
+            url: "Script/php/dtc/c_dtc_measurement_close.php",
             type: "POST",
-            data: formData,
+            data: { parameter_id: paramId, inspection_date: dateVal },
             dataType: "json",
-            success: function (response) {
-                btn.prop("disabled", false).text("Save Data");
-                if (response.status === "success") {
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'success',
-                        title: 'Sukses!',
-                        text: response.message,
-                        showConfirmButton: false,
-                        timer: 3000,
-                        background: '#1e293b',
-                        color: '#f8fafc'
-                    });
-                    modalInput.style.display = "none";
-                    $("#form-input-data")[0].reset();
-                    resetSampleColors();
-                    // Reload Data!
-                    loadData();
+            success: function (res) {
+                if (res.status === 'success') {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            toast: true, position: 'top-end', icon: 'success',
+                            title: 'Data Closed', text: res.message,
+                            showConfirmButton: false, timer: 3000,
+                            background: '#1e293b', color: '#f8fafc'
+                        });
+                    }
+                    // Trigger reload of data in form
+                    $("#input_inspection_date").trigger('change');
+                    // Reload matrix
+                    if (typeof isQualitative !== 'undefined' && isQualitative) {
+                        if (typeof window.loadMatrixData === 'function') {
+                            window.loadMatrixData();
+                        }
+                    } else {
+                        loadData();
+                    }
                 } else {
+                    Swal.fire({ icon: 'error', title: 'Error!', text: res.message, background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#ef4444' });
+                }
+            },
+            error: function (xhr, status, err) {
+                Swal.fire({ icon: 'error', title: 'Koneksi Gagal!', text: "Server error: " + err, background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#ef4444' });
+            }
+        });
+    }
+
+    // --- Form Submit via AJAX ---
+    $("#form-input-data").submit(function (e) {
+        e.preventDefault();
+
+        const dateVal = $("#input_inspection_date").val();
+        if (!dateVal) {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'error',
+                title: 'Tanggal Harus Diisi!',
+                text: 'Silakan pilih tanggal inspeksi terlebih dahulu.',
+                showConfirmButton: false,
+                timer: 3000,
+                background: '#1e293b',
+                color: '#f8fafc'
+            });
+            return;
+        }
+
+        let hasData = false;
+        $('.sample-input').each(function () {
+            if ($(this).val().trim() !== "") {
+                hasData = true;
+            }
+        });
+
+        let isExistingData = window.selectedDateHasData || false;
+
+        if (!hasData && !isExistingData) {
+            Swal.fire({
+                title: 'Data Kosong!',
+                text: 'Minimal harus ada satu data pengukuran yang diisi sebelum menyimpan.',
+                icon: 'warning',
+                confirmButtonColor: '#3b82f6',
+                background: '#1e293b',
+                color: '#f8fafc'
+            });
+            return;
+        }
+
+        let isFutureTime = false;
+        let futureLabel = "";
+        let now = new Date();
+
+        $('.sample-input').each(function (index) {
+            let val = $(this).val().trim();
+            // Only check inputs that have a value AND are not locked
+            if (val !== "" && !$(this).prop("readonly")) {
+                let seq = index + 1;
+                let labelText = $("#label_sample_" + seq).text().trim();
+
+                // Construct Date object for this input
+                let timeParts = labelText.match(/^(\d{1,2}):(\d{2})$/);
+                if (timeParts) {
+                    let inputDateStr = $("#input_inspection_date").val();
+                    let dateParts = inputDateStr.split('-');
+                    if (dateParts.length === 3) {
+                        let year = parseInt(dateParts[0], 10);
+                        let month = parseInt(dateParts[1], 10) - 1; // 0-indexed
+                        let day = parseInt(dateParts[2], 10);
+                        let hours = parseInt(timeParts[1], 10);
+                        let minutes = parseInt(timeParts[2], 10);
+
+                        let offsetDay = 0;
+                        if (hours >= 24) {
+                            offsetDay = Math.floor(hours / 24);
+                            hours = hours % 24;
+                        } else if (hours < 7) {
+                            // Assuming shift starts at 07:00. Times between 00:00 and 06:59 belong to the next day.
+                            offsetDay = 1;
+                        }
+
+                        let inputDateTime = new Date(year, month, day + offsetDay, hours, minutes, 0);
+                        if (inputDateTime > now) {
+                            isFutureTime = true;
+                            futureLabel = labelText;
+                            return false; // break .each loop
+                        }
+                    }
+                }
+            }
+        });
+
+        if (isFutureTime) {
+            Swal.fire({
+                title: 'Waktu Input Belum Masuk!',
+                text: `Anda tidak dapat menginput data untuk sampel jam ${futureLabel} karena waktu saat ini belum mencapai jadwal tersebut.`,
+                icon: 'warning',
+                confirmButtonColor: '#3b82f6',
+                background: '#1e293b',
+                color: '#f8fafc'
+            });
+            return;
+        }
+
+        let hasOOS = false;
+        $('.sample-input').each(function () {
+            let val = parseFloat($(this).val());
+            if (!isNaN(val)) {
+                if (val < LSL || val > USL) {
+                    hasOOS = true;
+                }
+            }
+        });
+
+        const proceedSave = () => {
+            const btn = $("#btn-save-input");
+            btn.prop("disabled", true).text("Saving...");
+            let formData = $("#form-input-data").serialize();
+
+            $.ajax({
+                url: "Script/php/dtc/c_dtc_measurement_save.php",
+                type: "POST",
+                data: formData,
+                dataType: "json",
+                success: function (response) {
+                    btn.prop("disabled", false).text("Save Data");
+                    if (response.status === "success") {
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'success',
+                            title: 'Sukses!',
+                            text: response.message,
+                            showConfirmButton: false,
+                            timer: 3000,
+                            background: '#1e293b',
+                            color: '#f8fafc'
+                        });
+                        modalInput.style.display = "none";
+                        $("#form-input-data")[0].reset();
+                        resetSampleColors();
+                        // Reload Data!
+                        loadData();
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: response.message,
+                            background: '#1e293b',
+                            color: '#f8fafc',
+                            confirmButtonColor: '#ef4444'
+                        });
+                    }
+                },
+                error: function (xhr, status, error) {
+                    btn.prop("disabled", false).text("Save Data");
+                    let errorMsg = error;
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMsg = xhr.responseJSON.message;
+                    } else if (xhr.responseText) {
+                        try {
+                            let parsed = JSON.parse(xhr.responseText);
+                            if (parsed && parsed.message) errorMsg = parsed.message;
+                        } catch (e) {
+                            let cleanText = xhr.responseText.replace(/<[^>]*>?/gm, '').trim();
+                            if (cleanText) errorMsg = cleanText;
+                        }
+                    }
                     Swal.fire({
                         icon: 'error',
                         title: 'Error!',
-                        text: response.message,
+                        text: "Server error occurred while saving: " + errorMsg,
                         background: '#1e293b',
                         color: '#f8fafc',
                         confirmButtonColor: '#ef4444'
                     });
                 }
-            },
-            error: function (xhr, status, error) {
-                btn.prop("disabled", false).text("Save Data");
-                let errorMsg = error;
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    errorMsg = xhr.responseJSON.message;
-                } else if (xhr.responseText) {
-                    try {
-                        let parsed = JSON.parse(xhr.responseText);
-                        if (parsed && parsed.message) errorMsg = parsed.message;
-                    } catch (e) {
-                        let cleanText = xhr.responseText.replace(/<[^>]*>?/gm, '').trim();
-                        if (cleanText) errorMsg = cleanText;
-                    }
-                }
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error!',
-                    text: "Server error occurred while saving: " + errorMsg,
-                    background: '#1e293b',
-                    color: '#f8fafc',
-                    confirmButtonColor: '#ef4444'
-                });
-            }
-        });
-    };
+            });
+        };
 
-    if (hasOOS && typeof Swal !== 'undefined') {
-        Swal.fire({
-            title: 'Data Out of Spec!',
-            text: 'Beberapa nilai sampel yang Anda masukkan berada di luar batas spesifikasi. Yakin ingin tetap menyimpannya?',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#10b981',
-            cancelButtonColor: '#ef4444',
-            confirmButtonText: 'Ya, Simpan',
-            cancelButtonText: 'Batal',
-            background: '#1e293b',
-            color: '#f8fafc'
-        }).then((result) => {
-            if (result.isConfirmed) {
+        if (hasOOS && typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Data Out of Spec!',
+                text: 'Beberapa nilai sampel yang Anda masukkan berada di luar batas spesifikasi. Yakin ingin tetap menyimpannya?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#ef4444',
+                confirmButtonText: 'Ya, Simpan',
+                cancelButtonText: 'Batal',
+                background: '#1e293b',
+                color: '#f8fafc'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    proceedSave();
+                }
+            });
+        } else if (hasOOS) {
+            if (confirm("Beberapa nilai sampel berada di luar batas spesifikasi. Yakin ingin tetap menyimpannya?")) {
                 proceedSave();
             }
-        });
-    } else if (hasOOS) {
-        if (confirm("Beberapa nilai sampel berada di luar batas spesifikasi. Yakin ingin tetap menyimpannya?")) {
+        } else {
             proceedSave();
         }
-    } else {
-        proceedSave();
-    }
-});
-
-// --- Edit Header Modal Logic ---
-const modalEditHeader = document.getElementById("modal-edit-header");
-
-function loadEditSelectOptions() {
-    $.ajax({
-        url: 'Script/php/dtc/c_dtc_master_data.php',
-        type: 'GET',
-        dataType: 'json',
-        success: function (res) {
-            if (res.specs) {
-                window.editDtcSpecs = res.specs;
-                populateEditSpecs();
-            }
-        }
     });
-}
 
-function populateEditSpecs() {
-    let opts = '<option value="">-- Select Master Data --</option>';
-    if (window.editDtcSpecs) {
-        window.editDtcSpecs.forEach(s => {
-            let sel = (s.spec_id == $('#edit_spec_id').data('val')) ? 'selected' : '';
+    // --- Edit Header Modal Logic ---
+    const modalEditHeader = document.getElementById("modal-edit-header");
 
-            let subName = s.sub_item_check_name && s.sub_item_check_name !== '-' ? ` - ${s.sub_item_check_name}` : '';
-            let display = `[${s.model_name}] [${s.line_name} - ${s.section_name}] ${s.process_name} (${s.item_check_name}${subName}) - ${s.data_type}`;
+    function loadEditSelectOptions() {
+        $.ajax({
+            url: 'Script/php/dtc/c_dtc_master_data.php',
+            type: 'GET',
+            dataType: 'json',
+            success: function (res) {
+                if (res.specs) {
+                    window.editDtcSpecs = res.specs;
+                    populateEditSpecs();
+                }
+            }
+        });
+    }
 
-            opts += `<option value="${s.spec_id}" 
+    function populateEditSpecs() {
+        let opts = '<option value="">-- Select Master Data --</option>';
+        if (window.editDtcSpecs) {
+            window.editDtcSpecs.forEach(s => {
+                let sel = (s.spec_id == $('#edit_spec_id').data('val')) ? 'selected' : '';
+
+                let subName = s.sub_item_check_name && s.sub_item_check_name !== '-' ? ` - ${s.sub_item_check_name}` : '';
+                let display = `[${s.model_name}] [${s.line_name} - ${s.section_name}] ${s.process_name} (${s.item_check_name}${subName}) - ${s.data_type}`;
+
+                opts += `<option value="${s.spec_id}" 
                     data-model="${s.model_name}"
                     data-line="${s.line_name}"
                     data-section="${s.section_name}"
@@ -1430,106 +1434,106 @@ function populateEditSpecs() {
                     data-usl="${s.usl}" 
                     data-target="${s.target_value}" 
                     ${sel}>${display}</option>`;
-        });
+            });
+        }
+        $('#edit_spec_id').html(opts);
+
+        if ($.fn.select2) {
+            $('#edit_spec_id').select2({
+                dropdownParent: $('#modal-edit-header'),
+                width: '100%',
+                placeholder: "-- Select Master Data --"
+            });
+        }
+
+        // Trigger change to autofill initially if there is a selected value
+        if ($('#edit_spec_id').val()) {
+            $('#edit_spec_id').trigger('change');
+        }
     }
-    $('#edit_spec_id').html(opts);
 
-    if ($.fn.select2) {
-        $('#edit_spec_id').select2({
-            dropdownParent: $('#modal-edit-header'),
-            width: '100%',
-            placeholder: "-- Select Master Data --"
-        });
-    }
+    $('#edit_spec_id').on('change', function () {
+        let opt = $(this).find('option:selected');
+        if (!opt.val()) return;
 
-    // Trigger change to autofill initially if there is a selected value
-    if ($('#edit_spec_id').val()) {
-        $('#edit_spec_id').trigger('change');
-    }
-}
+        $('#edit_model_name').val(opt.data('model') || '');
+        $('#edit_line_name').val(opt.data('line') || '');
+        $('#edit_section_name').val(opt.data('section') || '');
+        $('#edit_process_name').val(opt.data('process') || '');
 
-$('#edit_spec_id').on('change', function () {
-    let opt = $(this).find('option:selected');
-    if (!opt.val()) return;
+        let lsl = opt.data('lsl');
+        let usl = opt.data('usl');
+        let target = opt.data('target');
+        $('#edit_lsl').val(lsl !== undefined && lsl !== "" ? lsl : '');
+        $('#edit_usl').val(usl !== undefined && usl !== "" ? usl : '');
+        $('#edit_target_value').val(target !== undefined && target !== "" ? target : '');
+    });
 
-    $('#edit_model_name').val(opt.data('model') || '');
-    $('#edit_line_name').val(opt.data('line') || '');
-    $('#edit_section_name').val(opt.data('section') || '');
-    $('#edit_process_name').val(opt.data('process') || '');
+    $("#btn-edit-header").click(function () {
+        loadEditSelectOptions();
+        modalEditHeader.style.display = "flex";
+    });
 
-    let lsl = opt.data('lsl');
-    let usl = opt.data('usl');
-    let target = opt.data('target');
-    $('#edit_lsl').val(lsl !== undefined && lsl !== "" ? lsl : '');
-    $('#edit_usl').val(usl !== undefined && usl !== "" ? usl : '');
-    $('#edit_target_value').val(target !== undefined && target !== "" ? target : '');
-});
-
-$("#btn-edit-header").click(function () {
-    loadEditSelectOptions();
-    modalEditHeader.style.display = "flex";
-});
-
-$("#btn-cancel-edit-header").click(function () {
-    modalEditHeader.style.display = "none";
-});
-
-window.addEventListener("click", function (event) {
-    if (event.target == modalEditHeader) {
+    $("#btn-cancel-edit-header").click(function () {
         modalEditHeader.style.display = "none";
-    }
-});
+    });
 
-$("#form-edit-header").submit(function (e) {
-    e.preventDefault();
-    const btn = $("#btn-save-edit-header");
-    btn.prop("disabled", true).text("Saving...");
+    window.addEventListener("click", function (event) {
+        if (event.target == modalEditHeader) {
+            modalEditHeader.style.display = "none";
+        }
+    });
 
-    let formData = new FormData(this);
+    $("#form-edit-header").submit(function (e) {
+        e.preventDefault();
+        const btn = $("#btn-save-edit-header");
+        btn.prop("disabled", true).text("Saving...");
 
-    $.ajax({
-        url: "Script/php/dtc/c_dtc_header_update.php",
-        type: "POST",
-        data: formData,
-        processData: false,
-        contentType: false,
-        dataType: "json",
-        success: function (response) {
-            btn.prop("disabled", false).html('<i class="fa-solid fa-floppy-disk"></i> Save Changes');
-            if (response.status === "success") {
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Sukses!',
-                        text: 'Header updated! Reloading page...',
-                        background: '#1e293b',
-                        color: '#f8fafc',
-                        showConfirmButton: false,
-                        timer: 1500
-                    }).then(() => {
+        let formData = new FormData(this);
+
+        $.ajax({
+            url: "Script/php/dtc/c_dtc_header_update.php",
+            type: "POST",
+            data: formData,
+            processData: false,
+            contentType: false,
+            dataType: "json",
+            success: function (response) {
+                btn.prop("disabled", false).html('<i class="fa-solid fa-floppy-disk"></i> Save Changes');
+                if (response.status === "success") {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Sukses!',
+                            text: 'Header updated! Reloading page...',
+                            background: '#1e293b',
+                            color: '#f8fafc',
+                            showConfirmButton: false,
+                            timer: 1500
+                        }).then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        alert("Header updated!");
                         location.reload();
-                    });
+                    }
+                    modalEditHeader.style.display = "none";
                 } else {
-                    alert("Header updated!");
-                    location.reload();
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: response.message,
+                            background: '#1e293b',
+                            color: '#f8fafc',
+                            confirmButtonColor: '#ef4444'
+                        });
+                    } else {
+                        alert("Error: " + response.message);
+                    }
                 }
-                modalEditHeader.style.display = "none";
-            } else {
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error!',
-                        text: response.message,
-                        background: '#1e293b',
-                        color: '#f8fafc',
-                        confirmButtonColor: '#ef4444'
-                    });
-                } else {
-                    alert("Error: " + response.message);
-                }
-            }
-        },
-        error: function (xhr, status, error) {
+            },
+            error: function (xhr, status, error) {
                 btn.prop("disabled", false).html('<i class="fa-solid fa-floppy-disk"></i> Save Changes');
                 let errorMsg = error;
                 if (xhr.responseJSON && xhr.responseJSON.message) {
@@ -1553,142 +1557,142 @@ $("#form-edit-header").submit(function (e) {
                 });
             }
         });
-});
+    });
 
-// Image preview for Edit form
-$('#edit-ref-image-input').on('change', function () {
-    let file = this.files[0];
-    if (file) {
-        let reader = new FileReader();
-        reader.onload = function (e) {
-            $('#edit-ref-image-thumb').attr('src', e.target.result);
-            $('#edit-ref-image-preview').show();
-        };
-        reader.readAsDataURL(file);
-    }
-});
-
-// --- Train AI Model Button ---
-$("#btn-train-ai").click(function () {
-    const btn = $(this);
-    const specId = btn.data('spec-id');
-    if (!specId) {
-        Swal.fire({ icon: 'error', title: 'Error!', text: 'Spec ID not found.', background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#ef4444' });
-        return;
-    }
-    btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Training...');
-
-    $.ajax({
-        url: 'Script/php/dtc/c_dtc_ai_train.php',
-        type: 'POST',
-        data: { spec_id: specId },
-        dataType: 'json',
-        success: function (res) {
-            btn.prop('disabled', false).html('<i class="fa-solid fa-brain"></i> Train AI Model');
-            if (res.status === 'success') {
-                btn.css({ 'border-color': '#10b981', 'color': '#10b981' });
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Pelatihan AI Berhasil!',
-                    text: res.message + ' Memperbarui grafik Z-Trend...',
-                    background: '#1e293b',
-                    color: '#f8fafc',
-                    confirmButtonColor: '#10b981'
-                });
-                loadData(); // Reload charts to use new model
-            } else {
-                Swal.fire({ icon: 'error', title: 'Pelatihan Gagal!', text: res.message, background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#ef4444' });
-            }
-        },
-        error: function () {
-            btn.prop('disabled', false).html('<i class="fa-solid fa-brain"></i> Train AI Model');
-            Swal.fire({ icon: 'error', title: 'Koneksi Gagal!', text: 'Server error during AI training.', background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#ef4444' });
+    // Image preview for Edit form
+    $('#edit-ref-image-input').on('change', function () {
+        let file = this.files[0];
+        if (file) {
+            let reader = new FileReader();
+            reader.onload = function (e) {
+                $('#edit-ref-image-thumb').attr('src', e.target.result);
+                $('#edit-ref-image-preview').show();
+            };
+            reader.readAsDataURL(file);
         }
     });
-});
-// Legacy code removed. The edit modal is now fully dynamically populated.
 
-// Extra Samples are now always visible by default
+    // --- Train AI Model Button ---
+    $("#btn-train-ai").click(function () {
+        const btn = $(this);
+        const specId = btn.data('spec-id');
+        if (!specId) {
+            Swal.fire({ icon: 'error', title: 'Error!', text: 'Spec ID not found.', background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#ef4444' });
+            return;
+        }
+        btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Training...');
 
-// Real-time OOS validation (Color change on typing)
-$('.sample-input').on('input', function () {
-    let val = parseFloat($(this).val());
-    if (!isNaN(val)) {
-        if (val < LSL || val > USL) {
-            $(this).css({
-                'border-color': '#ef4444',
-                'background-color': 'rgba(239,68,68,0.15)',
-                'color': '#f87171'
-            });
+        $.ajax({
+            url: 'Script/php/dtc/c_dtc_ai_train.php',
+            type: 'POST',
+            data: { spec_id: specId },
+            dataType: 'json',
+            success: function (res) {
+                btn.prop('disabled', false).html('<i class="fa-solid fa-brain"></i> Train AI Model');
+                if (res.status === 'success') {
+                    btn.css({ 'border-color': '#10b981', 'color': '#10b981' });
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Pelatihan AI Berhasil!',
+                        text: res.message + ' Memperbarui grafik Z-Trend...',
+                        background: '#1e293b',
+                        color: '#f8fafc',
+                        confirmButtonColor: '#10b981'
+                    });
+                    loadData(); // Reload charts to use new model
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Pelatihan Gagal!', text: res.message, background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#ef4444' });
+                }
+            },
+            error: function () {
+                btn.prop('disabled', false).html('<i class="fa-solid fa-brain"></i> Train AI Model');
+                Swal.fire({ icon: 'error', title: 'Koneksi Gagal!', text: 'Server error during AI training.', background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#ef4444' });
+            }
+        });
+    });
+    // Legacy code removed. The edit modal is now fully dynamically populated.
+
+    // Extra Samples are now always visible by default
+
+    // Real-time OOS validation (Color change on typing)
+    $('.sample-input').on('input', function () {
+        let val = parseFloat($(this).val());
+        if (!isNaN(val)) {
+            if (val < LSL || val > USL) {
+                $(this).css({
+                    'border-color': '#ef4444',
+                    'background-color': 'rgba(239,68,68,0.15)',
+                    'color': '#f87171'
+                });
+            } else {
+                $(this).css({
+                    'border-color': '#10b981',
+                    'background-color': 'rgba(16,185,129,0.15)',
+                    'color': '#34d399'
+                });
+            }
         } else {
             $(this).css({
-                'border-color': '#10b981',
-                'background-color': 'rgba(16,185,129,0.15)',
-                'color': '#34d399'
+                'border-color': 'rgba(255,255,255,0.1)',
+                'background-color': 'rgba(15,23,42,0.5)',
+                'color': 'white'
             });
         }
-    } else {
-        $(this).css({
-            'border-color': 'rgba(255,255,255,0.1)',
-            'background-color': 'rgba(15,23,42,0.5)',
-            'color': 'white'
-        });
-    }
-});
+    });
 
-// Alarm Warning (Toast popup on finish typing)
-$('.sample-input').on('change', function () {
-    let val = parseFloat($(this).val());
-    if (!isNaN(val)) {
-        if (val < LSL || val > USL) {
-            Swal.fire({
-                toast: true,
-                position: 'top-end',
-                icon: 'warning',
-                title: `Out of Spec Warning!`,
-                text: `Nilai ${val} berada di luar batas spek (LSL: ${LSL}, USL: ${USL})`,
-                showConfirmButton: false,
-                timer: 4000,
-                timerProgressBar: true,
-                background: '#1e293b',
-                color: '#f8fafc',
-                iconColor: '#ef4444'
-            });
+    // Alarm Warning (Toast popup on finish typing)
+    $('.sample-input').on('change', function () {
+        let val = parseFloat($(this).val());
+        if (!isNaN(val)) {
+            if (val < LSL || val > USL) {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'warning',
+                    title: `Out of Spec Warning!`,
+                    text: `Nilai ${val} berada di luar batas spek (LSL: ${LSL}, USL: ${USL})`,
+                    showConfirmButton: false,
+                    timer: 4000,
+                    timerProgressBar: true,
+                    background: '#1e293b',
+                    color: '#f8fafc',
+                    iconColor: '#ef4444'
+                });
+            }
         }
-    }
-});
+    });
 
-// Make all Kendo charts responsive on window resize
-let resizeTimer;
-$(window).on("resize", function () {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(function () {
-        if (typeof kendo !== "undefined") {
-            let w = $(window).width();
-            let fSize = w < 768 ? "9px" : (w < 1200 ? "10px" : "11px");
-            let fontStr = fSize + " Inter, sans-serif";
+    // Make all Kendo charts responsive on window resize
+    let resizeTimer;
+    $(window).on("resize", function () {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function () {
+            if (typeof kendo !== "undefined") {
+                let w = $(window).width();
+                let fSize = w < 768 ? "9px" : (w < 1200 ? "10px" : "11px");
+                let fontStr = fSize + " Inter, sans-serif";
 
-            $(".k-chart").each(function () {
-                let chart = $(this).data("kendoChart");
-                if (chart) {
-                    // valueAxis might be an array or object, Kendo setOptions handles merging
-                    chart.setOptions({
-                        categoryAxis: { labels: { font: fontStr } },
-                        valueAxis: { labels: { font: fontStr } },
-                        legend: { labels: { font: fontStr } }
-                    });
-                }
-            });
-            kendo.resize($(".k-chart"));
+                $(".k-chart").each(function () {
+                    let chart = $(this).data("kendoChart");
+                    if (chart) {
+                        // valueAxis might be an array or object, Kendo setOptions handles merging
+                        chart.setOptions({
+                            categoryAxis: { labels: { font: fontStr } },
+                            valueAxis: { labels: { font: fontStr } },
+                            legend: { labels: { font: fontStr } }
+                        });
+                    }
+                });
+                kendo.resize($(".k-chart"));
+            }
+        }, 150);
+    });
+
+    // Handle Theme Switcher dynamic reload
+    document.addEventListener('themeChanged', function () {
+        if (typeof loadData === 'function') {
+            loadData();
         }
-    }, 150);
-});
-
-// Handle Theme Switcher dynamic reload
-document.addEventListener('themeChanged', function () {
-    if (typeof loadData === 'function') {
-        loadData();
-    }
-});
+    });
 
 });

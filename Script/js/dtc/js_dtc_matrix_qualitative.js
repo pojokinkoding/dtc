@@ -127,17 +127,17 @@ $(document).ready(function () {
         });
     });
 
-function createCpRowHtml(rowIdx, name = '', spec = '', type = 'Quantitative', lsl = '', target = '', usl = '') {
-    let isQuant = (type === 'Quantitative');
-    let baseInputStyle = 'width: 100%; height: 36px; padding: 0 10px; font-size: 12px; border-radius: 6px; color: white; border: 1px solid rgba(255,255,255,0.15); box-sizing: border-box; vertical-align: middle; transition: all 0.2s;';
-    let enabledStyle = baseInputStyle + ' background: rgba(15,23,42,0.8);';
-    let disabledStyle = baseInputStyle + ' background: rgba(15,23,42,0.3); opacity: 0.35; color: rgba(255,255,255,0.4); border-color: rgba(255,255,255,0.08); text-align: center; cursor: not-allowed;';
-    let numStyle = baseInputStyle + ' background: rgba(15,23,42,0.8); text-align: center;';
+    function createCpRowHtml(rowIdx, name = '', spec = '', type = 'Quantitative', lsl = '', target = '', usl = '') {
+        let isQuant = (type === 'Quantitative');
+        let baseInputStyle = 'width: 100%; height: 36px; padding: 0 10px; font-size: 12px; border-radius: 6px; color: white; border: 1px solid rgba(255,255,255,0.15); box-sizing: border-box; vertical-align: middle; transition: all 0.2s;';
+        let enabledStyle = baseInputStyle + ' background: rgba(15,23,42,0.8);';
+        let disabledStyle = baseInputStyle + ' background: rgba(15,23,42,0.3); opacity: 0.35; color: rgba(255,255,255,0.4); border-color: rgba(255,255,255,0.08); text-align: center; cursor: not-allowed;';
+        let numStyle = baseInputStyle + ' background: rgba(15,23,42,0.8); text-align: center;';
 
-    let disabledAttr = isQuant ? '' : 'disabled';
-    let currentNumStyle = isQuant ? numStyle : disabledStyle;
+        let disabledAttr = isQuant ? '' : 'disabled';
+        let currentNumStyle = isQuant ? numStyle : disabledStyle;
 
-    return `<tr class="cp-multiple-row" data-row-idx="${rowIdx}">
+        return `<tr class="cp-multiple-row" data-row-idx="${rowIdx}">
         <td style="text-align: center; font-weight: bold; color: #94a3b8; vertical-align: middle; padding: 8px 4px;" class="row-num">${rowIdx}</td>
         <td style="vertical-align: middle; padding: 8px 6px;">
             <input type="text" class="cp-row-name" value="${name}" placeholder="e.g. A" required style="${enabledStyle}">
@@ -166,186 +166,186 @@ function createCpRowHtml(rowIdx, name = '', spec = '', type = 'Quantitative', ls
             </button>
         </td>
     </tr>`;
-}
-
-function updateCpRowsSeqNumbers() {
-    $('#multiple-cp-tbody tr').each(function (idx) {
-        $(this).find('.row-num').text(idx + 1);
-    });
-    let totalRows = $('#multiple-cp-tbody tr').length;
-    $('#multiple-cp-summary-info').html(`Total: <b>${totalRows}</b> checkpoint siap disimpan.`);
-}
-
-// === OPEN ADD CHECKPOINT MODAL (MULTIPLE/BATCH CREATOR) ===
-$(document).on('click', '#btn-open-add-checkpoint, #btn-open-add-checkpoint-empty, .btn-add-checkpoint', function () {
-    let activeParam = null;
-    if (typeof matrixParamId !== 'undefined' && matrixParamId && parametersList) {
-        activeParam = parametersList.find(p => p.parameter_id === matrixParamId);
-    }
-    if (!activeParam && parametersList && parametersList.length > 0) {
-        activeParam = parametersList[0];
     }
 
-    if (activeParam) {
-        $('#cp_param_select').val(activeParam.parameter_id);
-        $('#cp_param_label_value').text(`${activeParam.item_check_name} [${activeParam.data_type || 'Time Check'}]`);
-    } else {
-        $('#cp_param_select').val(typeof matrixParamId !== 'undefined' ? matrixParamId : 0);
-        $('#cp_param_label_value').text(typeof matrixParamName !== 'undefined' ? matrixParamName : '-');
+    function updateCpRowsSeqNumbers() {
+        $('#multiple-cp-tbody tr').each(function (idx) {
+            $(this).find('.row-num').text(idx + 1);
+        });
+        let totalRows = $('#multiple-cp-tbody tr').length;
+        $('#multiple-cp-summary-info').html(`Total: <b>${totalRows}</b> checkpoint siap disimpan.`);
     }
 
-    $('#multiple-cp-tbody').empty();
-    $('#multiple-cp-tbody').append(createCpRowHtml(1));
-    updateCpRowsSeqNumbers();
-
-    $('#modal-add-checkpoint').addClass('active');
-});
-
-// Add 1 row
-$(document).on('click', '#btn-add-cp-row', function () {
-    let nextIdx = $('#multiple-cp-tbody tr').length + 1;
-    $('#multiple-cp-tbody').append(createCpRowHtml(nextIdx));
-    updateCpRowsSeqNumbers();
-    $('#multiple-cp-tbody tr:last .cp-row-name').focus();
-});
-
-
-
-// Clear all rows
-$(document).on('click', '#btn-clear-cp-rows', function () {
-    $('#multiple-cp-tbody').empty();
-    $('#multiple-cp-tbody').append(createCpRowHtml(1));
-    updateCpRowsSeqNumbers();
-});
-
-// Remove single row
-$(document).on('click', '.btn-remove-cp-row', function () {
-    $(this).closest('tr').remove();
-    if ($('#multiple-cp-tbody tr').length === 0) {
-        $('#multiple-cp-tbody').append(createCpRowHtml(1));
-    }
-    updateCpRowsSeqNumbers();
-});
-
-// Toggle row inputs on Type change
-$(document).on('change', '.cp-row-type', function () {
-    let $row = $(this).closest('tr');
-    let isQuant = ($(this).val() === 'Quantitative');
-    let $inputs = $row.find('.cp-row-lsl, .cp-row-target, .cp-row-usl');
-    let baseStyle = 'width: 100%; height: 36px; padding: 0 10px; font-size: 12px; border-radius: 6px; color: white; box-sizing: border-box; vertical-align: middle; text-align: center; transition: all 0.2s;';
-
-    if (isQuant) {
-        $inputs.prop('disabled', false).attr('style', baseStyle + ' background: rgba(15,23,42,0.8); border: 1px solid rgba(255,255,255,0.15); opacity: 1; cursor: text;');
-    } else {
-        $inputs.val('').prop('disabled', true).attr('style', baseStyle + ' background: rgba(15,23,42,0.3); border: 1px solid rgba(255,255,255,0.08); opacity: 0.35; color: rgba(255,255,255,0.4); cursor: not-allowed;');
-    }
-});
-
-// Toggle row inputs for Edit modal
-$(document).on('change', '#edit_cp_type', function() {
-    if ($(this).val() === 'Quantitative') {
-        $('#edit_spec_bounds').css('display', 'grid');
-    } else {
-        $('#edit_spec_bounds').css('display', 'none');
-    }
-});
-
-// === SUBMIT MULTIPLE CHECKPOINTS (BATCH SAVE) ===
-$(document).on('submit', '#form-add-checkpoint', function (e) {
-    e.preventDefault();
-
-    let checkpoints = [];
-    let hasValidationError = false;
-
-    $('#multiple-cp-tbody tr').each(function () {
-        let name = $(this).find('.cp-row-name').val().trim();
-        if (!name) return; // Skip empty rows
-
-        let spec = $(this).find('.cp-row-spec').val().trim();
-        let type = $(this).find('.cp-row-type').val();
-        let lsl = $(this).find('.cp-row-lsl').val();
-        let target = $(this).find('.cp-row-target').val();
-        let usl = $(this).find('.cp-row-usl').val();
-
-        if (type === 'Quantitative') {
-            let lslNum = lsl !== '' ? parseFloat(lsl) : null;
-            let targetNum = target !== '' ? parseFloat(target) : null;
-            let uslNum = usl !== '' ? parseFloat(usl) : null;
-
-            if (lslNum !== null && uslNum !== null && lslNum > uslNum) {
-                Swal.fire({ icon: 'error', title: 'Validasi Gagal', text: `Checkpoint "${name}": LSL (${lslNum}) tidak boleh lebih besar dari USL (${uslNum}).`, background: '#1e293b', color: '#f8fafc' });
-                hasValidationError = true;
-                return false;
-            }
-            if (targetNum !== null) {
-                if (lslNum !== null && targetNum < lslNum) {
-                    Swal.fire({ icon: 'error', title: 'Validasi Gagal', text: `Checkpoint "${name}": Target (${targetNum}) berada di bawah LSL (${lslNum}).`, background: '#1e293b', color: '#f8fafc' });
-                    hasValidationError = true;
-                    return false;
-                }
-                if (uslNum !== null && targetNum > uslNum) {
-                    Swal.fire({ icon: 'error', title: 'Validasi Gagal', text: `Checkpoint "${name}": Target (${targetNum}) berada di atas USL (${uslNum}).`, background: '#1e293b', color: '#f8fafc' });
-                    hasValidationError = true;
-                    return false;
-                }
-            }
+    // === OPEN ADD CHECKPOINT MODAL (MULTIPLE/BATCH CREATOR) ===
+    $(document).on('click', '#btn-open-add-checkpoint, #btn-open-add-checkpoint-empty, .btn-add-checkpoint', function () {
+        let activeParam = null;
+        if (typeof matrixParamId !== 'undefined' && matrixParamId && parametersList) {
+            activeParam = parametersList.find(p => p.parameter_id === matrixParamId);
+        }
+        if (!activeParam && parametersList && parametersList.length > 0) {
+            activeParam = parametersList[0];
         }
 
-        checkpoints.push({
-            name: name,
-            spec: spec,
-            type: type,
-            lsl: lsl,
-            target_value: target,
-            usl: usl
+        if (activeParam) {
+            $('#cp_param_select').val(activeParam.parameter_id);
+            $('#cp_param_label_value').text(`${activeParam.item_check_name} [${activeParam.data_type || 'Time Check'}]`);
+        } else {
+            $('#cp_param_select').val(typeof matrixParamId !== 'undefined' ? matrixParamId : 0);
+            $('#cp_param_label_value').text(typeof matrixParamName !== 'undefined' ? matrixParamName : '-');
+        }
+
+        $('#multiple-cp-tbody').empty();
+        $('#multiple-cp-tbody').append(createCpRowHtml(1));
+        updateCpRowsSeqNumbers();
+
+        $('#modal-add-checkpoint').addClass('active');
+    });
+
+    // Add 1 row
+    $(document).on('click', '#btn-add-cp-row', function () {
+        let nextIdx = $('#multiple-cp-tbody tr').length + 1;
+        $('#multiple-cp-tbody').append(createCpRowHtml(nextIdx));
+        updateCpRowsSeqNumbers();
+        $('#multiple-cp-tbody tr:last .cp-row-name').focus();
+    });
+
+
+
+    // Clear all rows
+    $(document).on('click', '#btn-clear-cp-rows', function () {
+        $('#multiple-cp-tbody').empty();
+        $('#multiple-cp-tbody').append(createCpRowHtml(1));
+        updateCpRowsSeqNumbers();
+    });
+
+    // Remove single row
+    $(document).on('click', '.btn-remove-cp-row', function () {
+        $(this).closest('tr').remove();
+        if ($('#multiple-cp-tbody tr').length === 0) {
+            $('#multiple-cp-tbody').append(createCpRowHtml(1));
+        }
+        updateCpRowsSeqNumbers();
+    });
+
+    // Toggle row inputs on Type change
+    $(document).on('change', '.cp-row-type', function () {
+        let $row = $(this).closest('tr');
+        let isQuant = ($(this).val() === 'Quantitative');
+        let $inputs = $row.find('.cp-row-lsl, .cp-row-target, .cp-row-usl');
+        let baseStyle = 'width: 100%; height: 36px; padding: 0 10px; font-size: 12px; border-radius: 6px; color: white; box-sizing: border-box; vertical-align: middle; text-align: center; transition: all 0.2s;';
+
+        if (isQuant) {
+            $inputs.prop('disabled', false).attr('style', baseStyle + ' background: rgba(15,23,42,0.8); border: 1px solid rgba(255,255,255,0.15); opacity: 1; cursor: text;');
+        } else {
+            $inputs.val('').prop('disabled', true).attr('style', baseStyle + ' background: rgba(15,23,42,0.3); border: 1px solid rgba(255,255,255,0.08); opacity: 0.35; color: rgba(255,255,255,0.4); cursor: not-allowed;');
+        }
+    });
+
+    // Toggle row inputs for Edit modal
+    $(document).on('change', '#edit_cp_type', function () {
+        if ($(this).val() === 'Quantitative') {
+            $('#edit_spec_bounds').css('display', 'grid');
+        } else {
+            $('#edit_spec_bounds').css('display', 'none');
+        }
+    });
+
+    // === SUBMIT MULTIPLE CHECKPOINTS (BATCH SAVE) ===
+    $(document).on('submit', '#form-add-checkpoint', function (e) {
+        e.preventDefault();
+
+        let checkpoints = [];
+        let hasValidationError = false;
+
+        $('#multiple-cp-tbody tr').each(function () {
+            let name = $(this).find('.cp-row-name').val().trim();
+            if (!name) return; // Skip empty rows
+
+            let spec = $(this).find('.cp-row-spec').val().trim();
+            let type = $(this).find('.cp-row-type').val();
+            let lsl = $(this).find('.cp-row-lsl').val();
+            let target = $(this).find('.cp-row-target').val();
+            let usl = $(this).find('.cp-row-usl').val();
+
+            if (type === 'Quantitative') {
+                let lslNum = lsl !== '' ? parseFloat(lsl) : null;
+                let targetNum = target !== '' ? parseFloat(target) : null;
+                let uslNum = usl !== '' ? parseFloat(usl) : null;
+
+                if (lslNum !== null && uslNum !== null && lslNum > uslNum) {
+                    Swal.fire({ icon: 'error', title: 'Validasi Gagal', text: `Checkpoint "${name}": LSL (${lslNum}) tidak boleh lebih besar dari USL (${uslNum}).`, background: '#1e293b', color: '#f8fafc' });
+                    hasValidationError = true;
+                    return false;
+                }
+                if (targetNum !== null) {
+                    if (lslNum !== null && targetNum < lslNum) {
+                        Swal.fire({ icon: 'error', title: 'Validasi Gagal', text: `Checkpoint "${name}": Target (${targetNum}) berada di bawah LSL (${lslNum}).`, background: '#1e293b', color: '#f8fafc' });
+                        hasValidationError = true;
+                        return false;
+                    }
+                    if (uslNum !== null && targetNum > uslNum) {
+                        Swal.fire({ icon: 'error', title: 'Validasi Gagal', text: `Checkpoint "${name}": Target (${targetNum}) berada di atas USL (${uslNum}).`, background: '#1e293b', color: '#f8fafc' });
+                        hasValidationError = true;
+                        return false;
+                    }
+                }
+            }
+
+            checkpoints.push({
+                name: name,
+                spec: spec,
+                type: type,
+                lsl: lsl,
+                target_value: target,
+                usl: usl
+            });
+        });
+
+        if (hasValidationError) return;
+
+        if (checkpoints.length === 0) {
+            Swal.fire({ icon: 'warning', title: 'Peringatan', text: 'Silakan isi minimal 1 Nama Checkpoint.', background: '#1e293b', color: '#f8fafc' });
+            return;
+        }
+
+        let paramId = $('#cp_param_select').val();
+        let btn = $('#btn-submit-multiple-cp');
+        let origHtml = btn.html();
+        btn.html('<i class="fa-solid fa-spinner fa-spin"></i> Saving...').prop('disabled', true);
+
+        $.ajax({
+            url: 'Script/php/dtc/c_dtc_checkpoint_manage.php',
+            type: 'POST',
+            data: {
+                action: 'add_multiple',
+                parameter_id: paramId,
+                checkpoints: JSON.stringify(checkpoints)
+            },
+            dataType: 'json',
+            success: function (res) {
+                btn.html(origHtml).prop('disabled', false);
+                if (res.status === 'success') {
+                    $('#modal-add-checkpoint').removeClass('active');
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Sukses Batch Save',
+                        text: res.message,
+                        timer: 1800,
+                        showConfirmButton: false,
+                        background: '#1e293b',
+                        color: '#f8fafc'
+                    });
+                    loadMatrixData(false);
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: res.message, background: '#1e293b', color: '#f8fafc' });
+                }
+            },
+            error: function () {
+                btn.html(origHtml).prop('disabled', false);
+                Swal.fire({ icon: 'error', title: 'Koneksi Gagal!', text: 'Gagal terhubung ke server.', background: '#1e293b', color: '#f8fafc' });
+            }
         });
     });
-
-    if (hasValidationError) return;
-
-    if (checkpoints.length === 0) {
-        Swal.fire({ icon: 'warning', title: 'Peringatan', text: 'Silakan isi minimal 1 Nama Checkpoint.', background: '#1e293b', color: '#f8fafc' });
-        return;
-    }
-
-    let paramId = $('#cp_param_select').val();
-    let btn = $('#btn-submit-multiple-cp');
-    let origHtml = btn.html();
-    btn.html('<i class="fa-solid fa-spinner fa-spin"></i> Saving...').prop('disabled', true);
-
-    $.ajax({
-        url: 'Script/php/dtc/c_dtc_checkpoint_manage.php',
-        type: 'POST',
-        data: {
-            action: 'add_multiple',
-            parameter_id: paramId,
-            checkpoints: JSON.stringify(checkpoints)
-        },
-        dataType: 'json',
-        success: function (res) {
-            btn.html(origHtml).prop('disabled', false);
-            if (res.status === 'success') {
-                $('#modal-add-checkpoint').removeClass('active');
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Sukses Batch Save',
-                    text: res.message,
-                    timer: 1800,
-                    showConfirmButton: false,
-                    background: '#1e293b',
-                    color: '#f8fafc'
-                });
-                loadMatrixData(false);
-            } else {
-                Swal.fire({ icon: 'error', title: 'Gagal', text: res.message, background: '#1e293b', color: '#f8fafc' });
-            }
-        },
-        error: function () {
-            btn.html(origHtml).prop('disabled', false);
-            Swal.fire({ icon: 'error', title: 'Koneksi Gagal!', text: 'Gagal terhubung ke server.', background: '#1e293b', color: '#f8fafc' });
-        }
-    });
-});
 
     // === DELETE CHECKPOINT ===
     $(document).on('click', '.btn-delete-cp', function (e) {
@@ -748,8 +748,8 @@ function isTimeSlotFuture(dateStr, label) {
     if (sH < 7) sH += 24;
     let slotMins = sH * 60 + sM;
 
-    // Slot is future if current shift time is prior to (slotMins - 30)
-    return curMins < (slotMins - 30);
+    // Slot is future if current shift time is prior to slotMins
+    return curMins < slotMins;
 }
 
 function isTimeSlotBeforeModelStart(dateStr, timeLabel, rmCreatedAt) {
@@ -771,7 +771,7 @@ function isTimeSlotBeforeModelStart(dateStr, timeLabel, rmCreatedAt) {
 
     let modelMins = (mH < 7 ? mH + 24 : mH) * 60 + mM;
 
-    let defaultLabels = (typeof timeLabels !== 'undefined' && timeLabels.length) ? timeLabels : ['07:30','09:40','12:40','14:40','16:40','18:40','20:05','22:30','24:30','02:30','04:30'];
+    let defaultLabels = (typeof timeLabels !== 'undefined' && timeLabels.length) ? timeLabels : ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30'];
     let clean = String(timeLabel).replace('.', ':');
     let idx = defaultLabels.findIndex(l => String(l).replace('.', ':').startsWith(clean));
 

@@ -74,6 +74,10 @@
         <select id="filter-item-check" style="padding: 6px 12px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(15,23,42,0.8); color: white; min-width: 120px;">
             <option value="">All Item Checks</option>
         </select>
+        <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #f87171; font-weight: 700; cursor: pointer; user-select: none; background: rgba(239, 68, 68, 0.12); padding: 5px 10px; border-radius: 6px; border: 1px solid rgba(239, 68, 68, 0.3);" title="Hanya tampilkan parameter yang memiliki nilai sampel Out of Spec">
+            <input type="checkbox" id="filter-oos-only" style="cursor: pointer; accent-color: #ef4444; width: 14px; height: 14px;">
+            <i class="fa-solid fa-triangle-exclamation" style="font-size: 11px;"></i> Out of Spec Only
+        </label>
     </div>
 </div>
 
@@ -88,6 +92,7 @@
                     <th>Model Name</th>
                     <th>Item Check & Process</th>
                     <th>Specification</th>
+                    <th>Out of Spec</th>
                     <th>Operator</th>
                     <th>Action</th>
                 </tr>
@@ -98,4 +103,4 @@
     </div>
 </div>
 
-<script src="Script/js/dtc/js_dtc_history.js"></script>
+<?php require_once __DIR__ . '/modal_oos_update.php'; ?>

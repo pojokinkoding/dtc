@@ -138,8 +138,9 @@ try {
                 $tp = explode(':', $cTime);
                 $cH = (int)($tp[0] ?? 0);
                 $cM = (int)($tp[1] ?? 0);
-                if ($cH < 7) $cH += 24;
-                $createdMinsFrom7 = $cH * 60 + $cM;
+                if ($cH >= 7) {
+                    $createdMinsFrom7 = ($cH - 7) * 60 + $cM;
+                }
             }
         }
 
@@ -153,7 +154,8 @@ try {
                 $sh = (int)($stp[0] ?? 0);
                 $sm = (int)($stp[1] ?? 0);
                 if ($sh >= 24) $sh -= 24;
-                $curSlotMinsFrom7 = ($sh < 7 ? $sh + 24 : $sh) * 60 + $sm;
+                $shShift = $sh < 7 ? $sh + 24 : $sh;
+                $curSlotMinsFrom7 = ($shShift - 7) * 60 + $sm;
 
                 $nextTimeStr = $slots[$idx + 1] ?? null;
                 if ($nextTimeStr) {
@@ -161,7 +163,8 @@ try {
                     $nsh = (int)($ntp[0] ?? 0);
                     $nsm = (int)($ntp[1] ?? 0);
                     if ($nsh >= 24) $nsh -= 24;
-                    $nextSlotMinsFrom7 = ($nsh < 7 ? $nsh + 24 : $nsh) * 60 + $nsm;
+                    $nshShift = $nsh < 7 ? $nsh + 24 : $nsh;
+                    $nextSlotMinsFrom7 = ($nshShift - 7) * 60 + $nsm;
                 } else {
                     $nextSlotMinsFrom7 = $curSlotMinsFrom7 + 120;
                 }

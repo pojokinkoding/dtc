@@ -570,7 +570,7 @@ if ($param_id > 0) {
                         $time_labels = json_decode($val, true);
                     }
                     if (empty($time_labels)) {
-                        $time_labels = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30'];
+                        $time_labels = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30'];
                     }
                     
                     // Fetch existing labels for this parameter to maintain consistency across all months
@@ -607,9 +607,15 @@ if ($param_id > 0) {
                     <div style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 12px;">
                         <div>
                             <label style="display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 5px;">Inspection Date</label>
+                            <?php if (isset($_SESSION['role']) && strtolower(trim($_SESSION['role'])) === 'admin'): ?>
+                            <input type="date" name="inspection_date" id="input_inspection_date" required 
+                                   min="<?= $min_date ?>" max="<?= date('Y-m-d') ?>" value="<?= $default_date ?>"
+                                   style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid rgba(59,130,246,0.6); background: rgba(15,23,42,0.8); color: #60a5fa; font-weight: 700; cursor: pointer;" title="Mode Admin: Klik untuk mengubah tanggal inspeksi (hanya tanggal lalu s/d hari ini)">
+                            <?php else: ?>
                             <input type="date" name="inspection_date" id="input_inspection_date" required readonly 
                                    min="<?= $min_date ?>" max="<?= $max_date ?>" value="<?= $default_date ?>"
                                    style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(15,23,42,0.6); color: rgba(255,255,255,0.7); cursor: not-allowed; pointer-events: none;" title="Tanggal pengisian bersifat tetap (Read-only)">
+                            <?php endif; ?>
                         </div>
                     </div>
                     
@@ -765,5 +771,6 @@ if ($param_id > 0) {
         const defaultTimeLabels = <?= json_encode($time_labels) ?>;
         const userRole = "<?= $_SESSION['role'] ?? 'Operator' ?>";
         const isAdmin = (userRole.toLowerCase() === 'admin');
+        window.isAdmin = isAdmin;
+        window.currentIsAdmin = isAdmin;
     </script>
-    <script src="Script/js/dtc/js_dtc_detail.js?v=<?= time() ?>"></script>

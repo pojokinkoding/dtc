@@ -115,6 +115,49 @@ try {
         $queryParams[':type'] = $type_filter;
     }
 
+    $oos_only = trim($_GET['oos_only'] ?? '0');
+    if ($oos_only === '1') {
+        $dateCondOOSFilter = " AND DATE_FORMAT(s.inspection_date, '%Y-%m') = p.target_month ";
+        $wherePeriod .= " AND EXISTS (
+            SELECT 1 
+            FROM dtc_measurements m 
+            JOIN dtc_inspection_sessions s ON m.session_id = s.session_id 
+            JOIN dtc_master_parameters p2 ON s.parameter_id = p2.parameter_id
+            LEFT JOIN dtc_master_dtc_specs spec2 ON p2.spec_id = spec2.spec_id
+            LEFT JOIN dtc_checkpoints c ON m.checkpoint_id = c.checkpoint_id
+            WHERE s.parameter_id = p.parameter_id 
+              AND s.is_active = 1 
+              {$dateCondOOSFilter}
+              AND (
+                  CASE 
+                      WHEN c.lsl IS NOT NULL OR c.usl IS NOT NULL THEN (
+                          m.sample_value IS NOT NULL AND TRIM(m.sample_value) != '' AND m.sample_value REGEXP '^[0-9.-]+$'
+                          AND (
+                              (c.lsl IS NOT NULL AND CAST(m.sample_value AS DECIMAL(10,4)) < c.lsl)
+                              OR
+                              (c.usl IS NOT NULL AND CAST(m.sample_value AS DECIMAL(10,4)) > c.usl)
+                          )
+                      )
+                      WHEN (UPPER(TRIM(COALESCE(p2.data_type, spec2.data_type))) IN ('TIME CHECK', 'F/PROOF')
+                            OR LOWER(TRIM(COALESCE(p2.measuring_item, spec2.measuring_item))) = 'qualitative') THEN (
+                          UPPER(TRIM(m.sample_value)) = 'NG'
+                      )
+                      ELSE (
+                          (UPPER(TRIM(m.sample_value)) = 'NG')
+                          OR (
+                              m.sample_value IS NOT NULL AND TRIM(m.sample_value) != '' AND m.sample_value REGEXP '^[0-9.-]+$'
+                              AND (
+                                  (COALESCE(p2.lsl, spec2.lsl) IS NOT NULL AND CAST(m.sample_value AS DECIMAL(10,4)) < COALESCE(p2.lsl, spec2.lsl))
+                                  OR
+                                  (COALESCE(p2.usl, spec2.usl) IS NOT NULL AND CAST(m.sample_value AS DECIMAL(10,4)) > COALESCE(p2.usl, spec2.usl))
+                              )
+                          )
+                      )
+                  END
+              )
+        ) ";
+    }
+
     $search_value = '';
     if (isset($_GET['search']['value']) && trim($_GET['search']['value']) !== '') {
         $search_value = trim($_GET['search']['value']);
@@ -255,7 +298,63 @@ try {
         }
     }
 
+    // Batch query Out of Spec (OOS) counts for loaded parameters
+    $paramIds = array_column($results, 'parameter_id');
+    $oosMap = [];
+    if (!empty($paramIds)) {
+        $inClause = implode(',', array_map('intval', $paramIds));
+        $dateCondOOSCount = " AND DATE_FORMAT(s.inspection_date, '%Y-%m') = p.target_month ";
+        $sqlOOS = "
+            SELECT s.parameter_id, COUNT(*) as total_oos
+            FROM dtc_measurements m
+            JOIN dtc_inspection_sessions s ON m.session_id = s.session_id
+            JOIN dtc_master_parameters p ON s.parameter_id = p.parameter_id
+            LEFT JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id
+            LEFT JOIN dtc_checkpoints c ON m.checkpoint_id = c.checkpoint_id
+            WHERE s.parameter_id IN ($inClause)
+              AND s.is_active = 1
+              {$dateCondOOSCount}
+              AND (
+                  CASE 
+                      WHEN c.lsl IS NOT NULL OR c.usl IS NOT NULL THEN (
+                          m.sample_value IS NOT NULL AND TRIM(m.sample_value) != '' AND m.sample_value REGEXP '^[0-9.-]+$'
+                          AND (
+                              (c.lsl IS NOT NULL AND CAST(m.sample_value AS DECIMAL(10,4)) < c.lsl)
+                              OR
+                              (c.usl IS NOT NULL AND CAST(m.sample_value AS DECIMAL(10,4)) > c.usl)
+                          )
+                      )
+                      WHEN (UPPER(TRIM(COALESCE(p.data_type, spec.data_type))) IN ('TIME CHECK', 'F/PROOF')
+                            OR LOWER(TRIM(COALESCE(p.measuring_item, spec.measuring_item))) = 'qualitative') THEN (
+                          UPPER(TRIM(m.sample_value)) = 'NG'
+                      )
+                      ELSE (
+                          (UPPER(TRIM(m.sample_value)) = 'NG')
+                          OR (
+                              m.sample_value IS NOT NULL AND TRIM(m.sample_value) != '' AND m.sample_value REGEXP '^[0-9.-]+$'
+                              AND (
+                                  (COALESCE(p.lsl, spec.lsl) IS NOT NULL AND CAST(m.sample_value AS DECIMAL(10,4)) < COALESCE(p.lsl, spec.lsl))
+                                  OR
+                                  (COALESCE(p.usl, spec.usl) IS NOT NULL AND CAST(m.sample_value AS DECIMAL(10,4)) > COALESCE(p.usl, spec.usl))
+                              )
+                          )
+                      )
+                  END
+              )
+            GROUP BY s.parameter_id
+        ";
+        $stmtOOS = $conn->query($sqlOOS);
+        if ($stmtOOS) {
+            while ($rOOS = $stmtOOS->fetch(PDO::FETCH_ASSOC)) {
+                $oosMap[$rOOS['parameter_id']] = (int)$rOOS['total_oos'];
+            }
+        }
+    }
+
     foreach ($results as &$row) {
+        $row['oos_count'] = $oosMap[$row['parameter_id']] ?? 0;
+        $row['prod_today'] = $prodToday;
+        $row['period'] = $period;
         $row['monthly_zst'] = null;
         $row['monthly_zlt'] = null;
         if (isset($row['pop_std']) && $row['pop_std'] > 0 && isset($row['pop_mean']) && $row['lsl'] !== null && $row['usl'] !== null) {
@@ -308,8 +407,9 @@ try {
                     $tp = explode(':', $cTime);
                     $cH = (int)($tp[0] ?? 0);
                     $cM = (int)($tp[1] ?? 0);
-                    if ($cH < 7) $cH += 24;
-                    $createdMinsFrom7 = $cH * 60 + $cM;
+                    if ($cH >= 7) {
+                        $createdMinsFrom7 = ($cH - 7) * 60 + $cM;
+                    }
                 }
             }
 
@@ -320,7 +420,8 @@ try {
                 $sh = (int)($stp[0] ?? 0);
                 $sm = (int)($stp[1] ?? 0);
                 if ($sh >= 24) $sh -= 24;
-                $curSlotMinsFrom7 = ($sh < 7 ? $sh + 24 : $sh) * 60 + $sm;
+                $shShift = $sh < 7 ? $sh + 24 : $sh;
+                $curSlotMinsFrom7 = ($shShift - 7) * 60 + $sm;
 
                 $nextTimeStr = $slots[$idx + 1] ?? null;
                 if ($nextTimeStr) {
@@ -328,7 +429,8 @@ try {
                     $nsh = (int)($ntp[0] ?? 0);
                     $nsm = (int)($ntp[1] ?? 0);
                     if ($nsh >= 24) $nsh -= 24;
-                    $nextSlotMinsFrom7 = ($nsh < 7 ? $nsh + 24 : $nsh) * 60 + $nsm;
+                    $nshShift = $nsh < 7 ? $nsh + 24 : $nsh;
+                    $nextSlotMinsFrom7 = ($nshShift - 7) * 60 + $nsm;
                 } else {
                     $nextSlotMinsFrom7 = $curSlotMinsFrom7 + 120;
                 }

@@ -53,22 +53,26 @@ if (!function_exists('isSlotBeforeCreationHelper')) {
         $tp = explode(':', $createdTime);
         $cH = (int)($tp[0] ?? 0);
         $cM = (int)($tp[1] ?? 0);
-        $createdMinutesFrom7 = ($cH < 7 ? $cH + 24 : $cH) * 60 + $cM;
+
+        // If created before 07:00 AM on the same calendar day -> active before shift start!
+        if ($cH < 7) return false;
         
-        $parseMins = function($t) {
+        $createdMinutesFrom7 = ($cH - 7) * 60 + $cM;
+        
+        $parseMinsFrom7 = function($t) {
             $parts = explode(':', trim($t));
             $h = (int)($parts[0] ?? 0);
             $m = (int)($parts[1] ?? 0);
             if ($h >= 24) $h -= 24;
-            $mins = ($h < 7 ? $h + 24 : $h) * 60 + $m;
-            return $mins;
+            $hShift = ($h < 7 ? $h + 24 : $h);
+            return ($hShift - 7) * 60 + $m;
         };
         
-        $curSlotMins = $parseMins($slotTime);
+        $curSlotMins = $parseMinsFrom7($slotTime);
         
         $nextSlotTime = $timeLabels[$slotIdx + 1] ?? null;
         if ($nextSlotTime) {
-            $nextSlotMins = $parseMins($nextSlotTime);
+            $nextSlotMins = $parseMinsFrom7($nextSlotTime);
         } else {
             $nextSlotMins = $curSlotMins + 120; // fallback to 2 hours
         }

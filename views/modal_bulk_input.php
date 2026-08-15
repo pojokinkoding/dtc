@@ -1,4 +1,13 @@
 <!-- Modal Bulk Input Pengukuran Running Model (Extra Large Fullscreen) -->
+<style>
+    .swal2-container {
+        z-index: 9999999 !important;
+    }
+</style>
+<script>
+    window.currentIsAdmin = <?= json_encode(isset($_SESSION['role']) && strtolower(trim($_SESSION['role'])) === 'admin') ?>;
+    window.isAdmin = window.currentIsAdmin;
+</script>
 <div id="modal-bulk-input" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 99999; justify-content: center; align-items: center; padding: 10px;">
     <div class="card" style="width: 98vw; max-width: 1900px; height: 95vh; display: flex; flex-direction: column; background: #0f172a; border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; box-shadow: 0 25px 60px rgba(0,0,0,0.9); overflow: hidden;">
         
@@ -8,9 +17,18 @@
                 <span style="font-weight: 700; color: #f8fafc; display: inline-flex; align-items: center; gap: 6px;">
                     <i class="fa-solid fa-list-check" style="color: #60a5fa;"></i> Bulk Input Pengukuran
                 </span>
+                <?php if (isset($_SESSION['role']) && strtolower(trim($_SESSION['role'])) === 'admin'): ?>
+                <span style="display: inline-flex; align-items: center; gap: 4px;">
+                    <i class="fa-regular fa-calendar-days" style="color: #60a5fa;"></i>
+                    <input type="date" id="bulk_date_input" max="<?php echo date('Y-m-d'); ?>" value="<?php echo ((int)date('H') < 7) ? date('Y-m-d', strtotime('-1 day')) : date('Y-m-d'); ?>"
+                           style="background: rgba(15,23,42,0.9); color: #60a5fa; border: 1px solid rgba(59,130,246,0.6); padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;" title="Mode Admin: Klik untuk memilih tanggal inspeksi (hanya tanggal lalu s/d hari ini)">
+                </span>
+                <?php else: ?>
+                <input type="hidden" id="bulk_date_input" value="<?php echo ((int)date('H') < 7) ? date('Y-m-d', strtotime('-1 day')) : date('Y-m-d'); ?>">
                 <span style="color: #60a5fa; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); padding: 1px 8px; border-radius: 10px; font-size: 10px; font-weight: 600;">
                     <i class="fa-regular fa-calendar-days"></i> <?php echo ((int)date('H') < 7) ? date('d M Y', strtotime('-1 day')) : date('d M Y'); ?>
                 </span>
+                <?php endif; ?>
                 <span style="color: #94a3b8; font-size: 11px;">
                     <i class="fa-solid fa-user" style="color: #60a5fa; margin-right: 2px;"></i> Operator: <strong style="color: #f8fafc;"><?php echo htmlspecialchars($_SESSION['full_name'] ?? $_SESSION['username'] ?? 'Operator'); ?></strong>
                 </span>

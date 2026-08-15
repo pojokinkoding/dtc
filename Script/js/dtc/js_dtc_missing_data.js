@@ -1111,8 +1111,17 @@ $(document).ready(function () {
                     $('#perf-modal-body').html(`<div style="color: var(--danger); text-align: center; padding: 20px;">Failed to generate preview: ${res.message || 'Unknown error'}</div>`);
                 }
             },
-            error: function () {
-                $('#perf-modal-body').html('<div style="color: var(--danger); text-align: center; padding: 20px;">Failed to connect to report server.</div>');
+            error: function (xhr) {
+                let errMsg = 'Failed to connect to report server.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errMsg = xhr.responseJSON.message;
+                } else if (xhr.responseText) {
+                    try {
+                        let parsed = JSON.parse(xhr.responseText);
+                        if (parsed.message) errMsg = parsed.message;
+                    } catch (e) {}
+                }
+                $('#perf-modal-body').html(`<div style="color: var(--danger); text-align: center; padding: 20px;">${errMsg}</div>`);
             }
         });
     }

@@ -109,9 +109,10 @@ try {
                 $tp = explode(':', $cTime);
                 $cH = (int)($tp[0] ?? 0);
                 $cM = (int)($tp[1] ?? 0);
-                if ($cH < 7) $cH += 24;
-                $createdMinsFrom7 = $cH * 60 + $cM;
-                $cTimeDisplay = substr($cTime, 0, 5);
+                if ($cH >= 7) {
+                    $createdMinsFrom7 = ($cH - 7) * 60 + $cM;
+                    $cTimeDisplay = substr($cTime, 0, 5);
+                }
             }
         }
 

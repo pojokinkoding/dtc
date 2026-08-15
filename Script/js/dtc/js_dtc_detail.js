@@ -879,6 +879,9 @@ $(document).ready(function () {
     }
 
     function isTimeSlotBeforeModelStartDetail(dateStr, labelText, rmCreatedAt) {
+        let isUserAdmin = window.currentIsAdmin || window.isAdmin || (typeof isAdmin !== 'undefined' && isAdmin);
+        if (isUserAdmin) return false;
+
         if (!rmCreatedAt || !dateStr || !labelText) return false;
 
         let parts = String(rmCreatedAt).trim().split(' ');
@@ -887,41 +890,44 @@ $(document).ready(function () {
         let rmDate = parts[0];
         let rmTime = parts[1];
 
-        if (rmDate !== dateStr) return false;
+        if (rmDate > dateStr) return true;  // Model created on a future date -> slot is before model creation
+        if (rmDate < dateStr) return false; // Model created on a past date -> model was already active
 
         let tParts = rmTime.split(':');
         let mH = parseInt(tParts[0], 10);
         let mM = parseInt(tParts[1], 10);
         if (isNaN(mH) || isNaN(mM)) return false;
 
-        let modelMins = (mH < 7 ? mH + 24 : mH) * 60 + mM;
+        if (mH < 7) return false; // Created before 07:00 AM on same calendar day -> active before shift start
+
+        let modelMinsFrom7 = (mH - 7) * 60 + mM;
 
         let defaultLabels = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30'];
         let clean = String(labelText).replace('.', ':');
         let idx = defaultLabels.findIndex(l => l.replace('.', ':').startsWith(clean));
 
-        let nextSlotMins;
+        let nextSlotMinsFrom7;
         if (idx !== -1 && idx < defaultLabels.length - 1) {
             let nextLabel = defaultLabels[idx + 1];
             let nMatch = nextLabel.match(/^(\d{1,2})[:\.](\d{2})/);
             if (nMatch) {
                 let nH = parseInt(nMatch[1], 10);
                 let nM = parseInt(nMatch[2], 10);
-                if (nH < 7) nH += 24;
-                nextSlotMins = nH * 60 + nM;
+                let nHShift = nH < 7 ? nH + 24 : nH;
+                nextSlotMinsFrom7 = (nHShift - 7) * 60 + nM;
             }
         }
 
-        if (!nextSlotMins) {
+        if (!nextSlotMinsFrom7) {
             let sMatch = clean.match(/^(\d{1,2})[:\.](\d{2})/);
             if (!sMatch) return false;
             let sH = parseInt(sMatch[1], 10);
             let sM = parseInt(sMatch[2], 10);
-            if (sH < 7) sH += 24;
-            nextSlotMins = (sH * 60 + sM) + 120;
+            let sHShift = sH < 7 ? sH + 24 : sH;
+            nextSlotMinsFrom7 = (sHShift - 7) * 60 + sM + 120;
         }
 
-        return modelMins >= nextSlotMins;
+        return modelMinsFrom7 >= nextSlotMinsFrom7;
     }
 
     function updateSampleInputValidation($input) {
@@ -994,6 +1000,18 @@ $(document).ready(function () {
     $("#input_inspection_date").change(function () {
         let selectedDate = $(this).val();
         if (!selectedDate) return;
+
+        let todayStr = typeof getManufacturingProdDateStr === 'function' ? getManufacturingProdDateStr() : new Date().toISOString().slice(0, 10);
+        if (selectedDate > todayStr) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Tanggal Tidak Valid',
+                text: 'Pengisian data tidak boleh untuk tanggal di masa depan (maksimal hari ini: ' + todayStr + ').',
+                confirmColor: '#3085d6'
+            });
+            $(this).val(todayStr);
+            selectedDate = todayStr;
+        }
 
         // Clear previous sample values before loading
         $("input[name^='sample_']").val("").prop("readonly", false).css({ 'opacity': '1', 'cursor': 'text' }).removeAttr('title').removeClass('slot-overdue-glowing');
@@ -1125,7 +1143,7 @@ $(document).ready(function () {
 
                 // Auto-focus on the first active/editable empty sample input
                 setTimeout(() => {
-                    let $firstEmpty = $("input[name^='sample_']:not([readonly]):filter(function() { return $(this).val() === ''; }).first()");
+                    let $firstEmpty = $("input[name^='sample_']:not([readonly])").filter(function () { return $(this).val() === ''; }).first();
                     if ($firstEmpty.length > 0) {
                         $firstEmpty.focus();
                     } else {

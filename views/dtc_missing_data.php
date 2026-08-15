@@ -266,5 +266,3 @@ if ($currentUserRole !== 'admin' && strpos($currentUserRole, 'supervisor') === f
         </div>
     </div>
 </div>
-
-<script src="Script/js/dtc/js_dtc_missing_data.js?v=<?= time() ?>"></script>

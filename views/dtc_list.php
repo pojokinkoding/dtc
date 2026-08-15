@@ -47,7 +47,29 @@
         padding: 4px 20px 4px 8px;
     }
 
-    /* Running Model Badge Styling */
+    /* Running Model Table Panel Styling */
+    .rm-table th, .rm-table td {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+        vertical-align: middle !important;
+    }
+    .rm-table tr:last-child th, .rm-table tr:last-child td {
+        border-bottom: none !important;
+    }
+    .rm-section-badge {
+        font-size: 11px;
+        font-weight: 700;
+        color: #f59e0b;
+        background: rgba(245, 158, 11, 0.12);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+        padding: 3px 10px;
+        border-radius: 14px;
+        letter-spacing: 0.3px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+        user-select: none;
+    }
     .running-model-badge {
         display: inline-flex;
         align-items: center;
@@ -55,8 +77,8 @@
         background: rgba(16, 185, 129, 0.15);
         color: #34d399;
         border: 1px solid rgba(16, 185, 129, 0.35);
-        padding: 3px 10px;
-        border-radius: 20px;
+        padding: 4px 10px;
+        border-radius: 16px;
         font-size: 11px;
         font-weight: 600;
         cursor: pointer;
@@ -91,7 +113,7 @@
         background: rgba(59, 130, 246, 0.15);
         color: #60a5fa;
         border: 1px dashed rgba(59, 130, 246, 0.4);
-        padding: 3px 10px;
+        padding: 4px 12px;
         border-radius: 20px;
         font-size: 11px;
         font-weight: 500;
@@ -129,22 +151,46 @@
                 <i class="fa-regular fa-calendar-check"></i> Bulan Ini (<?= date('F Y') ?>)
             </span>
         </h2>
+    </div>
+</div>
 
-        <!-- Running Model Bar (Dynamic per Line/Section) -->
-        <div id="running-model-container" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border-left: 2px solid rgba(255,255,255,0.1); padding-left: 15px;">
-            <span style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
-                <i class="fa-solid fa-cubes" style="color: #f59e0b; margin-right: 2px;"></i> Running Model:
+<!-- Running Model Table Panel (Collapsible Card Layout) -->
+<div id="running-model-panel" style="margin-bottom: 20px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; overflow: hidden; backdrop-filter: blur(10px); transition: all 0.3s ease;">
+    <!-- Panel Header -->
+    <div id="toggle-running-model-panel" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: rgba(255, 255, 255, 0.03); cursor: pointer; user-select: none;">
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <span style="font-size: 13px; font-weight: 700; color: var(--text-light); display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-cubes" style="color: #f59e0b;"></i> Daftar Running Model Aktif
             </span>
-            <div id="running-model-list" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                <!-- Badges populated dynamically via JS -->
-            </div>
+            <span id="rm-active-count-badge" style="font-size: 11px; font-weight: 600; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); padding: 3px 10px; border-radius: 12px; display: inline-flex; align-items: center; gap: 6px;" title="Klik untuk Expand / Minimize Tabel Running Model">
+                <span id="rm-count-text">0 Models Active</span>
+                <i id="rm-panel-chevron" class="fa-solid fa-chevron-down" style="color: #34d399; font-size: 10px; transition: transform 0.3s ease; transform: rotate(-180deg);"></i>
+            </span>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 10px;">
             <button id="btn-open-add-running-model" class="btn-add-running-model" title="Add Running Model">
                 <i class="fa-solid fa-circle-plus"></i> Add Model
             </button>
-            <button id="btn-open-ctp-matrix" class="btn-rich-success" style="padding: 4px 10px; font-size: 12px; border-radius: 12px; display: none;" title="Open Check Sheet Matrix">
+            <button id="btn-open-ctp-matrix" class="btn-rich-success" style="padding: 4px 10px; font-size: 12px; border-radius: 8px; display: none;" title="Open Check Sheet Matrix">
                 <i class="fa-solid fa-table-cells"></i> CTP Matrix
             </button>
         </div>
+    </div>
+
+    <!-- Panel Body Table -->
+    <div id="running-model-table-wrapper" style="display: none; padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.08); overflow-x: auto;">
+        <table class="rm-table" style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <thead>
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
+                    <th style="padding: 8px 12px; width: 220px; font-weight: 600;"><i class="fa-solid fa-layer-group" style="color: #f59e0b; margin-right: 4px;"></i> Line & Section</th>
+                    <th style="padding: 8px 12px; font-weight: 600;"><i class="fa-solid fa-cubes" style="color: #10b981; margin-right: 4px;"></i> Active Running Models</th>
+                </tr>
+            </thead>
+            <tbody id="running-model-table-body">
+                <!-- Dynamically populated via JS -->
+            </tbody>
+        </table>
     </div>
 </div>
 
@@ -171,6 +217,12 @@ $isSupervisorRole = (strpos($currentUserRole, 'supervisor') !== false);
         <select id="filter-item-check" style="padding: 6px 12px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(15,23,42,0.8); color: white; min-width: 120px;">
             <option value="">All Item Checks</option>
         </select>
+        
+        <!-- Checkbox Filter Out of Spec Only -->
+        <label style="display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; font-size: 12px; font-weight: 600; color: #fca5a5; cursor: pointer; user-select: none; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); padding: 5px 12px; border-radius: 4px; transition: all 0.2s ease;" title="Tampilkan Hanya Parameter Yang Memiliki Pengukuran Out of Spec">
+            <input type="checkbox" id="filter-oos-only" style="cursor: pointer; accent-color: #ef4444; width: 14px; height: 14px;">
+            <i class="fa-solid fa-triangle-exclamation" style="color: #ef4444;"></i> Out of Spec Only
+        </label>
     </div>
 
     <div class="header-actions">
@@ -225,6 +277,7 @@ $isSupervisorRole = (strpos($currentUserRole, 'supervisor') !== false);
                     <th>Model Name</th>
                     <th>Item Check & Process</th>
                     <th>Specification</th>
+                    <th>Out of Spec</th>
                     <th>Operator</th>
                     <th>Action</th>
                 </tr>
@@ -498,5 +551,6 @@ $isSupervisorRole = (strpos($currentUserRole, 'supervisor') !== false);
 </script>
 
 <?php require_once __DIR__ . '/modal_bulk_input.php'; ?>
+<?php require_once __DIR__ . '/modal_oos_update.php'; ?>
 
 

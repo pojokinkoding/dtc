@@ -32,6 +32,7 @@ $(document).ready(function () {
                 d.section = $('#filter-section').val() || '';
                 d.item_check = $('#filter-item-check').val() || '';
                 d.type = $('.filter-tab-btn.active').data('filter') || '';
+                d.oos_only = $('#filter-oos-only').is(':checked') ? '1' : '0';
             }
         },
         columns: [
@@ -90,6 +91,16 @@ $(document).ready(function () {
                 }
             },
             {
+                data: 'oos_count',
+                render: function (data, type, row) {
+                    let count = parseInt(data, 10) || 0;
+                    if (count > 0) {
+                        return `<span class="btn-open-oos-modal" data-param="${row.parameter_id}" data-month="${row.raw_month || ''}" style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.4); padding: 3px 8px; border-radius: 12px; font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; transition: transform 0.15s;" title="Klik untuk meng-update nilai Out of Spec (${count} OOS)"><i class="fa-solid fa-triangle-exclamation"></i> ${count} OOS</span>`;
+                    }
+                    return `<span style="color: #64748b; font-size: 11px;">0</span>`;
+                }
+            },
+            {
                 data: 'operator_name',
                 render: function (data) {
                     return `<span style="color: #94a3b8;"><i class="fa-regular fa-user" style="margin-right: 4px;"></i> ${data || '-'}</span>`;
@@ -126,7 +137,7 @@ $(document).ready(function () {
         if (table) table.draw();
     });
 
-    $('#filter-month, #filter-line, #filter-section, #filter-item-check').on('change', function () {
+    $('#filter-month, #filter-line, #filter-section, #filter-item-check, #filter-oos-only').on('change', function () {
         if (table) table.draw();
     });
 

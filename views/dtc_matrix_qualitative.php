@@ -706,8 +706,13 @@ if (empty($model) || empty($line) || empty($section)) {
             <div style="margin-bottom: 15px;">
                 <label style="display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 5px;">Inspection Date & Closing Status</label>
                 <div style="display: flex; gap: 10px; align-items: center;">
+                    <?php if (isset($_SESSION['role']) && strtolower(trim($_SESSION['role'])) === 'admin'): ?>
+                    <input type="date" name="inspection_date" id="quant_input_date" required max="<?= date('Y-m-d') ?>"
+                           style="flex: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(59,130,246,0.6); background: rgba(15,23,42,0.8); color: #60a5fa; font-weight: 700; box-sizing: border-box; cursor: pointer;" title="Mode Admin: Klik untuk mengubah tanggal inspeksi (hanya tanggal lalu s/d hari ini)">
+                    <?php else: ?>
                     <input type="date" name="inspection_date" id="quant_input_date" required readonly 
                            style="flex: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(15,23,42,0.6); color: rgba(255,255,255,0.7); box-sizing: border-box; cursor: not-allowed; pointer-events: none;" title="Tanggal pengisian bersifat tetap (Read-only)">
+                    <?php endif; ?>
                     <span id="quant-day-close-badge" style="font-size: 11px; font-weight: 700; padding: 6px 10px; border-radius: 6px; background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); display: flex; align-items: center; gap: 4px;">
                         <i class="fa-solid fa-lock-open"></i> Open
                     </span>
@@ -776,4 +781,5 @@ if (empty($model) || empty($line) || empty($section)) {
     const isPrivilegedUser = <?= (isset($_SESSION['role']) && in_array(strtolower(trim($_SESSION['role'])), ['admin', 'foreman', 'supervisor'])) ? 'true' : 'false' ?>;
 </script>
 
+<?php require_once __DIR__ . '/modal_bulk_input.php'; ?>
 <?php require_once __DIR__ . '/modal_bulk_input.php'; ?>

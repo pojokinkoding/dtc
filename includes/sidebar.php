@@ -26,11 +26,6 @@
                 </a>
             </li>
             <?php if (isset($_SESSION['role']) && strtolower(trim($_SESSION['role'])) === 'admin'): ?>
-            <li style="display: none;">
-                <a href="index.php?page=oos_summary" class="<?php echo ($page == 'oos_summary') ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-triangle-exclamation"></i> <span>OOS Summary Tracker</span>
-                </a>
-            </li>
 
             <!-- Group 2: Configuration & Admin -->
             <li style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">

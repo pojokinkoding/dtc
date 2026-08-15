@@ -34,6 +34,10 @@
         <script src="assets/js/jquery.dataTables.min.js"></script>
         <script src="Script/js/dtc/js_dtc_history.js?v=<?= time() ?>"></script>
     <?php endif; ?>
+
+    <?php if($page == 'dtc' || $page == 'dtc_list' || $page == 'dtc_matrix_qualitative' || $page == 'dtc_history'): ?>
+        <script src="Script/js/dtc/js_dtc_oos_modal_handler.js?v=<?= time() ?>"></script>
+    <?php endif; ?>
     
     <?php if($page == 'master_spec'): ?>
         <script src="assets/js/jquery.dataTables.min.js"></script>

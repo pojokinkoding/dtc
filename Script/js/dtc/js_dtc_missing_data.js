@@ -781,16 +781,25 @@ $(document).ready(function () {
         `;
 
         data.forEach(row => {
-            html += `<tr>`;
             let subName = row.sub_item_check_name && row.sub_item_check_name !== '-' ? ` - ${row.sub_item_check_name}` : '';
+            let cpParam = row.checkpoint_id ? `&checkpoint_id=${row.checkpoint_id}` : (row.parameter_key ? `&param_key=${encodeURIComponent(row.parameter_key)}` : '');
+            
+            html += `<tr>`;
             html += `
                 <td>
-                    <div style="font-weight: 600; color: var(--accent);">${row.item_check_name}${subName} <span style="font-size:10px; color:var(--text-muted); font-weight:normal;">[${row.data_type}]</span></div>
-                    <div style="font-size: 11px; color: #e2e8f0; font-weight: 500; margin-top: 2px; margin-bottom: 3px;"><i class="fa-solid fa-cube" style="color: #f59e0b; margin-right: 4px;"></i> ${row.model_name || '-'}</div>
-                    <div style="font-size: 11px; color: var(--text-muted);">
-                        <span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 1px 4px; border-radius: 3px; margin-right: 4px;">${row.line_name}</span>
-                        <span style="background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 1px 4px; border-radius: 3px; margin-right: 4px;">${row.section_name}</span>
-                        <span style="color: #94a3b8;">${row.process_name}</span>
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                        <div>
+                            <div style="font-weight: 600; color: var(--accent);">${row.item_check_name}${subName} <span style="font-size:10px; color:var(--text-muted); font-weight:normal;">[${row.data_type}]</span></div>
+                            <div style="font-size: 11px; color: #e2e8f0; font-weight: 500; margin-top: 2px; margin-bottom: 3px;"><i class="fa-solid fa-cube" style="color: #f59e0b; margin-right: 4px;"></i> ${row.model_name || '-'}</div>
+                            <div style="font-size: 11px; color: var(--text-muted);">
+                                <span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 1px 4px; border-radius: 3px; margin-right: 4px;">${row.line_name}</span>
+                                <span style="background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 1px 4px; border-radius: 3px; margin-right: 4px;">${row.section_name}</span>
+                                <span style="color: #94a3b8;">${row.process_name}</span>
+                            </div>
+                        </div>
+                        <a href="Script/php/dtc/c_missing_data_monthly_report.php?format=pdf&month=${month}&param_id=${row.parameter_id}${cpParam}" target="_blank" title="Print atau Simpan Laporan DTC sebagai PDF" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.45); padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; transition: all 0.2s ease;">
+                            <i class="fa-solid fa-print"></i> Print
+                        </a>
                     </div>
                 </td>
             `;
@@ -1128,18 +1137,19 @@ $(document).ready(function () {
 
     function renderPerfModalBody(res) {
         let html = '';
-        let sections = res.data || [];
+        let rawSections = res.data || [];
+        let sections = rawSections.filter(sec => (sec.total_filled_month || 0) > 0);
 
         if (sections.length === 0) {
-            html = '<div style="text-align:center; padding:30px; color:var(--text-muted);">Tidak ada data stasiun pada bulan ini.</div>';
+            html = '<div style="text-align:center; padding:40px; color:var(--text-muted);"><i class="fa-solid fa-folder-open fa-2x" style="margin-bottom:10px; display:block;"></i><p>Tidak ada stasiun dengan data pengisian pada bulan ini.</p></div>';
         } else {
             sections.forEach(sec => {
                 let rateVal = sec.monthly_compliance_rate !== undefined ? sec.monthly_compliance_rate : 100;
                 let rateColor = rateVal >= 90 ? '#34d399' : '#f87171';
 
                 html += `
-                <div style="background: rgba(15,23,42,0.8); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px; margin-bottom: 16px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; margin-bottom: 10px;">
+                <div style="background: rgba(15,23,42,0.8); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 16px; margin-bottom: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; margin-bottom: 12px;">
                         <div>
                             <span style="background: rgba(59,130,246,0.2); color: #60a5fa; padding: 2px 8px; border-radius: 4px; font-weight: 800; font-size: 11px;">LINE ${sec.line_name}</span>
                             <span style="font-size: 16px; font-weight: 800; color: #38bdf8; margin-left: 8px;">${sec.section_name}</span>
@@ -1151,7 +1161,7 @@ $(document).ready(function () {
                     </div>
 
                     <!-- Summary KPI Cards Row -->
-                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px;">
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px;">
                         <div style="background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px; text-align: center; border: 1px solid rgba(255,255,255,0.08);">
                             <div style="font-size: 10px; color: #94a3b8; font-weight: 700;">TOTAL EXPECTED SLOTS</div>
                             <div style="font-size: 18px; font-weight: 900; color: #f8fafc;">${(sec.total_expected_month || 0).toLocaleString()}</div>
@@ -1168,78 +1178,202 @@ $(document).ready(function () {
                             <div style="font-size: 10px; color: #38bdf8; font-weight: 700;">PERSENTASE COMPLIANCE</div>
                             <div style="font-size: 18px; font-weight: 900; color: ${rateColor};">${rateVal}%</div>
                         </div>
-                    </div>
+                    </div>`;
 
-                    <div style="font-size: 12px; font-weight: 700; color: #94a3b8; margin-bottom: 6px;">1. Persentase Pengisian Time Check Harian (% Daily Filling)</div>
-                    <div style="overflow-x: auto; margin-bottom: 12px;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: center;">
-                            <thead>
-                                <tr style="background: rgba(30,41,59,0.9); color: #94a3b8;">
-                                    <th style="padding: 6px; border: 1px solid rgba(255,255,255,0.1);">Tanggal</th>
-                                    <th style="padding: 6px; border: 1px solid rgba(255,255,255,0.1);">Expected</th>
-                                    <th style="padding: 6px; border: 1px solid rgba(255,255,255,0.1);">Filled</th>
-                                    <th style="padding: 6px; border: 1px solid rgba(255,255,255,0.1);">Completion Rate (%)</th>
-                                    <th style="padding: 6px; border: 1px solid rgba(255,255,255,0.1);">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>`;
-
-                Object.keys(sec.days || {}).sort().forEach(dStr => {
-                    let d = sec.days[dStr];
-                    let bgStr = d.is_weekend ? 'rgba(255,255,255,0.03)' : (d.is_full ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.15)');
-                    let rateColor = d.is_full ? '#34d399' : '#f87171';
-                    let statusLabel = d.is_weekend ? 'Weekend' : (d.is_full ? '<span style="color:#34d399; font-weight:800;">FULL (100%)</span>' : '<span style="color:#f87171; font-weight:800;">INCOMPLETE</span>');
-
-                    html += `
-                        <tr style="background: ${bgStr};">
-                            <td style="padding: 5px; border: 1px solid rgba(255,255,255,0.05); font-weight: 700;">${dStr}</td>
-                            <td style="padding: 5px; border: 1px solid rgba(255,255,255,0.05);">${d.expected_slots}</td>
-                            <td style="padding: 5px; border: 1px solid rgba(255,255,255,0.05);">${d.filled_slots}</td>
-                            <td style="padding: 5px; border: 1px solid rgba(255,255,255,0.05); font-weight: 800; color: ${rateColor};">${d.completion_rate}%</td>
-                            <td style="padding: 5px; border: 1px solid rgba(255,255,255,0.05);">${statusLabel}</td>
-                        </tr>`;
+                // Render Detail Information, Data Summary, and Measurement Data Grid for parameters with measurements
+                let measuredParams = (sec.parameters || []).filter(param => {
+                    if (param.n_count && parseInt(param.n_count) > 0) return true;
+                    if (param.grid_data) {
+                        for (let seq in param.grid_data) {
+                            for (let day in param.grid_data[seq]) {
+                                let v = param.grid_data[seq][day];
+                                if (v !== null && v !== undefined && String(v).trim() !== '') return true;
+                            }
+                        }
+                    }
+                    return false;
                 });
 
-                html += `
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div style="font-size: 12px; font-weight: 700; color: #f87171; margin-top: 10px; margin-bottom: 6px;">2. Rincian Item Check / Parameter yang Tidak Diisi (Slot Kosong)</div>`;
-
-                let missedDates = Object.keys(sec.missed_items_by_date || {}).sort();
-                if (missedDates.length > 0) {
-                    html += `
-                    <div style="max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.3); border: 1px solid rgba(239,68,68,0.2); border-radius: 6px; padding: 8px;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-                            <thead>
-                                <tr style="color: #f87171; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                                    <th style="padding: 4px;">Tanggal</th>
-                                    <th style="padding: 4px;">Model</th>
-                                    <th style="padding: 4px;">Process</th>
-                                    <th style="padding: 4px;">Item Check Name</th>
-                                    <th style="padding: 4px; text-align: center;">Slot Kosong</th>
-                                </tr>
-                            </thead>
-                            <tbody>`;
-                    missedDates.forEach(dStr => {
-                        (sec.missed_items_by_date[dStr] || []).forEach(item => {
-                            html += `
-                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                                    <td style="padding: 4px; font-weight: 700; color: #cbd5e1;">${dStr}</td>
-                                    <td style="padding: 4px;">${item.model_name || '-'}</td>
-                                    <td style="padding: 4px; color: #94a3b8;">${item.process_name}</td>
-                                    <td style="padding: 4px; color: #f8fafc; font-weight: 700;">${item.item_check_name}</td>
-                                    <td style="padding: 4px; text-align: center; color: #f87171; font-weight: 800;">${item.missing_slots} Slot Kosong</td>
-                                </tr>`;
-                        });
-                    });
-                    html += `
-                            </tbody>
-                        </table>
+                if (measuredParams.length > 0) {
+                    html += `<div style="font-size: 13px; font-weight: 800; color: #38bdf8; margin-top: 14px; margin-bottom: 12px; border-bottom: 1px solid rgba(56,189,248,0.3); padding-bottom: 4px;">
+                        <i class="fa-solid fa-list-check"></i> Detail Information, Data Summary & Measurement Data Grid (${measuredParams.length} Parameters)
                     </div>`;
-                } else {
-                    html += `<p style="font-size: 11px; color: #34d399; margin: 4px 0; font-style: italic;">Sempurna! Semua item check di stasiun ini terisi 100% full.</p>`;
+
+                    measuredParams.forEach((param, pIdx) => {
+                        let itemFullStr = param.item_check_name + (param.sub_item_check_name && param.sub_item_check_name !== '-' ? ` (${param.sub_item_check_name})` : '');
+                        let cpColor = (param.cp !== null && parseFloat(param.cp) < 1.0) ? '#f87171' : ((param.cp !== null && parseFloat(param.cp) < 1.33) ? '#fbbf24' : '#34d399');
+                        let cpkColor = (param.cpk !== null && parseFloat(param.cpk) < 1.0) ? '#f87171' : ((param.cpk !== null && parseFloat(param.cpk) < 1.33) ? '#fbbf24' : '#34d399');
+
+                        let cpParamModal = param.checkpoint_id ? `&checkpoint_id=${param.checkpoint_id}` : (param.parameter_key ? `&param_key=${encodeURIComponent(param.parameter_key)}` : '');
+
+                        html += `
+                        <div style="background: rgba(15,23,42,0.95); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 16px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                            
+                            <!-- Parameter Title Banner -->
+                            <div style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                                <h4 style="margin: 0; color: #38bdf8; font-size: 14px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+                                    <span style="background: #0284c7; color: #ffffff; padding: 2px 8px; border-radius: 4px; font-size: 11px;">#${pIdx + 1}</span>
+                                    ${itemFullStr}
+                                </h4>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="background: rgba(59,130,246,0.2); color: #60a5fa; border: 1px solid rgba(59,130,246,0.4); padding: 2px 10px; border-radius: 4px; font-size: 11px; font-weight: 700;">
+                                        MODEL: ${param.model_name || '-'} | TYPE: ${param.data_type || 'Quantitative'}
+                                    </span>
+                                    <a href="Script/php/dtc/c_missing_data_monthly_report.php?format=pdf&month=${res.month}&param_id=${param.parameter_id}${cpParamModal}" target="_blank" title="Print atau Simpan Laporan DTC sebagai PDF" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: #ffffff; padding: 4px 12px; border-radius: 6px; font-size: 11px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 8px rgba(239,68,68,0.4); transition: all 0.2s ease;">
+                                        <i class="fa-solid fa-print"></i> Print / Save PDF
+                                    </a>
+                                </div>
+                            </div>
+
+                            <!-- 2-Column Grid: Detail Information & Data Summary -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px;">
+                                
+                                <!-- Left: Detail Information -->
+                                <div style="background: rgba(30,41,59,0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px 16px;">
+                                    <div style="font-size: 11px; font-weight: 900; color: #38bdf8; text-transform: uppercase; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">DETAIL INFORMATION</div>
+                                    <table style="width: 100%; font-size: 11px; border-collapse: collapse; line-height: 1.6;">
+                                        <tr><td style="color: #94a3b8; width: 40%;">LINE</td><td style="color: #f8fafc; font-weight: 700;">${param.line_name}</td></tr>
+                                        <tr><td style="color: #94a3b8;">SECTION</td><td style="color: #f8fafc; font-weight: 700;">${param.section_name}</td></tr>
+                                        <tr><td style="color: #94a3b8;">MODEL NAME</td><td style="color: #60a5fa; font-weight: 700;">${param.model_name || '-'}</td></tr>
+                                        <tr><td style="color: #94a3b8;">ITEM CHECK & DATA TYPE</td><td style="color: #f8fafc; font-weight: 700;">${itemFullStr} [${param.data_type}]</td></tr>
+                                        <tr><td style="color: #94a3b8;">PROCESS NAME</td><td style="color: #cbd5e1;">${param.process_name || '-'}</td></tr>
+                                        <tr><td style="color: #94a3b8;">SPEC (LSL - USL)</td><td style="color: #38bdf8; font-weight: 800;">${param.spec_str}</td></tr>
+                                        <tr><td style="color: #94a3b8;">MEASUREMENT</td><td style="color: #cbd5e1;">${param.measuring_item}</td></tr>
+                                        <tr><td style="color: #94a3b8;">TARGET ZST / ZLT</td><td style="color: #f8fafc; font-weight: 700;">${param.target_zst} / ${param.target_zlt}</td></tr>
+                                        <tr><td style="color: #94a3b8;">MONTH</td><td style="color: #cbd5e1;">${res.month_formatted}</td></tr>
+                                    </table>
+                                </div>
+
+                                <!-- Right: Data Summary -->
+                                <div style="background: rgba(30,41,59,0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px 16px;">
+                                    <div style="font-size: 11px; font-weight: 900; color: #38bdf8; text-transform: uppercase; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">DATA SUMMARY</div>
+                                    <table style="width: 100%; font-size: 11px; border-collapse: collapse; line-height: 1.6;">
+                                        <tr>
+                                            <td style="color: #94a3b8; width: 35%;">Sample Q'ty(n)</td><td style="color: #f8fafc; font-weight: 700; text-align: right;">${param.n_count}</td>
+                                            <td style="color: #94a3b8; width: 35%; padding-left: 12px;">Center spec</td><td style="color: #f8fafc; font-weight: 700; text-align: right;">${param.center_spec}</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="color: #94a3b8;">Maximum data</td><td style="color: #f8fafc; font-weight: 700; text-align: right;">${param.max_val !== null ? param.max_val : '-'}</td>
+                                            <td style="color: #94a3b8; padding-left: 12px;">Cp</td><td style="color: ${cpColor}; font-weight: 800; text-align: right;">${param.cp !== null ? param.cp : '-'}</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="color: #94a3b8;">Minimum data</td><td style="color: #f8fafc; font-weight: 700; text-align: right;">${param.min_val !== null ? param.min_val : '-'}</td>
+                                            <td style="color: #94a3b8; padding-left: 12px;">Cpk</td><td style="color: ${cpkColor}; font-weight: 800; text-align: right;">${param.cpk !== null ? param.cpk : '-'}</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="color: #94a3b8;">Avg(X-bar)</td><td style="color: #f8fafc; font-weight: 700; text-align: right;">${param.avg_val !== null ? param.avg_val : '-'}</td>
+                                            <td style="color: #94a3b8; padding-left: 12px;">Zst</td><td style="color: #38bdf8; font-weight: 800; text-align: right;">${param.zst !== null ? param.zst : '-'}</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="color: #94a3b8;">Std deviation</td><td style="color: #f8fafc; font-weight: 700; text-align: right;">${param.std_val !== null ? param.std_val : '-'}</td>
+                                            <td style="color: #94a3b8; padding-left: 12px;">Zlt</td><td style="color: #60a5fa; font-weight: 800; text-align: right;">${param.zlt !== null ? param.zlt : '-'}</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Measurement Data Grid -->
+                            <div style="font-size: 11px; font-weight: 800; color: #38bdf8; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-table-cells"></i> MEASUREMENT DATA GRID (${res.month_formatted})
+                            </div>
+                            <div style="overflow-x: auto; background: rgba(15,23,42,0.9); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;">
+                                <table style="width: 100%; border-collapse: collapse; font-size: 10px; text-align: center;">
+                                    <thead>
+                                        <tr style="background: rgba(30,41,59,0.9); color: #94a3b8;">
+                                            <th style="padding: 6px; border: 1px solid rgba(255,255,255,0.08); min-width: 60px; background: #0f172a; color: #ffffff;">Jam</th>`;
+
+                        let monthParts = (res.month || '').split('-');
+                        let yearNum = parseInt(monthParts[0] || new Date().getFullYear());
+                        let mNum = parseInt(monthParts[1] || (new Date().getMonth() + 1));
+                        let numDays = new Date(yearNum, mNum, 0).getDate();
+
+                        for (let d = 1; d <= numDays; d++) {
+                            html += `<th style="padding: 6px; border: 1px solid rgba(255,255,255,0.08); min-width: 32px; background: #0284c7; color: #ffffff;">${d}</th>`;
+                        }
+                        html += `</tr></thead><tbody>`;
+
+                        // Time slot rows
+                        let isQuant = (param.is_quantitative !== undefined) ? param.is_quantitative : (
+                            !['QUALITATIVE', 'F/PROOF', 'F-PROOF', 'TIME CHECK', 'VISUAL'].includes(String(param.data_type || '').toUpperCase())
+                        );
+
+                        // Time slot rows
+                        (param.time_slots || ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30']).forEach((tLabel, sIdx) => {
+                            let seqNo = sIdx + 1;
+                            html += `<tr>`;
+                            html += `<td style="background: rgba(30,41,59,0.9); font-weight: 700; color: #94a3b8; border: 1px solid rgba(255,255,255,0.08);">${tLabel}</td>`;
+                            for (let d = 1; d <= numDays; d++) {
+                                let val = (param.grid_data && param.grid_data[seqNo]) ? param.grid_data[seqNo][d] : null;
+                                let valStr = (val !== null && val !== undefined && val !== '') ? String(val).trim() : '';
+                                
+                                let cellContent = '';
+                                if (valStr !== '') {
+                                    let upper = valStr.toUpperCase();
+                                    if (upper === 'OK') {
+                                        cellContent = `<span style="background: rgba(16,185,129,0.2); color: #34d399; font-weight: 900; border: 1px solid rgba(16,185,129,0.4); padding: 2px 6px; border-radius: 4px; display: inline-block;">OK</span>`;
+                                    } else if (upper === 'NG') {
+                                        cellContent = `<span style="background: rgba(239,68,68,0.25); color: #f87171; font-weight: 900; border: 1px solid rgba(239,68,68,0.4); padding: 2px 6px; border-radius: 4px; display: inline-block;">NG</span>`;
+                                    } else {
+                                        let lslNum = param.lsl !== null ? parseFloat(param.lsl) : null;
+                                        let uslNum = param.usl !== null ? parseFloat(param.usl) : null;
+                                        let numVal = parseFloat(valStr);
+                                        let displayVal = valStr;
+                                        if (!isNaN(numVal)) {
+                                            displayVal = (Number.isInteger(numVal)) ? String(numVal) : numVal.toFixed(2);
+                                        }
+                                        let isOos = !isNaN(numVal) && ((lslNum !== null && numVal < lslNum) || (uslNum !== null && numVal > uslNum));
+                                        if (isOos) {
+                                            cellContent = `<span style="background: rgba(239,68,68,0.25); color: #f87171; font-weight: 800; padding: 2px 6px; border-radius: 4px; display: inline-block;">${displayVal}</span>`;
+                                        } else {
+                                            cellContent = `<span style="color: #cbd5e1;">${displayVal}</span>`;
+                                        }
+                                    }
+                                }
+                                html += `<td style="padding: 4px; border: 1px solid rgba(255,255,255,0.05);">${cellContent}</td>`;
+                            }
+                            html += `</tr>`;
+                        });
+
+                        if (isQuant) {
+                            // Max Data row
+                            html += `<tr style="background: rgba(16,185,129,0.15);">`;
+                            html += `<td style="background: rgba(16,185,129,0.25); font-weight: 800; color: #34d399; border: 1px solid rgba(255,255,255,0.08);">Max Data</td>`;
+                            for (let d = 1; d <= numDays; d++) {
+                                let v = param.daily_max ? param.daily_max[d] : '';
+                                html += `<td style="padding: 4px; border: 1px solid rgba(255,255,255,0.05); font-weight: 800; color: #34d399;">${v || ''}</td>`;
+                            }
+                            html += `</tr>`;
+
+                            // Min Data row
+                            html += `<tr style="background: rgba(16,185,129,0.15);">`;
+                            html += `<td style="background: rgba(16,185,129,0.25); font-weight: 800; color: #34d399; border: 1px solid rgba(255,255,255,0.08);">Min Data</td>`;
+                            for (let d = 1; d <= numDays; d++) {
+                                let v = param.daily_min ? param.daily_min[d] : '';
+                                html += `<td style="padding: 4px; border: 1px solid rgba(255,255,255,0.05); font-weight: 800; color: #34d399;">${v || ''}</td>`;
+                            }
+                            html += `</tr>`;
+
+                            // Zst row
+                            html += `<tr style="background: rgba(56,189,248,0.1);">`;
+                            html += `<td style="background: rgba(56,189,248,0.2); font-weight: 800; color: #38bdf8; border: 1px solid rgba(255,255,255,0.08);">Zst</td>`;
+                            for (let d = 1; d <= numDays; d++) {
+                                let v = param.daily_zst ? param.daily_zst[d] : '';
+                                html += `<td style="padding: 4px; border: 1px solid rgba(255,255,255,0.05); font-weight: 800; color: #38bdf8;">${v || ''}</td>`;
+                            }
+                            html += `</tr>`;
+
+                            // Zlt row
+                            html += `<tr style="background: rgba(59,130,246,0.1);">`;
+                            html += `<td style="background: rgba(59,130,246,0.2); font-weight: 800; color: #60a5fa; border: 1px solid rgba(255,255,255,0.08);">Zlt</td>`;
+                            for (let d = 1; d <= numDays; d++) {
+                                let v = param.daily_zlt ? param.daily_zlt[d] : '';
+                                html += `<td style="padding: 4px; border: 1px solid rgba(255,255,255,0.05); font-weight: 800; color: #60a5fa;">${v || ''}</td>`;
+                            }
+                            html += `</tr>`;
+                        }
+
+                        html += `</tbody></table></div></div>`;
+                    });
                 }
 
                 html += `</div>`;
@@ -1264,6 +1398,18 @@ $(document).ready(function () {
         let month = $('#report_month').val() || new Date().toISOString().slice(0, 7);
         let url = `Script/php/dtc/c_missing_data_monthly_report.php?month=${month}&section_name=${encodeURIComponent(activeExportSection)}&line_name=${encodeURIComponent(activeExportLine)}&export=excel`;
         window.location.href = url;
+    });
+
+    $(document).on('click', '#btn-download-modal-pdf', function (e) {
+        e.preventDefault();
+        let month = $('#report_month').val() || new Date().toISOString().slice(0, 7);
+        let url = `Script/php/dtc/c_missing_data_monthly_report.php?month=${month}&section_name=${encodeURIComponent(activeExportSection)}&line_name=${encodeURIComponent(activeExportLine)}&export=pdf`;
+        let win = window.open(url, '_blank');
+        if (!win || win.closed || typeof win.closed === 'undefined') {
+            window.location.href = url;
+        } else {
+            win.focus();
+        }
     });
 
     $(document).on('click', '#btn-close-perf-modal, #btn-cancel-perf-modal', function () {

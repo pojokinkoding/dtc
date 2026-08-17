@@ -73,14 +73,18 @@ try {
         $zlt_data[] = null;
     }
     
-    // Get line name for this parameter
-    $stmtLine = $conn->prepare("SELECT COALESCE(p.line_name, s.line_name) as line_name 
+    // Get line name, LSL, and USL for this parameter
+    $stmtLine = $conn->prepare("SELECT COALESCE(p.line_name, s.line_name) as line_name,
+                                       COALESCE(p.lsl, s.lsl) as lsl,
+                                       COALESCE(p.usl, s.usl) as usl
                                 FROM dtc_master_parameters p 
                                 LEFT JOIN dtc_master_dtc_specs s ON p.spec_id = s.spec_id 
                                 WHERE p.parameter_id = :pid");
     $stmtLine->execute([':pid' => $param_id]);
     $lineRow = $stmtLine->fetch(PDO::FETCH_ASSOC);
-    $line_name = $lineRow ? trim($lineRow['line_name']) : '';
+    $line_name = $lineRow ? trim($lineRow['line_name'] ?? '') : '';
+    $param_lsl = ($lineRow && $lineRow['lsl'] !== null && $lineRow['lsl'] !== '') ? (float)$lineRow['lsl'] : null;
+    $param_usl = ($lineRow && $lineRow['usl'] !== null && $lineRow['usl'] !== '') ? (float)$lineRow['usl'] : null;
 
     $time_labels = [];
     if (!empty($line_name)) {
@@ -184,6 +188,8 @@ try {
     echo json_encode([
         "matrix" => $final_data,
         "actual_month" => $actual_month,
+        "lsl" => $param_lsl,
+        "usl" => $param_usl,
         "charts" => [
             "xbar" => $xbar_data,
             "r" => $r_data,

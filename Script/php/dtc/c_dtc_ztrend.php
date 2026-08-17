@@ -98,6 +98,28 @@ try {
                 'zst' => $zst,
                 'zlt' => $zlt
             ];
+        } else if ($xbar !== null && $usl > $lsl) {
+            // std == 0 (Constant value)
+            if ($xbar < $lsl || $xbar > $usl) {
+                // Out of spec!
+                $zst_actual[$month_index] = 0;
+                $zlt_actual[$month_index] = 0;
+                $validHistory[] = [
+                    'month_num' => intval($row['month_num']),
+                    'zst' => 0,
+                    'zlt' => 0,
+                    'is_oos' => true
+                ];
+            } else {
+                // Perfect in spec!
+                $zst_actual[$month_index] = 30.0;
+                $zlt_actual[$month_index] = 30.0;
+                $validHistory[] = [
+                    'month_num' => intval($row['month_num']),
+                    'zst' => 30.0,
+                    'zlt' => 30.0
+                ];
+            }
         }
     }
 

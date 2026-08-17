@@ -795,6 +795,7 @@ $(document).ready(function () {
                         filterOpts += `<option value="${s.section_name}">${s.section_name}</option>`;
                     });
                     $('#cs_section').html(opts);
+                    $('#add_dtc_section').html(opts);
                     $('#filter-section').html(filterOpts);
                 }
                 if (res.lines) {
@@ -806,6 +807,7 @@ $(document).ready(function () {
                         filterOpts += `<option value="${l.line_name}">${l.line_name}</option>`;
                     });
                     $('#cs_line').html(opts);
+                    $('#add_dtc_line').html(opts);
                     $('#filter-line').html(filterOpts);
                 }
 
@@ -923,7 +925,8 @@ $(document).ready(function () {
         e.preventDefault();
 
         let btn = $('#btn-save-dtc');
-        btn.prop('disabled', true).text('Saving...');
+        let origHtml = btn.html();
+        btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Generating...');
 
         let formData = new FormData(this);
 
@@ -935,38 +938,53 @@ $(document).ready(function () {
             contentType: false,
             dataType: 'json',
             success: function (response) {
-                btn.prop('disabled', false).html('<i class="fa-solid fa-floppy-disk"></i> Save DTC');
+                btn.prop('disabled', false).html(origHtml);
                 if (response.status === 'success') {
                     Swal.fire({
                         icon: 'success',
-                        title: 'Success!',
+                        title: 'Generate DTC Berhasil!',
                         text: response.message,
-                        background: 'var(--bg-card)',
-                        color: 'var(--text-light)',
-                        confirmButtonColor: 'var(--primary)'
+                        background: '#1e293b',
+                        color: '#f8fafc',
+                        confirmButtonColor: '#10b981'
                     });
                     modal.style.display = 'none';
-                    table.ajax.reload(null, false);
+                    if (typeof table !== 'undefined' && table) {
+                        table.ajax.reload(null, false);
+                    }
+                } else if (response.status === 'warning') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Informasi',
+                        text: response.message,
+                        background: '#1e293b',
+                        color: '#f8fafc',
+                        confirmButtonColor: '#f59e0b'
+                    });
                 } else {
                     Swal.fire({
                         icon: 'error',
-                        title: 'Oops...',
+                        title: 'Gagal Generate DTC',
                         text: response.message,
-                        background: 'var(--bg-card)',
-                        color: 'var(--text-light)',
-                        confirmButtonColor: 'var(--danger)'
+                        background: '#1e293b',
+                        color: '#f8fafc',
+                        confirmButtonColor: '#ef4444'
                     });
                 }
             },
-            error: function () {
-                btn.prop('disabled', false).html('<i class="fa-solid fa-floppy-disk"></i> Save DTC');
+            error: function (xhr) {
+                btn.prop('disabled', false).html(origHtml);
+                let errMsg = 'Terjadi kesalahan sistem saat membuat DTC Parameter.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errMsg = xhr.responseJSON.message;
+                }
                 Swal.fire({
                     icon: 'error',
-                    title: 'Error',
-                    text: 'Failed to connect to server',
-                    background: 'var(--bg-card)',
-                    color: 'var(--text-light)',
-                    confirmButtonColor: 'var(--danger)'
+                    title: 'Error Server',
+                    text: errMsg,
+                    background: '#1e293b',
+                    color: '#f8fafc',
+                    confirmButtonColor: '#ef4444'
                 });
             }
         });
@@ -987,7 +1005,7 @@ $(document).ready(function () {
         }
     });
 
-    // --- Import Excel Flow ---
+    // --- Import Excel Flow (Disabled) ---
     const modalImport = document.getElementById('modal-import-dtc');
     const modalPreview = document.getElementById('modal-preview-excel');
     let parsedExcelData = [];
@@ -1396,119 +1414,7 @@ window.deleteDTC = function (param_id) {
     });
 };
 
-// Modal Generate Bulan Ini
-$(document).on('click', '#btn-generate-month-modal', function () {
-    if (typeof window.currentIsAdmin !== 'undefined' && !window.currentIsAdmin) {
-        Swal.fire({
-            icon: 'error',
-            title: 'Akses Ditolak',
-            text: 'Hanya Admin yang dapat menggunakan fitur Generate Bulan Ini.',
-            background: '#1e293b',
-            color: '#f8fafc',
-            confirmButtonColor: '#ef4444'
-        });
-        return;
-    }
-    $('#modal-generate-month').css('display', 'flex');
-});
 
-$(document).on('click', '#btn-close-gen-modal, #btn-cancel-gen', function () {
-    $('#modal-generate-month').hide();
-});
-
-$(document).on('submit', '#form-generate-month', function (e) {
-    e.preventDefault();
-
-    let sourceMonth = $('#gen_source_month').val();
-    let targetMonth = $('#gen_target_month').val();
-
-    if (!sourceMonth || !targetMonth) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Form Belum Lengkap',
-            text: 'Bulan asal dan bulan tujuan wajib diisi.',
-            background: '#1e293b',
-            color: '#f8fafc',
-            confirmButtonColor: '#3b82f6'
-        });
-        return;
-    }
-
-    if (sourceMonth === targetMonth) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Bulan Sama',
-            text: 'Bulan asal (bulan lalu) dan bulan tujuan (bulan ini) tidak boleh sama.',
-            background: '#1e293b',
-            color: '#f8fafc',
-            confirmButtonColor: '#3b82f6'
-        });
-        return;
-    }
-
-    let btn = $('#btn-submit-gen');
-    let origHtml = btn.html();
-    btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Mengenerate...');
-
-    $.ajax({
-        url: 'Script/php/dtc/c_dtc_generate_month.php',
-        type: 'POST',
-        data: {
-            source_month: sourceMonth,
-            target_month: targetMonth
-        },
-        dataType: 'json',
-        success: function (res) {
-            btn.prop('disabled', false).html(origHtml);
-            if (res.status === 'success') {
-                $('#modal-generate-month').hide();
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Generate Berhasil!',
-                    html: res.message.replace(/\n/g, '<br>'),
-                    background: '#1e293b',
-                    color: '#f8fafc',
-                    confirmButtonColor: '#10b981'
-                });
-                if (typeof loadRunningModels === 'function') {
-                    loadRunningModels();
-                }
-                if ($('#dtc-table').length && $.fn.DataTable.isDataTable('#dtc-table')) {
-                    $('#dtc-table').DataTable().ajax.reload(null, false);
-                }
-            } else if (res.status === 'warning') {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Perhatian',
-                    text: res.message,
-                    background: '#1e293b',
-                    color: '#f8fafc',
-                    confirmButtonColor: '#f59e0b'
-                });
-            } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Gagal!',
-                    text: res.message,
-                    background: '#1e293b',
-                    color: '#f8fafc',
-                    confirmButtonColor: '#ef4444'
-                });
-            }
-        },
-        error: function () {
-            btn.prop('disabled', false).html(origHtml);
-            Swal.fire({
-                icon: 'error',
-                title: 'Error Server!',
-                text: 'Terjadi kesalahan sistem saat memproses request generate.',
-                background: '#1e293b',
-                color: '#f8fafc',
-                confirmButtonColor: '#ef4444'
-            });
-        }
-    });
-});
 
 // ==============================================================================
 // BULK MEASUREMENT INPUT FOR ALL RUNNING MODELS (MASTER FULLSCREEN FORM)

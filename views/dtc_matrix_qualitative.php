@@ -2,6 +2,7 @@
 // views/dtc_matrix_qualitative.php
 
 $param_id = $_GET['param_id'] ?? $_GET['parameter_id'] ?? 0;
+$checkpoint_id = $_GET['checkpoint_id'] ?? $_GET['cp_id'] ?? 0;
 $model = $_GET['model'] ?? '';
 $line = $_GET['line'] ?? '';
 $section = $_GET['section'] ?? '';
@@ -288,7 +289,12 @@ if (empty($model) || empty($line) || empty($section)) {
             <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.08); border-left: 4px solid #38bdf8; border-radius: 10px; padding: 10px 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
                     <span style="font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Active Checkpoint Information</span>
-                    <i class="fa-solid fa-clipboard-check" style="color: #38bdf8; font-size: 13px;"></i>
+                    <div style="display:flex; align-items:center; gap: 8px;">
+                        <a id="btn-qual-download-pdf-card" class="btn-cp-pdf-link" href="Script/php/dtc/c_missing_data_monthly_report.php?format=pdf&month=<?= urlencode($month) ?>&param_id=<?= intval($param_id) ?><?= !empty($checkpoint_id) ? '&checkpoint_id=' . intval($checkpoint_id) : '' ?>" target="_blank" title="Print atau Simpan Laporan Checkpoint sebagai PDF" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: 1px solid rgba(239, 68, 68, 0.5); padding: 2px 10px; border-radius: 5px; font-size: 11px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(239,68,68,0.3); transition: all 0.2s ease;">
+                            <i class="fa-solid fa-print"></i> Print / Save PDF
+                        </a>
+                        <i class="fa-solid fa-clipboard-check" style="color: #38bdf8; font-size: 13px;"></i>
+                    </div>
                 </div>
                 <div id="qual-kpi-cp-name" style="font-size: 14px; font-weight: 700; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 6px;">-</div>
                 
@@ -336,7 +342,12 @@ if (empty($model) || empty($line) || empty($section)) {
                 <div>
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
                         <span style="font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Active Checkpoint Information</span>
-                        <i class="fa-solid fa-bullseye" style="color: #38bdf8; font-size: 13px;"></i>
+                        <div style="display:flex; align-items:center; gap: 8px;">
+                            <a id="btn-quant-download-pdf-card" class="btn-cp-pdf-link" href="Script/php/dtc/c_missing_data_monthly_report.php?format=pdf&month=<?= urlencode($month) ?>&param_id=<?= intval($param_id) ?><?= !empty($checkpoint_id) ? '&checkpoint_id=' . intval($checkpoint_id) : '' ?>" target="_blank" title="Print atau Simpan Laporan Checkpoint sebagai PDF" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: 1px solid rgba(239, 68, 68, 0.5); padding: 2px 10px; border-radius: 5px; font-size: 11px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(239,68,68,0.3); transition: all 0.2s ease;">
+                                <i class="fa-solid fa-print"></i> Print / Save PDF
+                            </a>
+                            <i class="fa-solid fa-bullseye" style="color: #38bdf8; font-size: 13px;"></i>
+                        </div>
                     </div>
                     <div id="kpi-cp-name" style="font-size: 14px; font-weight: 700; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 6px;">-</div>
                     
@@ -408,6 +419,9 @@ if (empty($model) || empty($line) || empty($section)) {
                 <button id="btn-open-quant-input" style="background: linear-gradient(135deg, #2563eb, #3b82f6); color: white; border: none; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; box-shadow: 0 4px 12px rgba(37,99,235,0.4); transition: all 0.2s; display: flex; align-items: center; gap: 6px;">
                     <i class="fa-solid fa-keyboard"></i> Input / Update Data
                 </button>
+                <a id="btn-quant-download-pdf" class="btn-cp-pdf-link" href="Script/php/dtc/c_missing_data_monthly_report.php?format=pdf&month=<?= urlencode($month) ?>&param_id=<?= intval($param_id) ?><?= !empty($checkpoint_id) ? '&checkpoint_id=' . intval($checkpoint_id) : '' ?>" target="_blank" title="Print atau Simpan Laporan Checkpoint sebagai PDF" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: 1px solid rgba(239, 68, 68, 0.5); padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(239,68,68,0.4); transition: all 0.2s ease;">
+                    <i class="fa-solid fa-print"></i> Print / Save PDF
+                </a>
             </div>
         </div>
 

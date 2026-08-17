@@ -9,7 +9,7 @@ $(document).ready(function () {
         dataType: 'json',
         success: function (res) {
             if (res.status === 'success' && res.months) {
-                let monthOpts = '<option value="">Semua Bulan Lalu</option>';
+                let monthOpts = '<option value="">Semua Bulan (s/d H-1)</option>';
                 res.months.forEach(m => {
                     monthOpts += `<option value="${m.target_month}">${m.label}</option>`;
                 });

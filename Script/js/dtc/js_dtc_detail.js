@@ -1,9 +1,27 @@
 // js_dtc_detail.js
 
 $(document).ready(function () {
-    // Retrieve specs dynamically from hidden inputs set by PHP
-    const LSL = parseFloat(document.getElementById('spec_lsl').value) || 0;
-    const USL = parseFloat(document.getElementById('spec_usl').value) || 0;
+    let LSL = null;
+    let USL = null;
+
+    // Helper to safely get LSL / USL specs
+    function getSpecLSL() {
+        const el = document.getElementById('spec_lsl');
+        if (el && el.value !== null && el.value !== '') {
+            const val = parseFloat(el.value);
+            if (!isNaN(val)) return val;
+        }
+        return null;
+    }
+
+    function getSpecUSL() {
+        const el = document.getElementById('spec_usl');
+        if (el && el.value !== null && el.value !== '') {
+            const val = parseFloat(el.value);
+            if (!isNaN(val)) return val;
+        }
+        return null;
+    }
 
     // Helper to get URL parameters
     const urlParams = new URLSearchParams(window.location.search);
@@ -44,6 +62,19 @@ $(document).ready(function () {
                 let data = response.matrix || [];
                 let chartData = response.charts || {};
 
+                // Determine LSL & USL specs safely
+                let specLSL = getSpecLSL();
+                if (specLSL === null && response.lsl !== undefined && response.lsl !== null && response.lsl !== '') {
+                    specLSL = parseFloat(response.lsl);
+                }
+                let specUSL = getSpecUSL();
+                if (specUSL === null && response.usl !== undefined && response.usl !== null && response.usl !== '') {
+                    specUSL = parseFloat(response.usl);
+                }
+
+                LSL = specLSL;
+                USL = specUSL;
+
                 // If server found data in a different month (fallback), use that month
                 const displayMonth = response.actual_month || currentMonth;
                 const [dmYear, dmMonth] = displayMonth.split('-');
@@ -72,7 +103,7 @@ $(document).ready(function () {
 
                 // Build data rows
                 data.forEach(function (row) {
-                    let isSummary = (row.jam === "Max Data" || row.jam === "Min Data");
+                    let isSummary = (row.jam === "Max Data" || row.jam === "Min Data" || row.jam === "Zst" || row.jam === "Zlt");
                     let trClass = isSummary ? "summary-row" : "";
 
                     let tr = `<tr class="${trClass}">`;
@@ -92,8 +123,11 @@ $(document).ready(function () {
 
                         if (!isSummary && !isUnmeasured) {
                             let parsedVal = parseFloat(val);
-                            if (parsedVal < LSL || parsedVal > USL) {
-                                cellClass = "oos-cell";
+                            if (!isNaN(parsedVal)) {
+                                if ((specLSL !== null && !isNaN(specLSL) && parsedVal < specLSL) || 
+                                    (specUSL !== null && !isNaN(specUSL) && parsedVal > specUSL)) {
+                                    cellClass = "oos-cell";
+                                }
                             }
                         }
 
@@ -478,7 +512,7 @@ $(document).ready(function () {
                             capabilityData.push({ x: x, y: y });
                         }
                     } else {
-                        // std = 0 : all values are constant, show stats but mark Z/Cp as ∞
+                        // std = 0 : all values are constant. Check if constant value is IN SPEC or OUT OF SPEC!
                         let maxData = Math.max(...allSamples);
                         let minData = Math.min(...allSamples);
                         $("#summ-n").text(allSamples.length);
@@ -486,13 +520,32 @@ $(document).ready(function () {
                         $("#summ-min").text(kendo.toString(minData, "n2"));
                         $("#summ-avg").text(kendo.toString(mean, "n2"));
                         $("#summ-std").text("0.00");
-                        $("#summ-cp").text("∞").css({ "color": "var(--accent)", "font-weight": "bold" });
-                        $("#summ-cpk").text("∞").css({ "color": "var(--accent)", "font-weight": "bold" });
-                        $("#summ-zst").text("∞").css({ "color": "var(--primary)", "font-weight": "bold" });
-                        $("#summ-zlt").text("∞").css({ "color": "var(--primary)", "font-weight": "bold" });
-                        $("#chart-4block").html('<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#10b981;font-size:13px;flex-direction:column;gap:8px;"><i class="fa-solid fa-infinity" style="font-size:28px;opacity:0.8;"></i><span>Semua data seragam (Std Dev = 0)<br>Process Capability = ∞ (Perfect)</span></div>');
-                        if ($("#ai-insight-box").length) {
-                            $("#ai-insight-box").html(`✅ <strong>Data Konstan / Zero Variance.</strong> Semua nilai pengukuran identik (= ${kendo.toString(mean, "n2")}). Standar deviasi = 0, sehingga Cp, Cpk, Zst, dan Zlt bernilai tak terhingga (∞) — yang secara teori menunjukkan proses sempurna. Pastikan data yang diinput sudah benar dan mencerminkan variasi aktual proses.`).css("color", "var(--text-light)");
+
+                        let isConstOos = false;
+                        if (specLSL !== null && !isNaN(specLSL) && mean < specLSL) isConstOos = true;
+                        if (specUSL !== null && !isNaN(specUSL) && mean > specUSL) isConstOos = true;
+
+                        if (isConstOos) {
+                            $("#summ-cp").text("0.00").css({ "color": "#f87171", "font-weight": "bold" });
+                            $("#summ-cpk").text("0.00").css({ "color": "#f87171", "font-weight": "bold" });
+                            $("#summ-zst").text("0.00").css({ "color": "#f87171", "font-weight": "bold" });
+                            $("#summ-zlt").text("0.00").css({ "color": "#f87171", "font-weight": "bold" });
+                            $("#chart-4block").html('<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#f87171;font-size:13px;flex-direction:column;gap:8px;text-align:center;padding:10px;"><i class="fa-solid fa-triangle-exclamation" style="font-size:28px;"></i><span>Data Konstan di Luar Spesifikasi (OOS/NG)<br>Rata-rata (' + kendo.toString(mean, "n2") + ') di luar batas spec.<br>Process Capability = 0.00 (Kritis)</span></div>');
+                            if ($("#ai-insight-box").length) {
+                                $("#ai-insight-box").html(`🚨 <strong>Out of Spec (OOS / NG).</strong> Seluruh data sampel bernilai ${kendo.toString(mean, "n2")} di luar batas spesifikasi (${specLSL !== null ? specLSL : '-'} — ${specUSL !== null ? specUSL : '-'}). Performa proses tidak memenuhi syarat (Cp = 0.00, Cpk = 0.00).`).css("color", "#f87171");
+                            }
+                            if ($("#trend-insight-box").length) {
+                                $("#trend-insight-box").html(`🚨 <strong>Kritis:</strong> Data bulan ini terdeteksi Out of Spec (OOS/NG). Segera lakukan tindakan korektif!`).css("color", "#f87171");
+                            }
+                        } else {
+                            $("#summ-cp").text("∞").css({ "color": "var(--accent)", "font-weight": "bold" });
+                            $("#summ-cpk").text("∞").css({ "color": "var(--accent)", "font-weight": "bold" });
+                            $("#summ-zst").text("∞").css({ "color": "var(--primary)", "font-weight": "bold" });
+                            $("#summ-zlt").text("∞").css({ "color": "var(--primary)", "font-weight": "bold" });
+                            $("#chart-4block").html('<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#10b981;font-size:13px;flex-direction:column;gap:8px;"><i class="fa-solid fa-infinity" style="font-size:28px;opacity:0.8;"></i><span>Semua data seragam (Std Dev = 0)<br>Process Capability = ∞ (Perfect)</span></div>');
+                            if ($("#ai-insight-box").length) {
+                                $("#ai-insight-box").html(`✅ <strong>Data Konstan / Zero Variance.</strong> Semua nilai pengukuran identik (= ${kendo.toString(mean, "n2")}) dan berada di dalam batas spesifikasi.`).css("color", "var(--text-light)");
+                            }
                         }
                     }
 

@@ -2,6 +2,7 @@
 // Fetch Header Data
 require_once 'config/config.php';
 $param_id = isset($_GET['param_id']) ? intval($_GET['param_id']) : 0;
+$checkpoint_id = isset($_GET['checkpoint_id']) ? intval($_GET['checkpoint_id']) : 0;
 $month = isset($_GET['month']) ? $_GET['month'] : date('Y-m');
 $headerData = null;
 
@@ -149,9 +150,10 @@ if ($param_id > 0) {
             color: #10b981;
         }
         .matrix-table .oos-cell {
-            background-color: rgba(239, 68, 68, 0.3);
-            color: #fca5a5;
-            font-weight: bold;
+            background-color: rgba(239, 68, 68, 0.45) !important;
+            color: #ffffff !important;
+            font-weight: 800 !important;
+            box-shadow: inset 0 0 6px rgba(239, 68, 68, 0.6) !important;
         }
         /* Dense 1-Screen Grid */
         .dense-dashboard {
@@ -247,6 +249,8 @@ if ($param_id > 0) {
     </style>
 
     <?php if($headerData): ?>
+    <input type="hidden" id="spec_lsl" value="<?= htmlspecialchars($headerData['lsl'] ?? '') ?>">
+    <input type="hidden" id="spec_usl" value="<?= htmlspecialchars($headerData['usl'] ?? '') ?>">
     <!-- DTC Detail Header Section -->
     <div class="card" style="margin-bottom: 15px; padding: 12px 15px; border-left: 4px solid var(--primary);">
         <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 0 0 8px 0; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); min-height: auto; position: relative;">
@@ -288,19 +292,22 @@ if ($param_id > 0) {
                 });
             </script>
             <span class="detail-header-title" style="font-size: 13px; font-weight: bold; position: absolute; left: 50%; transform: translateX(-50%);">DETAIL INFORMATION</span>
-            <div style="z-index: 1;">
+            <div style="z-index: 1; display: flex; align-items: center; gap: 8px;">
                 <?php if (!empty($headerData['target_month']) && $headerData['target_month'] < date('Y-m')): ?>
                     <span style="background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid rgba(239,68,68,0.4); padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; gap: 5px;">
                         <i class="fa-solid fa-lock"></i> Periode Bulan Lalu (Terkunci Total)
                     </span>
                 <?php else: ?>
-                    <button id="btn-input-data" style="background-color: var(--primary); color: white; border: none; padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; margin-right: 8px; font-weight: bold;">
+                    <button id="btn-input-data" style="background-color: var(--primary); color: white; border: none; padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">
                         <i class="fa-solid fa-keyboard"></i> Input / Update Data
                     </button>
                     <button id="btn-edit-header" style="background: transparent; border: 1px solid var(--primary); color: var(--primary); padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">
                         <i class="fa-solid fa-pen-to-square"></i> Edit
                     </button>
                 <?php endif; ?>
+                <a href="Script/php/dtc/c_missing_data_monthly_report.php?format=pdf&month=<?= urlencode($month) ?>&param_id=<?= intval($param_id) ?><?= $checkpoint_id > 0 ? '&checkpoint_id=' . $checkpoint_id : '' ?>" target="_blank" title="Print atau Simpan Laporan DTC sebagai PDF" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: 1px solid rgba(239, 68, 68, 0.5); padding: 4px 14px; border-radius: 6px; font-size: 12px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(239,68,68,0.4); transition: all 0.2s ease;">
+                    <i class="fa-solid fa-print"></i> Print / Save PDF
+                </a>
             </div>
         </div>
         <div class="header-grid" style="grid-template-columns: 1fr 1.2fr 1fr <?= $headerData['measuring_item'] === 'Quantitative' ? '1.5fr ' : '' ?>auto; gap: 15px;">

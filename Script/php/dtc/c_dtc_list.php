@@ -17,10 +17,13 @@ try {
     if (isset($_GET['action']) && $_GET['action'] === 'get_months') {
         $stmtMonths = $conn->prepare("
             SELECT DISTINCT p.target_month,
-                   DATE_FORMAT(STR_TO_DATE(CONCAT(p.target_month, '-01'), '%Y-%m-%d'), '%b %Y') as label
+                   CASE 
+                       WHEN p.target_month = :current_month THEN CONCAT(DATE_FORMAT(STR_TO_DATE(CONCAT(p.target_month, '-01'), '%Y-%m-%d'), '%b %Y'), ' (s/d H-1)')
+                       ELSE DATE_FORMAT(STR_TO_DATE(CONCAT(p.target_month, '-01'), '%Y-%m-%d'), '%b %Y')
+                   END as label
             FROM dtc_master_parameters p
             LEFT JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id
-            WHERE p.target_month IS NOT NULL AND p.target_month < :current_month
+            WHERE p.target_month IS NOT NULL AND p.target_month <= :current_month
             " . getIPAccessFilterSQL('COALESCE(p.line_name, spec.line_name)', 'COALESCE(p.section_name, spec.section_name)') . "
             " . getUserAccessFilterSQL('COALESCE(p.line_name, spec.line_name)', 'COALESCE(p.section_name, spec.section_name)') . "
             ORDER BY p.target_month DESC
@@ -38,7 +41,7 @@ try {
         $wherePeriod = " AND p.target_month = :current_month ";
         $queryParams[':current_month'] = $currentMonth;
     } else if ($period === 'history') {
-        $wherePeriod = " AND (p.target_month < :current_month OR p.target_month IS NULL) ";
+        $wherePeriod = " AND (p.target_month <= :current_month OR p.target_month IS NULL) ";
         $queryParams[':current_month'] = $currentMonth;
     }
 
@@ -117,7 +120,9 @@ try {
 
     $oos_only = trim($_GET['oos_only'] ?? '0');
     if ($oos_only === '1') {
-        $dateCondOOSFilter = " AND DATE_FORMAT(s.inspection_date, '%Y-%m') = p.target_month ";
+        $dateCondOOSFilter = ($period === 'history')
+            ? " AND DATE_FORMAT(s.inspection_date, '%Y-%m') = p.target_month AND (p.target_month < '$currentMonth' OR s.inspection_date < '$prodToday') "
+            : " AND DATE_FORMAT(s.inspection_date, '%Y-%m') = p.target_month ";
         $wherePeriod .= " AND EXISTS (
             SELECT 1 
             FROM dtc_measurements m 
@@ -303,7 +308,9 @@ try {
     $oosMap = [];
     if (!empty($paramIds)) {
         $inClause = implode(',', array_map('intval', $paramIds));
-        $dateCondOOSCount = " AND DATE_FORMAT(s.inspection_date, '%Y-%m') = p.target_month ";
+        $dateCondOOSCount = ($period === 'history')
+            ? " AND DATE_FORMAT(s.inspection_date, '%Y-%m') = p.target_month AND (p.target_month < '$currentMonth' OR s.inspection_date < '$prodToday') "
+            : " AND DATE_FORMAT(s.inspection_date, '%Y-%m') = p.target_month ";
         $sqlOOS = "
             SELECT s.parameter_id, COUNT(*) as total_oos
             FROM dtc_measurements m

@@ -238,7 +238,7 @@ if ($currentUserRole !== 'admin' && strpos($currentUserRole, 'supervisor') === f
 
 <!-- MODAL PREVIEW & DOWNLOAD PERFORMANCE BULANAN -->
 <div id="modal-monthly-performance" class="modal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.75); backdrop-filter: blur(5px); align-items: center; justify-content: center;">
-    <div class="modal-content" style="background: var(--bg-card); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; width: 92%; max-width: 1100px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.6);">
+    <div class="modal-content" style="background: var(--bg-card); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; width: 96%; max-width: 1400px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.6);">
         <div class="modal-header" style="padding: 16px 24px; background: linear-gradient(90deg, rgba(16,185,129,0.2) 0%, transparent 100%); border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
             <h3 style="margin: 0; font-size: 18px; font-weight: 800; color: #34d399; display: flex; align-items: center; gap: 8px;">
                 <i class="fa-solid fa-chart-column"></i> <span id="perf-modal-title">Laporan Performance Bulanan Stasiun</span>
@@ -256,6 +256,9 @@ if ($currentUserRole !== 'admin' && strpos($currentUserRole, 'supervisor') === f
         <div class="modal-footer" style="padding: 14px 24px; background: rgba(15,23,42,0.8); border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
             <span style="font-size: 12px; color: var(--text-muted);" id="perf-modal-info">Previewing Monthly Station Time Check Compliance Report</span>
             <div style="display: flex; gap: 10px;">
+                <button id="btn-download-modal-pdf" class="btn-rich-danger" style="padding: 8px 18px; font-size: 13px; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                    <i class="fa-solid fa-print"></i> Print / Save PDF
+                </button>
                 <button id="btn-download-modal-excel" class="btn-rich-success" style="padding: 8px 18px; font-size: 13px; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer;">
                     <i class="fa-solid fa-file-excel"></i> Download Excel (.xls)
                 </button>

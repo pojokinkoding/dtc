@@ -1836,6 +1836,10 @@ function updateQuantKPICards(cp, paramInfo) {
     $('#kpi-spec-target').text(target !== null ? target : '-');
     $('#kpi-spec-usl').text(usl !== null ? usl : '-');
 
+    // Update Download PDF buttons dynamically
+    let pdfUrl = `Script/php/dtc/c_missing_data_monthly_report.php?format=pdf&month=${encodeURIComponent(matrixMonth)}&param_id=${cp.parameter_id}&checkpoint_id=${cp.checkpoint_id}`;
+    $('.btn-cp-pdf-link, #btn-quant-download-pdf, #btn-quant-download-pdf-card, #btn-qual-download-pdf-card').attr('href', pdfUrl);
+
     // Calculate metrics across all matrix measurements
     let allSamples = [];
     let latestVal = null;
@@ -1954,6 +1958,10 @@ function updateQualKPICards(cp) {
     // KPI 1: Checkpoint & Spec Info
     $('#qual-kpi-cp-name').text(cp.checkpoint_name);
     $('#qual-kpi-spec-val').text(cp.spec_value || '-');
+
+    // Update Download PDF buttons dynamically
+    let pdfUrl = `Script/php/dtc/c_missing_data_monthly_report.php?format=pdf&month=${encodeURIComponent(matrixMonth)}&param_id=${cp.parameter_id}&checkpoint_id=${cp.checkpoint_id}`;
+    $('.btn-cp-pdf-link, #btn-quant-download-pdf, #btn-quant-download-pdf-card, #btn-qual-download-pdf-card').attr('href', pdfUrl);
 
     let okCount = 0;
     let ngCount = 0;

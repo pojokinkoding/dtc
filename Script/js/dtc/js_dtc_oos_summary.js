@@ -42,7 +42,6 @@ $(document).ready(function () {
                 }
             },
             error: function (xhr, status, error) {
-                console.error("OOS Load Error:", error);
                 Swal.fire({ icon: 'error', title: 'Koneksi Gagal!', text: 'Gagal terhubung ke server untuk memuat data Out of Spec.', background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#ef4444' });
             }
         });

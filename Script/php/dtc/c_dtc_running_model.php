@@ -42,11 +42,7 @@ try {
         $stmt->execute([':m' => $month]);
         $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // DEBUG: Check if ALPHA 4.5 exists in master parameters
-        $debugStmt = $conn->query("SELECT COUNT(*) FROM dtc_master_parameters WHERE model_name = 'ALPHA 4.5'");
-        $alphaCount = $debugStmt->fetchColumn();
-
-        echo json_encode(['status' => 'success', 'data' => $data, 'debug_alpha_count' => $alphaCount]);
+        echo json_encode(['status' => 'success', 'data' => $data]);
         exit;
     }
 

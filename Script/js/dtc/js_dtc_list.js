@@ -1495,8 +1495,6 @@ window.loadBulkFormData = function loadBulkFormData() {
     let modelVal = window.currentBulkFilterModel || '';
     let paramVal = window.currentBulkFilterParamId || 0;
 
-    console.log('[DEBUG BULK] Loading Bulk Form Data with params:', { line: lineVal, section: sectionVal, model: modelVal, param_id: paramVal, date: dateVal });
-
     $('#bulk-empty-state').hide();
     $('#bulk-loading-state').show();
     $('#form-bulk-save').hide();
@@ -1514,11 +1512,9 @@ window.loadBulkFormData = function loadBulkFormData() {
         },
         dataType: 'json',
         success: function (res) {
-            console.log('[DEBUG BULK] AJAX Response Received:', res);
             $('#bulk-loading-state').hide();
 
             if (res.status !== 'success' || !res.models || res.models.length === 0) {
-                console.warn('[DEBUG BULK] Warning or No models found:', res.message);
                 let warningMsg = res.message || 'Tidak ada Running Model aktif ditemukan.';
                 $('#bulk-items-container').html(`
                     <div style="text-align:center; padding:60px 20px; color:#94a3b8;">
@@ -1538,7 +1534,6 @@ window.loadBulkFormData = function loadBulkFormData() {
             window.currentBulkTimeLabels = res.time_labels || [];
             window.currentIsAdmin = !!res.is_admin;
 
-            console.log('[DEBUG BULK] Rendering models count:', res.models.length, 'Time labels:', res.time_labels);
             renderBulkAllModelsForm(res.models, res.time_labels);
             $('#form-bulk-save').show();
             $('#btn-submit-bulk-save').show();
@@ -1546,7 +1541,6 @@ window.loadBulkFormData = function loadBulkFormData() {
             highlightUnfilledCellsAndAlarm();
         },
         error: function (xhr, status, error) {
-            console.error('[DEBUG BULK] AJAX Error:', { status: status, error: error, responseText: xhr.responseText });
             $('#bulk-loading-state').hide();
             $('#bulk-empty-state').show();
             Swal.fire({

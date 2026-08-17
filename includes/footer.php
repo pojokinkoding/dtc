@@ -14,7 +14,7 @@
     <script src="assets/js/select2.min.js"></script>
     <script src="assets/js/xlsx.full.min.js"></script>
     
-    <?php if($page == 'dashboard' || $page == 'dtc_dashboard' || $page == 'dtc_detail'): ?>
+    <?php if($page == 'dtc_detail'): ?>
         <script src="Script/js/dtc/js_dtc_detail.js?v=<?= time() ?>"></script>
         <?php if(isset($headerData) && isset($headerData['measuring_item']) && $headerData['measuring_item'] == 'Qualitative'): ?>
             <script src="Script/js/dtc/js_dtc_qualitative.js?v=<?= time() ?>"></script>

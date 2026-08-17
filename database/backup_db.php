@@ -31,6 +31,5 @@ if ($returnVar === 0) {
     }
 } else {
     echo "<h2 style='color: red;'>Backup Gagal (Error Code: $returnVar)</h2>";
-    echo "<pre>" . print_r($output, true) . "</pre>";
 }
 ?>

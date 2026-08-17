@@ -652,7 +652,6 @@ $(document).ready(function () {
 
             },
             error: function (err) {
-                console.error("Failed to fetch matrix data", err);
             }
         });
 
@@ -815,7 +814,6 @@ $(document).ready(function () {
                 $("#chart-ztrend").after(`<div class="custom-ztrend-legend">${customLegendHtml}</div>`);
             },
             error: function (err) {
-                console.error("Failed to fetch ztrend data", err);
             }
         });
     }

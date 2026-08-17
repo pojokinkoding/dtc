@@ -30,7 +30,6 @@ switch ($page) {
     case 'dtc_history':
         require_once 'views/dtc_history.php';
         break;
-    case 'dtc_dashboard': // Kept for backward compatibility if old links exist
     case 'dtc_detail':
         require_once 'views/dtc_detail.php';
         break;
@@ -54,9 +53,9 @@ switch ($page) {
         break;
         
     default:
-        // Halaman tidak ditemukan (404), untuk saat ini kembalikan ke dtc.
-        require_once 'views/dtc_dashboard.php';
-        break;
+        // Unknown page, redirect to main page
+        header("Location: index.php?page=dtc");
+        exit;
 }
 
 // 3. Load Footer (which closes the tags)

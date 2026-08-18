@@ -179,7 +179,7 @@
     </div>
 
     <!-- Panel Body Table -->
-    <div id="running-model-table-wrapper" style="display: none; padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.08); overflow-x: auto;">
+    <div id="running-model-table-wrapper" style="display: none; padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.08); overflow-x: auto; max-height: 240px; overflow-y: auto;">
         <table class="rm-table" style="width: 100%; border-collapse: collapse; font-size: 12px;">
             <thead>
                 <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">

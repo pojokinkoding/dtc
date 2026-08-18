@@ -262,7 +262,7 @@ try {
                     ':sid' => $session_id,
                     ':seq' => $seq,
                     ':lbl' => isset($time_labels[$seq - 1]) ? $time_labels[$seq - 1] : "Sample $seq",
-                    ':val' => (string)$raw_val,
+                    ':val' => is_numeric($raw_val) ? (string)round((float)$raw_val, 4) : (string)$raw_val,
                     ':cb' => $operator_id,
                     ':mb' => $operator_id
                 ]);

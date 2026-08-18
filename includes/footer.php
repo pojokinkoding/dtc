@@ -74,7 +74,12 @@
                 if (!contentArea) return;
                 
                 const topbarH = topbar ? topbar.offsetHeight : 52;
-                const contentH = contentArea.offsetHeight || (mainWrapper ? mainWrapper.offsetHeight - topbarH : 0);
+
+                // Exclude the running model expanded panel from height calculation
+                // so expanding it doesn't force a dramatic scale-down
+                const runningPanel = document.querySelector('#running-model-table-wrapper');
+                const runningPanelH = (runningPanel && runningPanel.offsetHeight > 0) ? runningPanel.offsetHeight : 0;
+                const contentH = Math.max(0, (contentArea.offsetHeight - runningPanelH)) || (mainWrapper ? mainWrapper.offsetHeight - topbarH : 0);
                 
                 const naturalHeight = Math.max(topbarH + contentH + 20, 500);
                 const winHeight = window.innerHeight;
@@ -82,7 +87,7 @@
                 let targetScale = (winHeight / naturalHeight) - 0.005;
                 
                 if (targetScale > 1.0) targetScale = 1.0;
-                if (targetScale < 0.65) targetScale = 0.65;
+                if (targetScale < 0.75) targetScale = 0.75;
                 
                 requestAnimationFrame(() => {
                     const body = document.body;

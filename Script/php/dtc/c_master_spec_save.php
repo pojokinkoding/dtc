@@ -3,6 +3,58 @@
 require_once '../../../config/config.php';
 header('Content-Type: application/json');
 
+function ensureMasterSpecCheckpointTable(PDO $conn): void {
+    $conn->exec("CREATE TABLE IF NOT EXISTS dtc_master_spec_checkpoints (
+        master_checkpoint_id INT AUTO_INCREMENT PRIMARY KEY,
+        spec_id INT NOT NULL,
+        checkpoint_name VARCHAR(200) NOT NULL,
+        checkpoint_type VARCHAR(50) NOT NULL DEFAULT 'Qualitative',
+        spec_value VARCHAR(200) DEFAULT NULL,
+        lsl DECIMAL(10,3) DEFAULT NULL,
+        target_value DECIMAL(10,3) DEFAULT NULL,
+        usl DECIMAL(10,3) DEFAULT NULL,
+        reference_image VARCHAR(255) DEFAULT NULL,
+        sort_order INT NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_master_spec_checkpoint (spec_id)
+    )");
+}
+
+function saveMasterSpecCheckpoints(PDO $conn, int $specId, array $checkpoints, array $files): void {
+    $conn->prepare("DELETE FROM dtc_master_spec_checkpoints WHERE spec_id = :spec_id")->execute([':spec_id' => $specId]);
+    $stmt = $conn->prepare("INSERT INTO dtc_master_spec_checkpoints
+        (spec_id, checkpoint_name, checkpoint_type, spec_value, lsl, target_value, usl, reference_image, sort_order)
+        VALUES (:spec_id, :name, :checkpoint_type, :spec_value, :lsl, :target, :usl, :image, :sort_order)");
+
+    foreach ($checkpoints as $index => $checkpoint) {
+        $name = trim($checkpoint['checkpoint_name'] ?? '');
+        if ($name === '') continue;
+        $checkpointType = ($checkpoint['checkpoint_type'] ?? 'Qualitative') === 'Quantitative' ? 'Quantitative' : 'Qualitative';
+        $imagePath = $checkpoint['reference_image'] ?? null;
+        $imageIndex = (int)($checkpoint['image_index'] ?? $index);
+        if (isset($files['name'][$imageIndex]) && $files['error'][$imageIndex] === UPLOAD_ERR_OK) {
+            $ext = strtolower(pathinfo($files['name'][$imageIndex], PATHINFO_EXTENSION));
+            if (!in_array($ext, ['jpg', 'jpeg', 'png', 'gif'], true)) throw new Exception('Format gambar checkpoint harus JPG, JPEG, PNG, atau GIF.');
+            $uploadDir = '../../../uploads/dtc/';
+            if (!is_dir($uploadDir) && !mkdir($uploadDir, 0777, true)) throw new Exception('Folder upload checkpoint tidak dapat dibuat.');
+            $filename = 'master_cp_' . $specId . '_' . time() . '_' . $index . '.' . $ext;
+            if (!move_uploaded_file($files['tmp_name'][$imageIndex], $uploadDir . $filename)) throw new Exception('Gagal mengunggah gambar checkpoint.');
+            $imagePath = 'uploads/dtc/' . $filename;
+        }
+        $stmt->execute([
+            ':spec_id' => $specId,
+            ':name' => $name,
+            ':checkpoint_type' => $checkpointType,
+            ':spec_value' => trim($checkpoint['spec_value'] ?? '') ?: null,
+            ':lsl' => ($checkpoint['lsl'] ?? '') !== '' ? (float)$checkpoint['lsl'] : null,
+            ':target' => ($checkpoint['target_value'] ?? '') !== '' ? (float)$checkpoint['target_value'] : null,
+            ':usl' => ($checkpoint['usl'] ?? '') !== '' ? (float)$checkpoint['usl'] : null,
+            ':image' => $imagePath ?: null,
+            ':sort_order' => $index
+        ]);
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(["status" => "error", "message" => "Invalid method"]);
     exit;
@@ -10,6 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 try {
     $conn = getDBConnection();
+    ensureMasterSpecCheckpointTable($conn);
     
     $spec_id = isset($_POST['spec_id']) && $_POST['spec_id'] !== '' ? intval($_POST['spec_id']) : 0;
     
@@ -21,6 +74,11 @@ try {
     $section_name = $_POST['section_name'] ?? '';
     $process_name = $_POST['process_name'] ?? '';
     $measuring_item = $_POST['measuring_item'] ?? '';
+    $isCheckpointType = in_array(strtoupper(trim($data_type)), ['TIME CHECK', 'F/PROOF'], true);
+    $checkpoints = json_decode($_POST['checkpoints'] ?? '[]', true);
+    if (!is_array($checkpoints)) $checkpoints = [];
+    if ($isCheckpointType && empty($checkpoints)) throw new Exception('Time Check dan F/Proof wajib memiliki minimal satu checkpoint.');
+    if ($isCheckpointType) $measuring_item = 'Qualitative';
     
     $lsl = isset($_POST['lsl']) && $_POST['lsl'] !== '' ? floatval($_POST['lsl']) : 0;
     $usl = isset($_POST['usl']) && $_POST['usl'] !== '' ? floatval($_POST['usl']) : 0;
@@ -78,6 +136,11 @@ try {
             ':target_zlt' => $target_zlt,
             ':spec_id' => $spec_id
         ]);
+        if ($isCheckpointType) {
+            saveMasterSpecCheckpoints($conn, $spec_id, $checkpoints, $_FILES['checkpoint_images'] ?? []);
+        } else {
+            $conn->prepare("DELETE FROM dtc_master_spec_checkpoints WHERE spec_id = :spec_id")->execute([':spec_id' => $spec_id]);
+        }
         echo json_encode(["status" => "success", "message" => "Master Spec updated successfully"]);
     } else {
         // INSERT
@@ -105,6 +168,8 @@ try {
             ':target_zst' => $target_zst,
             ':target_zlt' => $target_zlt
         ]);
+        $newSpecId = (int)$conn->lastInsertId();
+        if ($isCheckpointType) saveMasterSpecCheckpoints($conn, $newSpecId, $checkpoints, $_FILES['checkpoint_images'] ?? []);
         echo json_encode(["status" => "success", "message" => "Master Spec created successfully"]);
     }
 } catch (Exception $e) {

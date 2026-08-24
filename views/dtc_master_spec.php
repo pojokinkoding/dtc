@@ -192,14 +192,15 @@
                     <label style="font-size: 11px; margin-bottom: 4px;">Section Name</label>
                     <select id="section_name" name="section_name" class="form-control" style="padding: 8px; font-size: 12px;" required></select>
                 </div>
-            </div>
-
-            <h4 style="margin-top:20px; font-size: 12px; color: var(--accent); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; margin-bottom: 15px;">2. Process & Specification Details</h4>
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
                 <div class="form-group" style="margin-bottom: 0;">
                     <label style="font-size: 11px; margin-bottom: 4px;">Process Name</label>
                     <input type="text" id="process_name" name="process_name" class="form-control" style="padding: 8px; font-size: 12px;" required>
                 </div>
+            </div>
+
+            <div id="quant-spec-section">
+                <h4 style="margin-top:20px; font-size: 12px; color: var(--accent); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; margin-bottom: 15px;">2. Specification Details</h4>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
                 <div class="form-group" style="margin-bottom: 0;">
                     <label style="font-size: 11px; margin-bottom: 4px;">Measuring Item</label>
                     <?php $isAdmin = (isset($_SESSION['role']) && strtolower(trim($_SESSION['role'])) === 'admin'); ?>
@@ -232,6 +233,23 @@
                 <div class="form-group" style="margin-bottom: 0;">
                     <label style="font-size: 11px; margin-bottom: 4px;">Target Zlt</label>
                     <input type="number" step="0.01" id="target_zlt" name="target_zlt" class="form-control" style="padding: 8px; font-size: 12px;" value="4.00" required>
+                </div>
+                </div>
+            </div>
+
+            <div id="master-checkpoint-section" style="display: none;">
+                <h4 style="margin-top:20px; font-size: 12px; color: var(--accent); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; margin-bottom: 12px;">2. Multiple Add Checkpoints</h4>
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px;">
+                    <span style="font-size:11px; color:var(--text-muted);">Checkpoint akan dibuat otomatis saat Running Model ditambahkan.</span>
+                    <button type="button" id="btn-add-master-cp-row" class="btn-rich-secondary" style="padding:5px 10px; font-size:11px;"><i class="fa-solid fa-plus"></i> Tambah Checkpoint</button>
+                </div>
+                <div style="overflow:auto; border:1px solid rgba(255,255,255,0.1); border-radius:6px;">
+                    <table style="width:100%; min-width:780px; border-collapse:collapse; font-size:11px;">
+                        <thead><tr style="color:var(--text-muted); text-align:left; border-bottom:1px solid rgba(255,255,255,0.1);">
+                            <th style="padding:8px; width:35px;">No</th><th style="padding:8px;">Checkpoint Name *</th><th style="padding:8px; width:115px;">Type</th><th style="padding:8px;">Spec Value</th><th style="padding:8px; width:82px;">LSL</th><th style="padding:8px; width:82px;">Target</th><th style="padding:8px; width:82px;">USL</th><th style="padding:8px; width:155px;">Reference Image</th><th style="padding:8px; width:40px;"></th>
+                        </tr></thead>
+                        <tbody id="master-checkpoint-tbody"></tbody>
+                    </table>
                 </div>
             </div>
             

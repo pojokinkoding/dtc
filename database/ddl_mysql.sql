@@ -101,6 +101,25 @@ CREATE TABLE IF NOT EXISTS dtc_checkpoints (
 
 CREATE INDEX IF NOT EXISTS idx_checkpoint_param ON dtc_checkpoints (parameter_id);
 
+-- 5a. Template checkpoint pada Master Spec; disalin saat Running Model dibuat.
+CREATE TABLE IF NOT EXISTS dtc_master_spec_checkpoints (
+    master_checkpoint_id INT AUTO_INCREMENT PRIMARY KEY,
+    spec_id INT NOT NULL,
+    checkpoint_name VARCHAR(200) NOT NULL,
+    checkpoint_type VARCHAR(50) NOT NULL DEFAULT 'Qualitative',
+    spec_value VARCHAR(200) DEFAULT NULL,
+    lsl DECIMAL(10, 3) DEFAULT NULL,
+    target_value DECIMAL(10, 3) DEFAULT NULL,
+    usl DECIMAL(10, 3) DEFAULT NULL,
+    reference_image VARCHAR(255) DEFAULT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_master_checkpoint_spec FOREIGN KEY (spec_id)
+        REFERENCES dtc_master_dtc_specs(spec_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_master_spec_checkpoint ON dtc_master_spec_checkpoints (spec_id);
+
 -- 6. Tabel Detail Pengukuran (Penyimpanan Sampel Pengukuran Tunggal secara Vertikal)
 CREATE TABLE IF NOT EXISTS dtc_measurements (
     measurement_id INT AUTO_INCREMENT PRIMARY KEY,

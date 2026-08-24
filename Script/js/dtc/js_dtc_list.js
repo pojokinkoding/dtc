@@ -502,50 +502,73 @@ $(document).ready(function () {
                             $('#rm-active-count-badge').text(`${totalModels} Model${totalModels > 1 ? 's' : ''} (${totalSections} Section${totalSections > 1 ? 's' : ''})`);
                         }
 
-                        let rowsHtml = '';
+                        let tabsNavHtml = '<div class="rm-tabs-nav" style="display: flex; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 15px; padding-bottom: 10px; overflow-x: auto;">';
+                        let tabsContentHtml = '<div class="rm-tabs-content">';
+                        
+                        let isFirstTab = true;
+                        
                         Object.keys(grouped).forEach(secKey => {
                             let group = grouped[secKey];
-                            let itemsHtml = '';
+                            
+                            let safeSecKey = secKey.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+                            
+                            // Create Tab Nav Button
+                            let activeClassNav = isFirstTab ? 'active' : '';
+                            tabsNavHtml += `<button class="rm-tab-btn ${activeClassNav}" data-target="rm-tab-${safeSecKey}" style="padding: 6px 16px; background: ${isFirstTab ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.05)'}; color: ${isFirstTab ? '#38bdf8' : 'var(--text-muted)'}; border: 1px solid ${isFirstTab ? 'rgba(56, 189, 248, 0.4)' : 'transparent'}; border-radius: 6px; cursor: pointer; font-weight: 600; white-space: nowrap; transition: all 0.2s;"><i class="fa-solid fa-industry"></i> ${secKey}</button>`;
+                            
+                            // Group models by data_type
+                            let modelsByDataType = {};
                             group.models.forEach(r => {
-                                let isActive = (activeModelFilter && activeModelFilter.id === r.running_id) ? ' active-filter' : '';
-
-                                let isAdmin = !!window.currentIsAdmin || ((window.userRole || '').toLowerCase().trim() === 'admin');
-                                let userSec = (window.userSectionName || '').toLowerCase().trim();
-                                let rmSec = (r.section_name || '').toLowerCase().trim();
-                                let canDelete = isAdmin || (userSec !== '' && userSec === rmSec);
-
-                                let deleteBtnHtml = canDelete
-                                    ? `<i class="fa-solid fa-times btn-remove-rm" data-id="${r.running_id}" data-section="${r.section_name}" title="Remove Running Model"></i>`
-                                    : '';
-
-                                itemsHtml += `<span class="running-model-badge${isActive}" data-id="${r.running_id}" data-model="${r.model_name}" data-line="${r.line_name}" data-section="${r.section_name}" title="Click to filter table by ${r.model_name}">
-                                            <i class="fa-solid fa-cube"></i> ${r.model_name}
-                                            <i class="fa-solid fa-pen-to-square btn-bulk-input-rm" data-model="${r.model_name}" data-line="${r.line_name}" data-section="${r.section_name}" title="Input Pengukuran Model ${r.model_name}" style="margin-left: 4px; cursor: pointer; color: #60a5fa;"></i>
-                                            ${deleteBtnHtml}
-                                         </span>`;
+                                let dt = (r.data_type && r.data_type.trim() !== '') ? r.data_type.trim() : 'General';
+                                if (!modelsByDataType[dt]) modelsByDataType[dt] = [];
+                                modelsByDataType[dt].push(r);
                             });
+                            
+                            // Create Tab Content Pane
+                            let activeClassPane = isFirstTab ? 'display: block;' : 'display: none;';
+                            tabsContentHtml += `<div class="rm-tab-pane" id="rm-tab-${safeSecKey}" style="${activeClassPane}">`;
+                            
+                            Object.keys(modelsByDataType).forEach(dt => {
+                                tabsContentHtml += `<div style="margin-bottom: 15px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; border-left: 3px solid #38bdf8;">`;
+                                tabsContentHtml += `<div style="font-size: 11px; color: #94a3b8; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fa-solid fa-tag"></i> DATA TYPE: ${dt}</div>`;
+                                tabsContentHtml += `<div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">`;
+                                
+                                modelsByDataType[dt].forEach(r => {
+                                    let isActive = (activeModelFilter && activeModelFilter.id === r.running_id) ? ' active-filter' : '';
 
-                            rowsHtml += `<tr>
-                                            <td style="padding: 10px 12px; vertical-align: middle;">
-                                                <span class="rm-section-badge" title="Section: ${secKey}">
-                                                    <i class="fa-solid fa-industry"></i> ${secKey}
-                                                </span>
-                                            </td>
-                                            <td style="padding: 10px 12px; vertical-align: middle;">
-                                                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-                                                    ${itemsHtml}
-                                                </div>
-                                            </td>
-                                         </tr>`;
+                                    let isAdmin = !!window.currentIsAdmin || ((window.userRole || '').toLowerCase().trim() === 'admin');
+                                    let userSec = (window.userSectionName || '').toLowerCase().trim();
+                                    let rmSec = (r.section_name || '').toLowerCase().trim();
+                                    let canDelete = isAdmin || (userSec !== '' && userSec === rmSec);
+
+                                    let deleteBtnHtml = canDelete
+                                        ? `<i class="fa-solid fa-times btn-remove-rm" data-id="${r.running_id}" data-section="${r.section_name}" title="Remove Running Model"></i>`
+                                        : '';
+
+                                    tabsContentHtml += `<span class="running-model-badge${isActive}" data-id="${r.running_id}" data-model="${r.model_name}" data-line="${r.line_name}" data-section="${r.section_name}" title="Click to filter table by ${r.model_name}">
+                                                <i class="fa-solid fa-cube"></i> ${r.model_name}
+                                                <i class="fa-solid fa-pen-to-square btn-bulk-input-rm" data-model="${r.model_name}" data-line="${r.line_name}" data-section="${r.section_name}" title="Input Pengukuran Model ${r.model_name}" style="margin-left: 4px; cursor: pointer; color: #60a5fa;"></i>
+                                                ${deleteBtnHtml}
+                                             </span>`;
+                                });
+                                tabsContentHtml += `</div></div>`; // End of data type group
+                            });
+                            
+                            tabsContentHtml += `</div>`; // End of tab pane
+                            isFirstTab = false;
                         });
-                        $('#running-model-table-body').html(rowsHtml);
+                        
+                        tabsNavHtml += '</div>';
+                        tabsContentHtml += '</div>';
+                        
+                        $('#running-model-tabs-container').html(tabsNavHtml + tabsContentHtml);
                     } else {
                         if ($('#rm-count-text').length) {
                             $('#rm-count-text').text('0 Models Active');
                         } else {
                             $('#rm-active-count-badge').text('0 Models Active');
                         }
-                        $('#running-model-table-body').html('<tr><td colspan="2" style="padding: 12px; text-align: center; color: #64748b; font-style: italic;">(No models running)</td></tr>');
+                        $('#running-model-tabs-container').html('<div style="padding: 12px; text-align: center; color: #64748b; font-style: italic;">(No models running)</div>');
                     }
 
                     // Redraw table with updated running model filter
@@ -560,6 +583,28 @@ $(document).ready(function () {
             }
         });
     }
+
+    // Handle Tab Click for Running Models
+    $(document).on('click', '.rm-tab-btn', function() {
+        // Remove active class from all buttons and hide all panes
+        $('.rm-tab-btn').css({
+            'background': 'rgba(255,255,255,0.05)',
+            'color': 'var(--text-muted)',
+            'border-color': 'transparent'
+        }).removeClass('active');
+        
+        $('.rm-tab-pane').hide();
+        
+        // Add active class to clicked button and show target pane
+        $(this).css({
+            'background': 'rgba(56, 189, 248, 0.2)',
+            'color': '#38bdf8',
+            'border-color': 'rgba(56, 189, 248, 0.4)'
+        }).addClass('active');
+        
+        let targetId = $(this).data('target');
+        $('#' + targetId).fadeIn(200);
+    });
 
     // Toggle expand/collapse of Running Model Table Panel
     $(document).on('click', '#toggle-running-model-panel', function (e) {
@@ -728,9 +773,10 @@ $(document).ready(function () {
         let lineVal = $('#rm_line_select').val();
         let sectionVal = $('#rm_section_select').val();
         let modelVal = $('#rm_model_select').val();
+        let dataTypeVal = $('#rm_data_type_select').val();
 
-        if (!lineVal || !sectionVal || !modelVal) {
-            Swal.fire({ icon: 'warning', title: 'Form Belum Lengkap!', text: 'Line, Section, and Model Name are required.', background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#3b82f6' });
+        if (!lineVal || !sectionVal || !modelVal || !dataTypeVal) {
+            Swal.fire({ icon: 'warning', title: 'Form Belum Lengkap!', text: 'Line, Section, Model Name, and Data Type are required.', background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#3b82f6' });
             return;
         }
 
@@ -745,7 +791,8 @@ $(document).ready(function () {
                 target_month: $('#form-add-running-model input[name="target_month"]').val(),
                 line_name: lineVal,
                 section_name: sectionVal,
-                model_name: modelVal
+                model_name: modelVal,
+                data_type: dataTypeVal
             },
             dataType: 'json',
             success: function (res) {

@@ -163,6 +163,85 @@ $(document).ready(function () {
     const btnCancel = document.getElementById('btn-cancel-modal');
     const formAdd = document.getElementById('form-master-spec');
 
+    function isCheckpointType() {
+        const type = String($('#data_type').val() || '').toUpperCase();
+        return type === 'TIME CHECK' || type === 'F/PROOF';
+    }
+
+    function masterCheckpointRow(index, checkpoint = {}) {
+        const imageText = checkpoint.reference_image ? `<a href="${checkpoint.reference_image}" target="_blank" style="color:#60a5fa;">Current image</a>` : '';
+        const checkpointType = checkpoint.checkpoint_type || 'Qualitative';
+        return `<tr data-existing-image="${checkpoint.reference_image || ''}">
+            <td class="master-cp-number" style="padding:7px; text-align:center; color:var(--text-muted);"></td>
+            <td style="padding:7px;"><input class="form-control master-cp-name" value="${checkpoint.checkpoint_name || ''}" required style="padding:6px; font-size:11px;"></td>
+            <td style="padding:7px;"><select class="form-control master-cp-type" style="padding:6px; font-size:11px;"><option value="Qualitative" ${checkpointType === 'Qualitative' ? 'selected' : ''}>Qualitative</option><option value="Quantitative" ${checkpointType === 'Quantitative' ? 'selected' : ''}>Quantitative</option></select></td>
+            <td style="padding:7px;"><input class="form-control master-cp-spec" value="${checkpoint.spec_value || ''}" style="padding:6px; font-size:11px;"></td>
+            <td style="padding:7px;"><input type="number" step="0.001" class="form-control master-cp-lsl" value="${checkpoint.lsl ?? ''}" style="padding:6px; font-size:11px;"></td>
+            <td style="padding:7px;"><input type="number" step="0.001" class="form-control master-cp-target" value="${checkpoint.target_value ?? ''}" style="padding:6px; font-size:11px;"></td>
+            <td style="padding:7px;"><input type="number" step="0.001" class="form-control master-cp-usl" value="${checkpoint.usl ?? ''}" style="padding:6px; font-size:11px;"></td>
+            <td style="padding:7px;"><input type="file" accept="image/png,image/jpeg,image/gif" class="master-cp-image" style="font-size:10px; max-width:145px;"><div class="master-cp-current-image" style="font-size:10px; margin-top:3px;">${imageText}</div></td>
+            <td style="padding:7px; text-align:center;"><button type="button" class="btn-remove-master-cp" title="Hapus checkpoint" style="color:#f87171; background:none; border:0; cursor:pointer;"><i class="fa-solid fa-trash"></i></button></td>
+        </tr>`;
+    }
+
+    function renumberMasterCheckpointRows() {
+        $('#master-checkpoint-tbody tr').each(function (index) {
+            $(this).find('.master-cp-number').text(index + 1);
+            $(this).find('.master-cp-image').attr('name', `checkpoint_images[${index}]`);
+        });
+    }
+
+    function syncMasterCheckpointTypeRow($row) {
+        const isQuantitative = $row.find('.master-cp-type').val() === 'Quantitative';
+        const $limits = $row.find('.master-cp-lsl, .master-cp-target, .master-cp-usl');
+        $limits.prop('disabled', !isQuantitative);
+        if (!isQuantitative) $limits.val('');
+        $limits.css('opacity', isQuantitative ? '1' : '0.4');
+    }
+
+    function resetMasterCheckpoints() {
+        $('#master-checkpoint-tbody').html(masterCheckpointRow(0));
+        renumberMasterCheckpointRows();
+        syncMasterCheckpointTypeRow($('#master-checkpoint-tbody tr').first());
+    }
+
+    function syncSpecFormByType() {
+        const checkpoints = isCheckpointType();
+        $('#quant-spec-section').toggle(!checkpoints);
+        $('#master-checkpoint-section').toggle(checkpoints);
+        if (checkpoints) {
+            $('#measuring_item').val('Qualitative');
+            if (!$('#master-checkpoint-tbody tr').length) resetMasterCheckpoints();
+        }
+    }
+
+    function loadMasterSpecCheckpoints(specId) {
+        if (!specId) return resetMasterCheckpoints();
+        $.getJSON('Script/php/dtc/c_master_spec_checkpoints.php', { spec_id: specId }, function (res) {
+            $('#master-checkpoint-tbody').empty();
+            (res.status === 'success' ? res.data : []).forEach((cp, index) => $('#master-checkpoint-tbody').append(masterCheckpointRow(index, cp)));
+            if (!$('#master-checkpoint-tbody tr').length) $('#master-checkpoint-tbody').append(masterCheckpointRow(0));
+            renumberMasterCheckpointRows();
+            $('#master-checkpoint-tbody tr').each(function () { syncMasterCheckpointTypeRow($(this)); });
+        });
+    }
+
+    $('#data_type').on('change', syncSpecFormByType);
+    $(document).on('click', '#btn-add-master-cp-row', function () {
+        $('#master-checkpoint-tbody').append(masterCheckpointRow($('#master-checkpoint-tbody tr').length));
+        renumberMasterCheckpointRows();
+        syncMasterCheckpointTypeRow($('#master-checkpoint-tbody tr').last());
+    });
+    $(document).on('click', '.btn-remove-master-cp', function () {
+        $(this).closest('tr').remove();
+        if (!$('#master-checkpoint-tbody tr').length) $('#master-checkpoint-tbody').append(masterCheckpointRow(0));
+        renumberMasterCheckpointRows();
+        $('#master-checkpoint-tbody tr').each(function () { syncMasterCheckpointTypeRow($(this)); });
+    });
+    $(document).on('change', '.master-cp-type', function () {
+        syncMasterCheckpointTypeRow($(this).closest('tr'));
+    });
+
     // Load dropdown options from API
     function loadSelectOptions(callback = null) {
         $.ajax({
@@ -210,6 +289,8 @@ $(document).ready(function () {
     btnAdd.onclick = function () {
         formAdd.reset();
         $('#spec_id').val('');
+        resetMasterCheckpoints();
+        syncSpecFormByType();
         $('#modal-title').text('Add Master Spec');
         modal.style.display = 'flex';
     }
@@ -237,6 +318,10 @@ $(document).ready(function () {
         $('#uom').val(data.uom);
         $('#target_zst').val(data.target_zst);
         $('#target_zlt').val(data.target_zlt);
+        syncSpecFormByType();
+        if (String(data.data_type).toUpperCase() === 'TIME CHECK' || String(data.data_type).toUpperCase() === 'F/PROOF') {
+            loadMasterSpecCheckpoints(data.spec_id);
+        }
 
         $('#modal-title').text('Edit Master Spec');
         modal.style.display = 'flex';
@@ -281,10 +366,33 @@ $(document).ready(function () {
         let btn = $('#btn-save-spec');
         btn.prop('disabled', true).text('Saving...');
 
+        const formData = new FormData(this);
+        if (isCheckpointType()) {
+            let checkpoints = [];
+            let invalid = false;
+            $('#master-checkpoint-tbody tr').each(function (index) {
+                const name = $(this).find('.master-cp-name').val().trim();
+                if (!name) { invalid = true; return false; }
+                const lsl = $(this).find('.master-cp-lsl').val();
+                const target = $(this).find('.master-cp-target').val();
+                const usl = $(this).find('.master-cp-usl').val();
+                if (lsl !== '' && usl !== '' && Number(lsl) > Number(usl)) { invalid = true; return false; }
+                checkpoints.push({ checkpoint_name: name, checkpoint_type: $(this).find('.master-cp-type').val(), spec_value: $(this).find('.master-cp-spec').val().trim(), lsl, target_value: target, usl, image_index: index, reference_image: $(this).data('existing-image') || '' });
+            });
+            if (invalid || !checkpoints.length) {
+                btn.prop('disabled', false).html('<i class="fa-solid fa-floppy-disk"></i> Save Spec');
+                Swal.fire('Error', 'Minimal satu checkpoint wajib diisi dan LSL tidak boleh lebih besar dari USL.', 'error');
+                return;
+            }
+            formData.append('checkpoints', JSON.stringify(checkpoints));
+        }
+
         $.ajax({
             url: 'Script/php/dtc/c_master_spec_save.php',
             type: 'POST',
-            data: $(this).serialize(),
+            data: formData,
+            processData: false,
+            contentType: false,
             dataType: 'json',
             success: function (response) {
                 btn.prop('disabled', false).html('<i class="fa-solid fa-floppy-disk"></i> Save Spec');

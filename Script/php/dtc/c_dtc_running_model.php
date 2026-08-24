@@ -6,6 +6,22 @@ header('Content-Type: application/json');
 
 try {
     $conn = getDBConnection();
+    // Template checkpoint dari Master Spec. Akan dicopy ke checkpoint runtime saat model diaktifkan.
+    $conn->exec("CREATE TABLE IF NOT EXISTS dtc_master_spec_checkpoints (
+        master_checkpoint_id INT AUTO_INCREMENT PRIMARY KEY,
+        spec_id INT NOT NULL,
+        checkpoint_name VARCHAR(200) NOT NULL,
+        checkpoint_type VARCHAR(50) NOT NULL DEFAULT 'Qualitative',
+        spec_value VARCHAR(200) DEFAULT NULL,
+        lsl DECIMAL(10,3) DEFAULT NULL,
+        target_value DECIMAL(10,3) DEFAULT NULL,
+        usl DECIMAL(10,3) DEFAULT NULL,
+        reference_image VARCHAR(255) DEFAULT NULL,
+        sort_order INT NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_master_spec_checkpoint (spec_id)
+    )");
+    try { $conn->exec("ALTER TABLE dtc_checkpoints ADD COLUMN checkpoint_type VARCHAR(50) DEFAULT 'Qualitative'"); } catch (Exception $e) {}
 
     // Ensure table exists
     $tableSql = "CREATE TABLE IF NOT EXISTS dtc_running_models (
@@ -14,6 +30,7 @@ try {
         line_name VARCHAR(50) NOT NULL,
         section_name VARCHAR(50) NOT NULL,
         model_name VARCHAR(100) NOT NULL,
+        data_type VARCHAR(50) NOT NULL DEFAULT 'General',
         is_active TINYINT(1) DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -33,7 +50,7 @@ try {
     if ($action === 'get') {
         $month = $_GET['month'] ?? $currentMonth;
 
-        $sql = "SELECT running_id, target_month, line_name, section_name, model_name, is_active, created_at 
+        $sql = "SELECT running_id, target_month, line_name, section_name, model_name, data_type, is_active, created_at
                 FROM dtc_running_models 
                 WHERE target_month = :m AND is_active = 1
                 " . getIPAccessFilterSQL('line_name', 'section_name') . getUserAccessFilterSQL('line_name', 'section_name') . "
@@ -88,33 +105,38 @@ try {
 
     if ($action === 'add') {
         $month = $_POST['target_month'] ?? $currentMonth;
-        $line = trim($_POST['line_name'] ?? '');
-        $section = trim($_POST['section_name'] ?? '');
-        $model = trim($_POST['model_name'] ?? '');
+        $line = $_POST['line_name'] ?? '';
+        $section = $_POST['section_name'] ?? '';
+        $model = $_POST['model_name'] ?? '';
+        $dataType = $_POST['data_type'] ?? '';
+        // General means all parameters registered for this model in Master Spec.
+        // The actual type remains on every parameter (CTQ/CTP/Time Check/F/Proof).
+        $isGeneral = strtoupper(trim($dataType)) === 'GENERAL';
 
-        if (empty($line) || empty($section) || empty($model)) {
-            echo json_encode(['status' => 'error', 'message' => 'Line, Section, and Model Name are required.']);
+        if (empty($month) || empty($line) || empty($section) || empty($model) || empty($dataType)) {
+            echo json_encode(['status' => 'error', 'message' => 'Missing required fields (month, line, section, model, data type)']);
             exit;
         }
 
-        // 1. Check if model record already exists FOR THIS EXACT LINE, SECTION, MODEL, MONTH
+        // 1. Check if model record already exists FOR THIS EXACT LINE, SECTION, MODEL, MONTH, DATA_TYPE
         $checkStmt = $conn->prepare("SELECT running_id, is_active FROM dtc_running_models 
                                      WHERE target_month = :m 
                                        AND UPPER(TRIM(line_name)) = UPPER(TRIM(:line)) 
                                        AND UPPER(TRIM(section_name)) = UPPER(TRIM(:section)) 
-                                       AND UPPER(TRIM(model_name)) = UPPER(TRIM(:model))");
+                                       AND UPPER(TRIM(model_name)) = UPPER(TRIM(:model))
+                                       AND UPPER(TRIM(data_type)) = UPPER(TRIM(:datatype))");
         $checkStmt->execute([
             ':m' => $month,
             ':line' => $line,
             ':section' => $section,
-            ':model' => $model
+            ':model' => $model,
+            ':datatype' => $dataType
         ]);
         $existing = $checkStmt->fetch(PDO::FETCH_ASSOC);
 
         if ($existing) {
             if ($existing['is_active'] == 1) {
-                echo json_encode(['status' => 'info', 'message' => "Model '$model' sudah aktif di list Running Model untuk Line $line & Section $section."]);
-                exit;
+                // Tetap lanjutkan sinkronisasi checkpoint template yang mungkin baru ditambahkan di Master Spec.
             } else {
                 // Update to active and update created_at timestamp to CURRENT_TIMESTAMP
                 $updateStmt = $conn->prepare("UPDATE dtc_running_models SET is_active = 1, created_at = CURRENT_TIMESTAMP WHERE running_id = :id");
@@ -122,36 +144,45 @@ try {
             }
         } else {
             // Insert new record with created_at = CURRENT_TIMESTAMP
-            $insertStmt = $conn->prepare("INSERT INTO dtc_running_models (target_month, line_name, section_name, model_name, is_active, created_at)
-                                         VALUES (:m, :line, :section, :model, 1, CURRENT_TIMESTAMP)");
+            $insertStmt = $conn->prepare("INSERT INTO dtc_running_models (target_month, line_name, section_name, model_name, data_type, is_active, created_at)
+                                         VALUES (:m, :line, :section, :model, :datatype, 1, CURRENT_TIMESTAMP)");
             $insertStmt->execute([
                 ':m' => $month,
                 ':line' => $line,
                 ':section' => $section,
-                ':model' => $model
+                ':model' => $model,
+                ':datatype' => $dataType
             ]);
         }
 
-        // 2. Ensure parameter entries exist in dtc_master_parameters for this line, section, model & month
+        // 2. Ensure parameter entries exist in dtc_master_parameters for this line, section, model, data type & month
+        $paramTypeCondition = $isGeneral ? '' : "\n              AND UPPER(TRIM(data_type)) = UPPER(TRIM(:datatype))";
         $checkParamStmt = $conn->prepare("
             SELECT COUNT(*) FROM dtc_master_parameters 
             WHERE target_month = :m 
               AND UPPER(TRIM(line_name)) = UPPER(TRIM(:line)) 
               AND UPPER(TRIM(section_name)) = UPPER(TRIM(:section)) 
               AND UPPER(TRIM(model_name)) = UPPER(TRIM(:model))
+              $paramTypeCondition
         ");
-        $checkParamStmt->execute([':m' => $month, ':line' => $line, ':section' => $section, ':model' => $model]);
+        $checkParamArgs = [':m' => $month, ':line' => $line, ':section' => $section, ':model' => $model];
+        if (!$isGeneral) $checkParamArgs[':datatype'] = $dataType;
+        $checkParamStmt->execute($checkParamArgs);
         $paramCount = $checkParamStmt->fetchColumn();
 
         if ($paramCount == 0) {
             // Copy matching specs from dtc_master_dtc_specs if parameters don't exist yet
+            $specTypeCondition = $isGeneral ? '' : "\n                  AND UPPER(TRIM(data_type)) = UPPER(TRIM(:datatype))";
             $specStmt = $conn->prepare("
                 SELECT * FROM dtc_master_dtc_specs 
                 WHERE UPPER(TRIM(line_name)) = UPPER(TRIM(:line)) 
                   AND UPPER(TRIM(section_name)) = UPPER(TRIM(:section)) 
                   AND UPPER(TRIM(model_name)) = UPPER(TRIM(:model))
+                  $specTypeCondition
             ");
-            $specStmt->execute([':line' => $line, ':section' => $section, ':model' => $model]);
+            $specArgs = [':line' => $line, ':section' => $section, ':model' => $model];
+            if (!$isGeneral) $specArgs[':datatype'] = $dataType;
+            $specStmt->execute($specArgs);
             $specs = $specStmt->fetchAll(PDO::FETCH_ASSOC);
 
             if (!empty($specs)) {
@@ -188,6 +219,30 @@ try {
                 }
             }
         }
+
+        // Salin template checkpoint Master Spec ke parameter bulan berjalan. Query ini juga
+        // menangani parameter yang sudah pernah dibuat tetapi belum punya checkpoint.
+        $syncTypeCondition = $isGeneral ? '' : "\n              AND UPPER(TRIM(p.data_type)) = UPPER(TRIM(:datatype))";
+        $syncCheckpointStmt = $conn->prepare("
+            INSERT INTO dtc_checkpoints
+                (parameter_id, checkpoint_name, checkpoint_type, spec_value, lsl, target_value, usl, reference_image, sort_order)
+            SELECT p.parameter_id, t.checkpoint_name, t.checkpoint_type, t.spec_value,
+                   t.lsl, t.target_value, t.usl, t.reference_image, t.sort_order
+            FROM dtc_master_parameters p
+            INNER JOIN dtc_master_spec_checkpoints t ON t.spec_id = p.spec_id
+            WHERE p.target_month = :m
+              AND UPPER(TRIM(p.line_name)) = UPPER(TRIM(:line))
+              AND UPPER(TRIM(p.section_name)) = UPPER(TRIM(:section))
+              AND UPPER(TRIM(p.model_name)) = UPPER(TRIM(:model))
+              $syncTypeCondition
+              AND NOT EXISTS (
+                  SELECT 1 FROM dtc_checkpoints c
+                  WHERE c.parameter_id = p.parameter_id AND c.checkpoint_name = t.checkpoint_name
+              )
+        ");
+        $syncArgs = [':m' => $month, ':line' => $line, ':section' => $section, ':model' => $model];
+        if (!$isGeneral) $syncArgs[':datatype'] = $dataType;
+        $syncCheckpointStmt->execute($syncArgs);
 
         echo json_encode(['status' => 'success', 'message' => "Running model '$model' ($line - $section) successfully added."]);
         exit;

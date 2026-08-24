@@ -178,19 +178,11 @@
         </div>
     </div>
 
-    <!-- Panel Body Table -->
-    <div id="running-model-table-wrapper" style="display: none; padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.08); overflow-x: auto; max-height: 240px; overflow-y: auto;">
-        <table class="rm-table" style="width: 100%; border-collapse: collapse; font-size: 12px;">
-            <thead>
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
-                    <th style="padding: 8px 12px; width: 220px; font-weight: 600;"><i class="fa-solid fa-layer-group" style="color: #f59e0b; margin-right: 4px;"></i> Line & Section</th>
-                    <th style="padding: 8px 12px; font-weight: 600;"><i class="fa-solid fa-cubes" style="color: #10b981; margin-right: 4px;"></i> Active Running Models</th>
-                </tr>
-            </thead>
-            <tbody id="running-model-table-body">
-                <!-- Dynamically populated via JS -->
-            </tbody>
-        </table>
+    <!-- Panel Body Tabs -->
+    <div id="running-model-table-wrapper" style="display: none; padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.08); overflow-x: auto; max-height: 320px; overflow-y: auto;">
+        <div id="running-model-tabs-container" style="width: 100%; font-size: 12px;">
+            <!-- Dynamically populated via JS -->
+        </div>
     </div>
 </div>
 
@@ -355,6 +347,17 @@ $isSupervisorRole = (strpos($currentUserRole, 'supervisor') !== false);
                         </select>
                     </div>
                     <div>
+                        <label style="display: block; margin-bottom: 5px; color: var(--text-muted); font-size: 12px;">Data Type</label>
+                        <select id="rm_data_type_select" name="data_type" required style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(15,23,42,0.8); color: white;">
+                            <option value="">-- Select Data Type --</option>
+                            <option value="General">General (semua tipe dari Master Spec)</option>
+                            <option value="CTQ">CTQ</option>
+                            <option value="CTP">CTP</option>
+                            <option value="Time Check">Time Check</option>
+                            <option value="F/Proof">F/Proof</option>
+                        </select>
+                    </div>
+                    <div>
                         <label style="display: block; margin-bottom: 5px; color: var(--text-muted); font-size: 12px;">Model Name</label>
                         <select id="rm_model_select" name="model_name" required style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(15,23,42,0.8); color: white;">
                             <option value="">-- Select Model --</option>
@@ -380,5 +383,3 @@ $isSupervisorRole = (strpos($currentUserRole, 'supervisor') !== false);
 
 <?php require_once __DIR__ . '/modal_bulk_input.php'; ?>
 <?php require_once __DIR__ . '/modal_oos_update.php'; ?>
-
-

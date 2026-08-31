@@ -83,11 +83,12 @@ CREATE TABLE IF NOT EXISTS dtc_inspection_sessions (
 CREATE INDEX IF NOT EXISTS idx_dtc_insp_date ON dtc_inspection_sessions (inspection_date);
 CREATE INDEX IF NOT EXISTS idx_dtc_param_session ON dtc_inspection_sessions (parameter_id);
 
--- 5. Tabel Checkpoints (Checkpoint Kualitatif per Parameter)
+-- 5. Tabel Checkpoints (Checkpoint Kualitatif & Kuantitatif per Parameter)
 CREATE TABLE IF NOT EXISTS dtc_checkpoints (
     checkpoint_id INT AUTO_INCREMENT PRIMARY KEY,
     parameter_id INT NOT NULL,
     checkpoint_name VARCHAR(200) NOT NULL,
+    checkpoint_type VARCHAR(50) DEFAULT 'Qualitative',
     spec_value VARCHAR(200) DEFAULT NULL,
     lsl DECIMAL(10, 3) DEFAULT NULL,
     target_value DECIMAL(10, 3) DEFAULT NULL,

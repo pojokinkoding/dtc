@@ -88,7 +88,12 @@ CALL dtc_safe_add_column('dtc_inspection_sessions', 'is_closed', "TINYINT(1) DEF
 -- 5. ALTER tabel dtc_measurements (Tambah kolom checkpoint_id jika belum ada)
 CALL dtc_safe_add_column('dtc_measurements', 'checkpoint_id', "INT DEFAULT NULL AFTER `session_id`");
 
--- 6. Buat Indeks jika belum ada
+-- 6. ALTER tabel dtc_running_models (Tambah kolom data_type & timestamps jika belum ada)
+CALL dtc_safe_add_column('dtc_running_models', 'data_type', "VARCHAR(50) NOT NULL DEFAULT 'General' AFTER `model_name`");
+CALL dtc_safe_add_column('dtc_running_models', 'created_at', "TIMESTAMP DEFAULT CURRENT_TIMESTAMP AFTER `is_active`");
+CALL dtc_safe_add_column('dtc_running_models', 'updated_at', "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER `created_at`");
+
+-- 7. Buat Indeks jika belum ada
 CALL dtc_safe_add_index('dtc_master_spec_checkpoints', 'idx_master_spec_checkpoint', '`spec_id`');
 CALL dtc_safe_add_index('dtc_checkpoints', 'idx_checkpoint_param', '`parameter_id`');
 CALL dtc_safe_add_index('dtc_measurements', 'idx_meas_checkpoint', '`checkpoint_id`');

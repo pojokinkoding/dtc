@@ -35,8 +35,11 @@ try {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         UNIQUE KEY uq_running_model (target_month, line_name, section_name, model_name)
-    )";
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
     $conn->exec($tableSql);
+    try { $conn->exec("ALTER TABLE dtc_running_models ADD COLUMN data_type VARCHAR(50) NOT NULL DEFAULT 'General' AFTER model_name"); } catch (Exception $e) {}
+    try { $conn->exec("ALTER TABLE dtc_running_models ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP AFTER is_active"); } catch (Exception $e) {}
+    try { $conn->exec("ALTER TABLE dtc_running_models ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at"); } catch (Exception $e) {}
 
     $action = $_GET['action'] ?? $_POST['action'] ?? 'get';
     $currentMonth = date('Y-m');

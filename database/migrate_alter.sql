@@ -98,6 +98,10 @@ CALL dtc_safe_add_index('dtc_master_spec_checkpoints', 'idx_master_spec_checkpoi
 CALL dtc_safe_add_index('dtc_checkpoints', 'idx_checkpoint_param', '`parameter_id`');
 CALL dtc_safe_add_index('dtc_measurements', 'idx_meas_checkpoint', '`checkpoint_id`');
 
+-- Update composite unique key pada dtc_running_models agar mendukung multi data_type
+ALTER TABLE `dtc_running_models` DROP INDEX IF EXISTS `uq_running_model`;
+ALTER TABLE `dtc_running_models` ADD UNIQUE KEY `uq_running_model` (`target_month`, `line_name`, `section_name`, `model_name`, `data_type`);
+
 -- 7. Standardisasi Collation (Mencegah Error 1267 Illegal Mix of Collations)
 ALTER TABLE `dtc_users` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ALTER TABLE `dtc_master_dtc_specs` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

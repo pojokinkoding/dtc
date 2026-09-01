@@ -34,12 +34,13 @@ try {
         is_active TINYINT(1) DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY uq_running_model (target_month, line_name, section_name, model_name)
+        UNIQUE KEY uq_running_model (target_month, line_name, section_name, model_name, data_type)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
     $conn->exec($tableSql);
     try { $conn->exec("ALTER TABLE dtc_running_models ADD COLUMN data_type VARCHAR(50) NOT NULL DEFAULT 'General' AFTER model_name"); } catch (Exception $e) {}
     try { $conn->exec("ALTER TABLE dtc_running_models ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP AFTER is_active"); } catch (Exception $e) {}
     try { $conn->exec("ALTER TABLE dtc_running_models ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at"); } catch (Exception $e) {}
+    try { $conn->exec("ALTER TABLE dtc_running_models DROP INDEX uq_running_model, ADD UNIQUE KEY uq_running_model (target_month, line_name, section_name, model_name, data_type)"); } catch (Exception $e) {}
 
     $action = $_GET['action'] ?? $_POST['action'] ?? 'get';
     $currentMonth = date('Y-m');
@@ -121,42 +122,19 @@ try {
             exit;
         }
 
-        // 1. Check if model record already exists FOR THIS EXACT LINE, SECTION, MODEL, MONTH, DATA_TYPE
-        $checkStmt = $conn->prepare("SELECT running_id, is_active FROM dtc_running_models 
-                                     WHERE target_month = :m 
-                                       AND UPPER(TRIM(line_name)) = UPPER(TRIM(:line)) 
-                                       AND UPPER(TRIM(section_name)) = UPPER(TRIM(:section)) 
-                                       AND UPPER(TRIM(model_name)) = UPPER(TRIM(:model))
-                                       AND UPPER(TRIM(data_type)) = UPPER(TRIM(:datatype))");
-        $checkStmt->execute([
+        // 1. Insert or Reactivate model record with ON DUPLICATE KEY UPDATE (prevents Error 1062)
+        $insertStmt = $conn->prepare("
+            INSERT INTO dtc_running_models (target_month, line_name, section_name, model_name, data_type, is_active, created_at)
+            VALUES (:m, :line, :section, :model, :datatype, 1, CURRENT_TIMESTAMP)
+            ON DUPLICATE KEY UPDATE is_active = 1, created_at = CURRENT_TIMESTAMP
+        ");
+        $insertStmt->execute([
             ':m' => $month,
             ':line' => $line,
             ':section' => $section,
             ':model' => $model,
             ':datatype' => $dataType
         ]);
-        $existing = $checkStmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($existing) {
-            if ($existing['is_active'] == 1) {
-                // Tetap lanjutkan sinkronisasi checkpoint template yang mungkin baru ditambahkan di Master Spec.
-            } else {
-                // Update to active and update created_at timestamp to CURRENT_TIMESTAMP
-                $updateStmt = $conn->prepare("UPDATE dtc_running_models SET is_active = 1, created_at = CURRENT_TIMESTAMP WHERE running_id = :id");
-                $updateStmt->execute([':id' => $existing['running_id']]);
-            }
-        } else {
-            // Insert new record with created_at = CURRENT_TIMESTAMP
-            $insertStmt = $conn->prepare("INSERT INTO dtc_running_models (target_month, line_name, section_name, model_name, data_type, is_active, created_at)
-                                         VALUES (:m, :line, :section, :model, :datatype, 1, CURRENT_TIMESTAMP)");
-            $insertStmt->execute([
-                ':m' => $month,
-                ':line' => $line,
-                ':section' => $section,
-                ':model' => $model,
-                ':datatype' => $dataType
-            ]);
-        }
 
         // 2. Ensure parameter entries exist in dtc_master_parameters for this line, section, model, data type & month
         $paramTypeCondition = $isGeneral ? '' : "\n              AND UPPER(TRIM(COALESCE(p.data_type, spec.data_type))) = UPPER(TRIM(:datatype))";

@@ -14,6 +14,8 @@ Dokumen ini berisi panduan teknis untuk melakukan backup data dan pembaruan skem
 |---|---|---|
 | **[`backup_db.sh`](file:///c:/xampp/htdocs/dtq/database/backup_db.sh)** | Shell Script | Script backup full database di Linux (dengan auto-timestamp) |
 | **[`run_alter.sh`](file:///c:/xampp/htdocs/dtq/database/run_alter.sh)** | Shell Script | Script eksekutor migrasi alter skema di Linux |
+| **[`delete_running_models.sh`](file:///c:/xampp/htdocs/dtq/database/delete_running_models.sh)** | Shell Script | Script reset/hapus semua data running model di Linux |
+| **[`fix_collation.sql`](file:///c:/xampp/htdocs/dtq/database/fix_collation.sql)** | SQL File | Script standardisasi collation semua tabel ke `utf8mb4_unicode_ci` |
 | **[`migrate_alter.sql`](file:///c:/xampp/htdocs/dtq/database/migrate_alter.sql)** | SQL File | Script query ALTER & CREATE TABLE IF NOT EXISTS (Idempotent) |
 | **[`ddl_mysql.sql`](file:///c:/xampp/htdocs/dtq/database/ddl_mysql.sql)** | SQL File | Master blueprint skema database lengkap terbaru |
 

@@ -504,7 +504,7 @@ if (empty($model) || empty($line) || empty($section)) {
 
 <!-- Modal Add Checkpoint (Multiple / Single Batch Creator) -->
 <div class="modal-overlay" id="modal-add-checkpoint">
-    <div class="modal-box" style="max-width: 960px; width: 95%; background: #1e293b; border-radius: 12px; padding: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1);">
+    <div class="modal-box" style="max-width: 1160px; width: 95%; background: #1e293b; border-radius: 12px; padding: 22px 26px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px;">
             <div style="display:flex; align-items:center; gap: 10px;">
                 <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.3); display:flex; align-items:center; justify-content:center;">
@@ -540,17 +540,17 @@ if (empty($model) || empty($line) || empty($section)) {
             </div>
 
             <!-- Scrollable Dynamic Table Grid -->
-            <div style="max-height: 420px; overflow-x: auto; overflow-y: auto; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; margin-bottom: 15px; background: rgba(15,23,42,0.4);">
-                <table class="matrix-table" id="multiple-cp-table" style="width: 100%; table-layout: fixed; min-width: 860px; font-size: 12px;">
+            <div style="max-height: 420px; overflow-x: hidden; overflow-y: auto; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; margin-bottom: 15px; background: rgba(15,23,42,0.4);">
+                <table class="matrix-table" id="multiple-cp-table" style="width: 100%; table-layout: auto; font-size: 12px;">
                     <thead>
                         <tr>
                             <th style="width: 40px; text-align: center; padding: 10px 4px;">No</th>
-                            <th style="width: 22%; text-align: left; padding: 10px 8px;">Nama Check Point *</th>
-                            <th style="width: 22%; text-align: left; padding: 10px 8px;">Spec Text (Opsional)</th>
-                            <th style="width: 165px; text-align: left; padding: 10px 8px;">Tipe Checkpoint</th>
-                            <th style="width: 85px; text-align: center; color: #f87171; padding: 10px 4px;">LSL (Min)</th>
-                            <th style="width: 85px; text-align: center; color: #34d399; padding: 10px 4px;">Target</th>
-                            <th style="width: 85px; text-align: center; color: #60a5fa; padding: 10px 4px;">USL (Max)</th>
+                            <th style="text-align: left; padding: 10px 8px;">Nama Check Point *</th>
+                            <th style="text-align: left; padding: 10px 8px;">Spec Text (Opsional)</th>
+                            <th style="width: 140px; text-align: left; padding: 10px 8px;">Tipe Checkpoint</th>
+                            <th style="width: 80px; text-align: center; color: #f87171; padding: 10px 4px;">LSL (Min)</th>
+                            <th style="width: 80px; text-align: center; color: #34d399; padding: 10px 4px;">Target</th>
+                            <th style="width: 80px; text-align: center; color: #60a5fa; padding: 10px 4px;">USL (Max)</th>
                             <th style="width: 50px; text-align: center; padding: 10px 4px;">Aksi</th>
                         </tr>
                     </thead>

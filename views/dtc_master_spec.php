@@ -156,10 +156,10 @@
 
 <!-- Modal Add/Edit -->
 <div id="modal-master-spec" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
-    <div class="modal-content" style="background-color: var(--bg-card); padding: 20px; border-radius: 8px; width: 90%; max-width: 800px; max-height: 90vh; overflow-x: hidden; overflow-y: auto;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h2 id="modal-title" style="margin: 0;">Add Master Data</h2>
-            <button id="btn-close-modal" style="background: none; border: none; color: var(--text-light); font-size: 20px; cursor: pointer;">&times;</button>
+    <div class="modal-content" style="background-color: var(--bg-card); padding: 22px 26px; border-radius: 10px; width: 95%; max-width: 1180px; max-height: 92vh; overflow-x: hidden; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px;">
+            <h2 id="modal-title" style="margin: 0; font-size: 18px; color: white;">Add Master Data</h2>
+            <button id="btn-close-modal" style="background: none; border: none; color: var(--text-light); font-size: 24px; cursor: pointer; line-height: 1;">&times;</button>
         </div>
         
         <form id="form-master-spec">
@@ -192,7 +192,7 @@
                     <label style="font-size: 11px; margin-bottom: 4px;">Section Name</label>
                     <select id="section_name" name="section_name" class="form-control" style="padding: 8px; font-size: 12px;" required></select>
                 </div>
-                <div class="form-group" style="margin-bottom: 0;">
+                <div class="form-group" style="margin-bottom: 0; grid-column: span 3;">
                     <label style="font-size: 11px; margin-bottom: 4px;">Process Name</label>
                     <input type="text" id="process_name" name="process_name" class="form-control" style="padding: 8px; font-size: 12px;" required>
                 </div>
@@ -241,12 +241,20 @@
                 <h4 style="margin-top:20px; font-size: 12px; color: var(--accent); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; margin-bottom: 12px;">2. Multiple Add Checkpoints</h4>
                 <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px;">
                     <span style="font-size:11px; color:var(--text-muted);">Checkpoint akan dibuat otomatis saat Running Model ditambahkan.</span>
-                    <button type="button" id="btn-add-master-cp-row" class="btn-rich-secondary" style="padding:5px 10px; font-size:11px;"><i class="fa-solid fa-plus"></i> Tambah Checkpoint</button>
+                    <button type="button" id="btn-add-master-cp-row" class="btn-rich-secondary" style="padding:5px 12px; font-size:11.5px;"><i class="fa-solid fa-plus"></i> Tambah Checkpoint</button>
                 </div>
-                <div style="overflow:auto; border:1px solid rgba(255,255,255,0.1); border-radius:6px;">
-                    <table style="width:100%; min-width:780px; border-collapse:collapse; font-size:11px;">
-                        <thead><tr style="color:var(--text-muted); text-align:left; border-bottom:1px solid rgba(255,255,255,0.1);">
-                            <th style="padding:8px; width:35px;">No</th><th style="padding:8px;">Checkpoint Name *</th><th style="padding:8px; width:115px;">Type</th><th style="padding:8px;">Spec Value</th><th style="padding:8px; width:82px;">LSL</th><th style="padding:8px; width:82px;">Target</th><th style="padding:8px; width:82px;">USL</th><th style="padding:8px; width:155px;">Reference Image</th><th style="padding:8px; width:40px;"></th>
+                <div style="overflow-x: hidden; overflow-y: auto; border:1px solid rgba(255,255,255,0.1); border-radius:6px; background: rgba(15,23,42,0.4);">
+                    <table style="width:100%; border-collapse:collapse; font-size:11.5px; table-layout: auto;">
+                        <thead><tr style="color:var(--text-muted); text-align:left; border-bottom:1px solid rgba(255,255,255,0.1); background: rgba(15,23,42,0.7);">
+                            <th style="padding:8px 4px; width:35px; text-align:center;">No</th>
+                            <th style="padding:8px 6px;">Checkpoint Name *</th>
+                            <th style="padding:8px 6px; width:115px;">Type</th>
+                            <th style="padding:8px 6px;">Spec Value</th>
+                            <th style="padding:8px 4px; width:75px; text-align:center; color:#f87171;">LSL</th>
+                            <th style="padding:8px 4px; width:75px; text-align:center; color:#34d399;">Target</th>
+                            <th style="padding:8px 4px; width:75px; text-align:center; color:#60a5fa;">USL</th>
+                            <th style="padding:8px 6px; width:170px;">Reference Image</th>
+                            <th style="padding:8px 4px; width:40px; text-align:center;"></th>
                         </tr></thead>
                         <tbody id="master-checkpoint-tbody"></tbody>
                     </table>

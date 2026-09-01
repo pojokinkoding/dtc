@@ -180,15 +180,15 @@ $(document).ready(function () {
         const imageText = checkpoint.reference_image ? `<a href="${checkpoint.reference_image}" target="_blank" style="color:#60a5fa;">Current image</a>` : '';
         const checkpointType = checkpoint.checkpoint_type || 'Qualitative';
         return `<tr data-existing-image="${checkpoint.reference_image || ''}">
-            <td class="master-cp-number" style="padding:7px; text-align:center; color:var(--text-muted);"></td>
-            <td style="padding:7px;"><input class="form-control master-cp-name" value="${checkpoint.checkpoint_name || ''}" required style="padding:6px; font-size:11px;"></td>
-            <td style="padding:7px;"><select class="form-control master-cp-type" style="padding:6px; font-size:11px;"><option value="Qualitative" ${checkpointType === 'Qualitative' ? 'selected' : ''}>Qualitative</option><option value="Quantitative" ${checkpointType === 'Quantitative' ? 'selected' : ''}>Quantitative</option></select></td>
-            <td style="padding:7px;"><input class="form-control master-cp-spec" value="${checkpoint.spec_value || ''}" style="padding:6px; font-size:11px;"></td>
-            <td style="padding:7px;"><input type="number" step="0.1" class="form-control master-cp-lsl" value="${formatDec1(checkpoint.lsl)}" style="padding:6px; font-size:11px;"></td>
-            <td style="padding:7px;"><input type="number" step="0.1" class="form-control master-cp-target" value="${formatDec1(checkpoint.target_value)}" style="padding:6px; font-size:11px;"></td>
-            <td style="padding:7px;"><input type="number" step="0.1" class="form-control master-cp-usl" value="${formatDec1(checkpoint.usl)}" style="padding:6px; font-size:11px;"></td>
-            <td style="padding:7px;"><input type="file" accept="image/png,image/jpeg,image/gif" class="master-cp-image" style="font-size:10px; max-width:145px;"><div class="master-cp-current-image" style="font-size:10px; margin-top:3px;">${imageText}</div></td>
-            <td style="padding:7px; text-align:center;"><button type="button" class="btn-remove-master-cp" title="Hapus checkpoint" style="color:#f87171; background:none; border:0; cursor:pointer;"><i class="fa-solid fa-trash"></i></button></td>
+            <td class="master-cp-number" style="padding:6px 4px; text-align:center; color:var(--text-muted); font-weight:bold;"></td>
+            <td style="padding:6px 4px;"><input class="form-control master-cp-name" value="${checkpoint.checkpoint_name || ''}" placeholder="e.g. Suhu / Dimensi" required style="width:100%; padding:6px 8px; font-size:11.5px;"></td>
+            <td style="padding:6px 4px;"><select class="form-control master-cp-type" style="width:100%; padding:6px; font-size:11px;"><option value="Qualitative" ${checkpointType === 'Qualitative' ? 'selected' : ''}>Qualitative</option><option value="Quantitative" ${checkpointType === 'Quantitative' ? 'selected' : ''}>Quantitative</option></select></td>
+            <td style="padding:6px 4px;"><input class="form-control master-cp-spec" value="${checkpoint.spec_value || ''}" placeholder="e.g. OK / Max 5s" style="width:100%; padding:6px 8px; font-size:11.5px;"></td>
+            <td style="padding:6px 4px;"><input type="number" step="0.1" class="form-control master-cp-lsl" value="${formatDec1(checkpoint.lsl)}" placeholder="LSL" style="width:100%; text-align:center; padding:6px 4px; font-size:11.5px;"></td>
+            <td style="padding:6px 4px;"><input type="number" step="0.1" class="form-control master-cp-target" value="${formatDec1(checkpoint.target_value)}" placeholder="Target" style="width:100%; text-align:center; padding:6px 4px; font-size:11.5px;"></td>
+            <td style="padding:6px 4px;"><input type="number" step="0.1" class="form-control master-cp-usl" value="${formatDec1(checkpoint.usl)}" placeholder="USL" style="width:100%; text-align:center; padding:6px 4px; font-size:11.5px;"></td>
+            <td style="padding:6px 4px;"><input type="file" accept="image/png,image/jpeg,image/gif" class="master-cp-image" style="font-size:10px; width:100%; max-width:160px;"><div class="master-cp-current-image" style="font-size:10px; margin-top:2px;">${imageText}</div></td>
+            <td style="padding:6px 4px; text-align:center;"><button type="button" class="btn-remove-master-cp" title="Hapus checkpoint" style="color:#f87171; background:none; border:0; cursor:pointer; font-size:13px; padding:4px;"><i class="fa-solid fa-trash"></i></button></td>
         </tr>`;
     }
 

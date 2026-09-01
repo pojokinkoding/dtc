@@ -67,17 +67,8 @@
         $(document).ready(function() {
             // GPU-accelerated smooth auto-scaling for TV 32" / Monitoring Mode
             function applyFitScreen() {
-                // If any modal (bulk input or others) is currently open, do NOT apply zoom/scale down to body
-                // because body zoom/transform breaks position:fixed overlay coordinate positioning in Chrome
-                if ($('#modal-bulk-input').is(':visible') || $('#modal-oos-param-update').is(':visible') || $('body').hasClass('modal-open-bulk') || $('body').hasClass('modal-open-oos') || $('div[id^="modal-"]:visible').length > 0) {
-                    const body = document.body;
-                    if ('zoom' in body.style) {
-                        body.style.zoom = 1;
-                    }
-                    body.style.transform = 'none';
-                    body.style.width = '100%';
-                    body.style.overflowY = 'hidden';
-                    document.documentElement.style.overflowY = 'hidden';
+                // Keep the fitted zoom scaling steady without jumping when modals are active
+                if ($('body').hasClass('modal-open-bulk') || $('body').hasClass('modal-open-oos')) {
                     return;
                 }
 

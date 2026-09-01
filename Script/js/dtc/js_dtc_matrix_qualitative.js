@@ -719,11 +719,11 @@ function openQuantInputModal(selectedDay) {
 
     // Auto-focus on first active/editable empty sample input
     setTimeout(() => {
-        let $firstEmpty = $(".quant-sample-input:not([readonly])").filter(function () { return $(this).val() === ''; }).first();
+        let $firstEmpty = $(".quant-sample-input:not([readonly]):not([disabled])").filter(function () { return $(this).val() === ''; }).first();
         if ($firstEmpty.length > 0) {
             $firstEmpty.focus();
         } else {
-            $(".quant-sample-input:not([readonly])").first().focus();
+            $(".quant-sample-input:not([readonly]):not([disabled])").first().focus();
         }
     }, 150);
 }
@@ -755,9 +755,6 @@ function isTimeSlotFuture(dateStr, label) {
 }
 
 function isTimeSlotBeforeModelStart(dateStr, timeLabel, rmCreatedAt) {
-    let isUserAdmin = window.currentIsAdmin || window.isAdmin || (typeof isAdmin !== 'undefined' && isAdmin);
-    if (isUserAdmin) return false;
-
     let createdAt = rmCreatedAt || runningModelCreatedAt;
     if (!createdAt || !dateStr || !timeLabel) return false;
 
@@ -810,28 +807,32 @@ function isTimeSlotBeforeModelStart(dateStr, timeLabel, rmCreatedAt) {
 
 function applySampleInputGlowing($input, val, lsl, usl, isClosed, isFuture, isBeforeModelStart = false) {
     if (isBeforeModelStart) {
-        $input.removeClass('slot-overdue-glowing').prop('readonly', true).css({
+        $input.removeClass('slot-overdue-glowing').prop('readonly', true).prop('disabled', true).css({
             'border': '1px dashed rgba(255,255,255,0.12)',
             'box-shadow': 'none',
             'background-color': 'rgba(15, 23, 42, 0.5)',
             'color': 'rgba(255,255,255,0.25)',
             'opacity': '0.45',
-            'cursor': 'not-allowed'
+            'cursor': 'not-allowed',
+            'pointer-events': 'none'
         }).attr('title', 'Slot jam sebelum running model di-add (Terkunci)');
         return;
     }
 
     if (isFuture) {
-        $input.removeClass('slot-overdue-glowing').prop('readonly', true).css({
+        $input.removeClass('slot-overdue-glowing').prop('readonly', true).prop('disabled', true).css({
             'border': '1px dashed rgba(255,255,255,0.15)',
             'box-shadow': 'none',
             'background-color': 'rgba(15, 23, 42, 0.4)',
             'color': 'rgba(255,255,255,0.3)',
             'opacity': '0.5',
-            'cursor': 'not-allowed'
+            'cursor': 'not-allowed',
+            'pointer-events': 'none'
         }).attr('title', 'Belum masuk waktu pengisian (slot jam di masa depan)');
         return;
     }
+
+    $input.prop('disabled', false).css('pointer-events', 'auto');
 
     if (val === '' || val === null || !is_numeric_val(val)) {
         if (isClosed && !isAdmin) {
@@ -1038,9 +1039,13 @@ $(document).on('submit', '#form-quant-input-data', function (e) {
                     Swal.fire('Error', res.message, 'error');
                 }
             },
-            error: function () {
+            error: function (xhr) {
                 btn.html(origText).prop('disabled', false);
-                Swal.fire('Error', 'Server error saving measurement.', 'error');
+                let msg = 'Server error saving measurement.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    msg = xhr.responseJSON.message;
+                }
+                Swal.fire('Error', msg, 'error');
             }
         });
     };

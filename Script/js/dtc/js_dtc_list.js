@@ -504,18 +504,18 @@ $(document).ready(function () {
 
                         let tabsNavHtml = '<div class="rm-tabs-nav" style="display: flex; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 15px; padding-bottom: 10px; overflow-x: auto;">';
                         let tabsContentHtml = '<div class="rm-tabs-content">';
-                        
+
                         let isFirstTab = true;
-                        
+
                         Object.keys(grouped).forEach(secKey => {
                             let group = grouped[secKey];
-                            
+
                             let safeSecKey = secKey.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
-                            
+
                             // Create Tab Nav Button
                             let activeClassNav = isFirstTab ? 'active' : '';
                             tabsNavHtml += `<button class="rm-tab-btn ${activeClassNav}" data-target="rm-tab-${safeSecKey}" style="padding: 6px 16px; background: ${isFirstTab ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.05)'}; color: ${isFirstTab ? '#38bdf8' : 'var(--text-muted)'}; border: 1px solid ${isFirstTab ? 'rgba(56, 189, 248, 0.4)' : 'transparent'}; border-radius: 6px; cursor: pointer; font-weight: 600; white-space: nowrap; transition: all 0.2s;"><i class="fa-solid fa-industry"></i> ${secKey}</button>`;
-                            
+
                             // Group models by data_type
                             let modelsByDataType = {};
                             group.models.forEach(r => {
@@ -523,16 +523,16 @@ $(document).ready(function () {
                                 if (!modelsByDataType[dt]) modelsByDataType[dt] = [];
                                 modelsByDataType[dt].push(r);
                             });
-                            
+
                             // Create Tab Content Pane
                             let activeClassPane = isFirstTab ? 'display: block;' : 'display: none;';
                             tabsContentHtml += `<div class="rm-tab-pane" id="rm-tab-${safeSecKey}" style="${activeClassPane}">`;
-                            
+
                             Object.keys(modelsByDataType).forEach(dt => {
                                 tabsContentHtml += `<div style="margin-bottom: 15px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; border-left: 3px solid #38bdf8;">`;
                                 tabsContentHtml += `<div style="font-size: 11px; color: #94a3b8; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fa-solid fa-tag"></i> DATA TYPE: ${dt}</div>`;
                                 tabsContentHtml += `<div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">`;
-                                
+
                                 modelsByDataType[dt].forEach(r => {
                                     let isActive = (activeModelFilter && activeModelFilter.id === r.running_id) ? ' active-filter' : '';
 
@@ -553,14 +553,14 @@ $(document).ready(function () {
                                 });
                                 tabsContentHtml += `</div></div>`; // End of data type group
                             });
-                            
+
                             tabsContentHtml += `</div>`; // End of tab pane
                             isFirstTab = false;
                         });
-                        
+
                         tabsNavHtml += '</div>';
                         tabsContentHtml += '</div>';
-                        
+
                         $('#running-model-tabs-container').html(tabsNavHtml + tabsContentHtml);
                     } else {
                         if ($('#rm-count-text').length) {
@@ -585,23 +585,23 @@ $(document).ready(function () {
     }
 
     // Handle Tab Click for Running Models
-    $(document).on('click', '.rm-tab-btn', function() {
+    $(document).on('click', '.rm-tab-btn', function () {
         // Remove active class from all buttons and hide all panes
         $('.rm-tab-btn').css({
             'background': 'rgba(255,255,255,0.05)',
             'color': 'var(--text-muted)',
             'border-color': 'transparent'
         }).removeClass('active');
-        
+
         $('.rm-tab-pane').hide();
-        
+
         // Add active class to clicked button and show target pane
         $(this).css({
             'background': 'rgba(56, 189, 248, 0.2)',
             'color': '#38bdf8',
             'border-color': 'rgba(56, 189, 248, 0.4)'
         }).addClass('active');
-        
+
         let targetId = $(this).data('target');
         $('#' + targetId).fadeIn(200);
     });

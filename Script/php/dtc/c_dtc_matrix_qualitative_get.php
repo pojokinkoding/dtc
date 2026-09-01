@@ -25,7 +25,7 @@ try {
     $parameters = [];
     if (!empty($param_id)) {
         $sql_params = "
-            SELECT p.parameter_id, 
+            SELECT p.parameter_id, p.created_at,
                    COALESCE(p.item_check_name, spec.item_check_name) as item_check_name,
                    COALESCE(p.data_type, spec.data_type) as data_type,
                    COALESCE(p.measuring_item, spec.measuring_item) as measuring_item,
@@ -48,7 +48,7 @@ try {
 
     if (empty($parameters)) {
         $sql_params = "
-            SELECT p.parameter_id, 
+            SELECT p.parameter_id, p.created_at,
                    COALESCE(p.item_check_name, spec.item_check_name) as item_check_name,
                    COALESCE(p.data_type, spec.data_type) as data_type,
                    COALESCE(p.measuring_item, spec.measuring_item) as measuring_item,
@@ -105,44 +105,24 @@ function sortShiftTimeLabels($labels) {
     return $labels;
 }
 
-    // 2. Get time labels dynamically from settings combined with measurements
+    // 2. Get time labels dynamically from settings (prefer line-specific, fallback to default)
     $line_name = $parameters[0]['line_name'] ?? $line;
     $setting_key = 'time_matrix_labels_' . $line_name;
     
-    $base_labels = [];
-    $stmtLabel = $conn->prepare("SELECT setting_value FROM dtc_app_settings WHERE setting_key = :key OR setting_key = 'time_matrix_labels'");
+    $stmtLabel = $conn->prepare("SELECT setting_key, setting_value FROM dtc_app_settings WHERE setting_key = :key OR setting_key = 'time_matrix_labels'");
     $stmtLabel->execute([':key' => $setting_key]);
+    $labels_map = [];
     while ($rowSetting = $stmtLabel->fetch(PDO::FETCH_ASSOC)) {
         if ($rowSetting && $rowSetting['setting_value']) {
             $val = is_resource($rowSetting['setting_value']) ? stream_get_contents($rowSetting['setting_value']) : $rowSetting['setting_value'];
             $decoded = json_decode($val, true);
             if (is_array($decoded) && !empty($decoded)) {
-                $base_labels = array_merge($base_labels, $decoded);
+                $labels_map[$rowSetting['setting_key']] = $decoded;
             }
         }
     }
-    if (empty($base_labels)) {
-        $base_labels = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30'];
-    }
     
-    $distinct_labels = [];
-    if (!empty($parameters)) {
-        $param_ids_str = implode(',', array_map('intval', array_column($parameters, 'parameter_id')));
-        $stmtDist = $conn->query("
-            SELECT DISTINCT m.sample_label 
-            FROM dtc_measurements m 
-            JOIN dtc_inspection_sessions s ON m.session_id = s.session_id 
-            WHERE s.parameter_id IN ($param_ids_str)
-        ");
-        $distinct_labels = $stmtDist->fetchAll(PDO::FETCH_COLUMN);
-    }
-
-    if (!empty($distinct_labels)) {
-        $raw_labels = array_merge($base_labels, $distinct_labels);
-    } else {
-        $raw_labels = $base_labels;
-    }
-
+    $raw_labels = $labels_map[$setting_key] ?? ($labels_map['time_matrix_labels'] ?? ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30']);
     $time_labels = sortShiftTimeLabels($raw_labels);
 
     // 3. For each parameter, get its checkpoints
@@ -315,7 +295,7 @@ function sortShiftTimeLabels($labels) {
         ':section' => $section,
         ':model' => $model
     ]);
-    $rm_created_at = $stmtRM->fetchColumn() ?: null;
+    $rm_created_at = $stmtRM->fetchColumn() ?: ($parameters[0]['created_at'] ?? null);
 
     echo json_encode([
         'status' => 'success',

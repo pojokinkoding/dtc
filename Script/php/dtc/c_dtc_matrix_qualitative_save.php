@@ -12,6 +12,12 @@ $param_id = $_POST['parameter_id'] ?? 0;
 $checkpoint_id = $_POST['checkpoint_id'] ?? 0;
 $user_id = $_SESSION['user_id'] ?? 2; // Fallback
 
+if (!function_exists('isUnmeasuredValue')) {
+    function isUnmeasuredValue($val) {
+        return ($val === '' || $val === null || $val === '-');
+    }
+}
+
 try {
     $conn = getDBConnection();
     
@@ -39,6 +45,27 @@ try {
         if ($date > $today) {
             echo json_encode(['status' => 'error', 'message' => 'Belum masuk tanggal pengisian untuk hari tersebut.']);
             exit;
+        }
+
+        $stmtLine = $conn->prepare("
+            SELECT COALESCE(p.line_name, spec.line_name) as line_name
+            FROM dtc_master_parameters p
+            LEFT JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id
+            WHERE p.parameter_id = :pid
+        ");
+        $stmtLine->execute([':pid' => $param_id]);
+        $paramLine = $stmtLine->fetchColumn() ?: 'REF 01';
+
+        $setting_key = 'time_matrix_labels_' . $paramLine;
+        $stmtLabel = $conn->prepare("SELECT setting_value FROM dtc_app_settings WHERE setting_key = :key OR setting_key = 'time_matrix_labels' ORDER BY (setting_key = :exact_key) DESC LIMIT 1");
+        $stmtLabel->execute([':key' => $setting_key, ':exact_key' => $setting_key]);
+        $rawLabels = $stmtLabel->fetchColumn();
+        $time_labels = [];
+        if ($rawLabels) {
+            $time_labels = json_decode($rawLabels, true);
+        }
+        if (empty($time_labels) || !is_array($time_labels)) {
+            $time_labels = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30'];
         }
 
         $sql_sess = "SELECT session_id, is_closed FROM dtc_inspection_sessions WHERE parameter_id = :pid AND inspection_date = :idate";
@@ -92,10 +119,15 @@ try {
                 WHERE target_month = :month 
                   AND UPPER(TRIM(model_name)) = UPPER(TRIM(:mname)) 
                   AND is_active = 1 
-                LIMIT 1
+                ORDER BY created_at DESC LIMIT 1
             ");
             $stmtRM->execute([':month' => substr($date, 0, 7), ':mname' => $pModelRow['model_name']]);
             $rmCreatedAt = $stmtRM->fetchColumn() ?: null;
+            if (!$rmCreatedAt) {
+                $stmtPDate = $conn->prepare("SELECT created_at FROM dtc_master_parameters WHERE parameter_id = :pid");
+                $stmtPDate->execute([':pid' => $param_id]);
+                $rmCreatedAt = $stmtPDate->fetchColumn() ?: null;
+            }
         }
 
         $createdMinsFrom7 = null;
@@ -321,6 +353,6 @@ try {
     
     echo json_encode(['status' => 'success', 'message' => 'Data saved successfully']);
 
-} catch (Exception $e) {
+} catch (Throwable $e) {
     echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
 }

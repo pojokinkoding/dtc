@@ -161,8 +161,8 @@ if ($param_id > 0) {
             grid-template-columns: repeat(3, 1fr) !important;
             grid-template-rows: repeat(2, 1fr) !important;
             gap: 12px;
-            height: calc(100vh - 245px); /* Fill remaining viewport height */
-            min-height: 400px;
+            height: calc(100vh - 290px); /* Fill remaining viewport height */
+            min-height: 380px;
         }
         @media (max-width: 768px) {
             .dense-dashboard {

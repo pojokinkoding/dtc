@@ -525,12 +525,20 @@ try {
         echo '  .kpi-box { padding: 8px; border-radius: 6px; text-align: center; border: 1px solid #e2e8f0; font-size: 10.5px; }';
         echo '  .param-card { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; margin-bottom: 14px; }';
         echo '  .param-title { font-size: 12px; font-weight: bold; color: #0284c7; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 8px; }';
-        echo '  .flex-layout { display: flex; gap: 8px; align-items: flex-start; }';
-        echo '  .left-box { width: 220px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }';
-        echo '  .right-box { flex: 1; min-width: 0; overflow-x: auto; }';
-        echo '  .info-table, .summary-table { width: 100%; border-collapse: collapse; font-size: 8.5px; line-height: 1.35; }';
-        echo '  .info-table td, .summary-table td { padding: 2px 4px; border-bottom: 1px solid #f1f5f9; }';
-        echo '  .grid-table { width: 100%; border-collapse: collapse; font-size: 7.5px; text-align: center; table-layout: fixed; }';
+        echo '  .detail-info-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; }';
+        echo '  .detail-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; }';
+        echo '  .flex-layout { display: flex; gap: 8px; align-items: stretch; }';
+        echo '  .left-box { width: 210px; flex-shrink: 0; display: flex; flex-direction: column; }';
+        echo '  .summary-card-box { flex: 1; height: 100%; display: flex; flex-direction: column; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; box-sizing: border-box; }';
+        echo '  .summary-card-header { font-size: 10px; font-weight: bold; color: #0284c7; padding: 0 8px; border-bottom: 1px solid #cbd5e1; background: #f8fafc; height: 24px; line-height: 24px; display: flex; align-items: center; box-sizing: border-box; }';
+        echo '  .summary-card-body { flex: 1; display: flex; flex-direction: column; padding: 3px 4px; }';
+        echo '  .right-box { flex: 1; min-width: 0; overflow-x: auto; display: flex; flex-direction: column; }';
+        echo '  .grid-card-header { font-size: 10px; font-weight: bold; color: #0284c7; padding: 0 8px; border: 1px solid #cbd5e1; border-bottom: none; border-radius: 4px 4px 0 0; background: #f8fafc; height: 24px; line-height: 24px; display: flex; align-items: center; box-sizing: border-box; }';
+        echo '  .info-table { width: 100%; border-collapse: collapse; font-size: 8.5px; line-height: 1.35; }';
+        echo '  .info-table td { padding: 2px 4px; border-bottom: 1px solid #f1f5f9; }';
+        echo '  .summary-table { width: 100%; height: 100%; flex: 1; border-collapse: collapse; font-size: 8.5px; line-height: 1.35; }';
+        echo '  .summary-table td { padding: 2.5px 4px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }';
+        echo '  .grid-table { width: 100%; height: 100%; border-collapse: collapse; font-size: 7.5px; text-align: center; table-layout: fixed; }';
         echo '  .grid-table th { background: #0f172a; color: #ffffff; padding: 3px 0px; border: 1px solid #cbd5e1; white-space: nowrap; }';
         echo '  .grid-table td { padding: 2px 0px; border: 1px solid #cbd5e1; white-space: nowrap; }';
         echo '  @media print {';
@@ -553,14 +561,22 @@ try {
         echo '      font-size: 6.5pt !important;';
         echo '    }';
         echo '    .sec-card:first-child .param-card:first-child { page-break-before: auto !important; break-before: auto !important; }';
-        echo '    .flex-layout { display: flex !important; gap: 4px !important; align-items: flex-start !important; }';
-        echo '    .left-box { width: 175px !important; flex-shrink: 0 !important; gap: 4px !important; }';
-        echo '    .right-box { flex: 1 !important; width: auto !important; overflow: visible !important; }';
+        echo '    .detail-info-box { background: #f8fafc !important; border: 1px solid #cbd5e1 !important; border-radius: 4px !important; padding: 3px 6px !important; margin-bottom: 4px !important; }';
+        echo '    .detail-info-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 2px 14px !important; }';
+        echo '    .flex-layout { display: flex !important; gap: 4px !important; align-items: stretch !important; }';
+        echo '    .left-box { width: 155px !important; flex-shrink: 0 !important; display: flex !important; flex-direction: column !important; }';
+        echo '    .summary-card-box { flex: 1 !important; height: 100% !important; display: flex !important; flex-direction: column !important; background: #f8fafc !important; border: 1px solid #cbd5e1 !important; border-radius: 4px !important; overflow: hidden !important; box-sizing: border-box !important; }';
+        echo '    .summary-card-header { font-size: 6.5pt !important; font-weight: bold !important; color: #0284c7 !important; padding: 0 4px !important; border-bottom: 1px solid #cbd5e1 !important; background: #f8fafc !important; height: 14pt !important; line-height: 14pt !important; display: flex !important; align-items: center !important; box-sizing: border-box !important; }';
+        echo '    .summary-card-body { flex: 1 !important; display: flex !important; flex-direction: column !important; padding: 1px 2px !important; }';
+        echo '    .right-box { flex: 1 !important; width: auto !important; overflow: visible !important; display: flex !important; flex-direction: column !important; }';
+        echo '    .grid-card-header { font-size: 6.5pt !important; font-weight: bold !important; color: #0284c7 !important; padding: 0 4px !important; border: 1px solid #cbd5e1 !important; border-bottom: none !important; border-radius: 4px 4px 0 0 !important; background: #f8fafc !important; height: 14pt !important; line-height: 14pt !important; display: flex !important; align-items: center !important; box-sizing: border-box !important; }';
         echo '    .grid-table { width: 100% !important; table-layout: fixed !important; font-size: 5.8pt !important; letter-spacing: -0.2px !important; border-collapse: collapse !important; }';
         echo '    .grid-table th, .grid-table td { padding: 0.5px 0px !important; border: 1px solid #94a3b8 !important; text-align: center !important; white-space: nowrap !important; }';
         echo '    .grid-table th:first-child, .grid-table td:first-child { width: 30px !important; font-size: 5.5pt !important; }';
-        echo '    .info-table, .summary-table { font-size: 6.5pt !important; line-height: 1.15 !important; }';
-        echo '    .info-table td, .summary-table td { padding: 1px 2px !important; }';
+        echo '    .info-table { font-size: 6.5pt !important; line-height: 1.15 !important; }';
+        echo '    .info-table td { padding: 1px 2px !important; }';
+        echo '    .summary-table { width: 100% !important; height: 100% !important; flex: 1 !important; font-size: 6.2pt !important; line-height: 1.3 !important; border-collapse: collapse !important; }';
+        echo '    .summary-table td { padding: 1.5px 2px !important; vertical-align: middle !important; border-bottom: 1px solid #e2e8f0 !important; }';
         echo '  }';
         echo '</style>';
         echo '</head><body>';
@@ -722,26 +738,33 @@ try {
                         echo '<div>Compliance Bulanan: <strong style="color:' . $rateColor . '; font-size:12px;">' . $rateVal . '%</strong> &nbsp;|&nbsp; Hari Tidak Full: <strong style="color:#f87171;">' . $sec['total_days_incomplete'] . ' Hari</strong></div>';
                         echo '</div>';
                         echo '<div class="param-title">#' . ($pIdx + 1) . ' ' . htmlspecialchars($itemFullStr) . ' &nbsp;<span style="font-weight:normal; font-size:11px; color:#64748b;">(MODEL: ' . htmlspecialchars($mName) . ' | TYPE: ' . htmlspecialchars($dataType) . ')</span></div>';
-                        echo '<div class="flex-layout">';
 
-                        // Left Side: Detail Info & Data Summary
-                        echo '<div class="left-box">';
-                        echo '<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px;">';
-                        echo '<div style="font-size:10px; font-weight:bold; color:#0284c7; margin-bottom:6px; border-bottom:1px solid #e2e8f0; padding-bottom:4px;">DETAIL INFORMATION</div>';
+                        // 1. DETAIL INFORMATION at TOP (Divided into 2 columns horizontally)
+                        echo '<div class="detail-info-box">';
+                        echo '<div style="font-size:10px; font-weight:bold; color:#0284c7; margin-bottom:4px; border-bottom:1px solid #e2e8f0; padding-bottom:2px;">DETAIL INFORMATION</div>';
+                        echo '<div class="detail-info-grid">';
                         echo '<table class="info-table">';
-                        echo '<tr><td style="color:#64748b; width:45%;">LINE</td><td style="font-weight:bold;">' . htmlspecialchars($lName) . '</td></tr>';
+                        echo '<tr><td style="color:#64748b; width:40%;">LINE</td><td style="font-weight:bold;">' . htmlspecialchars($lName) . '</td></tr>';
                         echo '<tr><td style="color:#64748b;">SECTION</td><td style="font-weight:bold;">' . htmlspecialchars($sName) . '</td></tr>';
                         echo '<tr><td style="color:#64748b;">MODEL NAME</td><td style="font-weight:bold; color:#0284c7;">' . htmlspecialchars($mName) . '</td></tr>';
-                        echo '<tr><td style="color:#64748b;">ITEM CHECK &amp; TYPE</td><td style="font-weight:bold;">' . htmlspecialchars($itemFullStr) . ' [' . htmlspecialchars($dataType) . ']</td></tr>';
                         echo '<tr><td style="color:#64748b;">PROCESS NAME</td><td>' . htmlspecialchars($procName) . '</td></tr>';
+                        echo '</table>';
+                        echo '<table class="info-table">';
+                        echo '<tr><td style="color:#64748b; width:45%;">ITEM CHECK &amp; TYPE</td><td style="font-weight:bold;">' . htmlspecialchars($itemFullStr) . ' [' . htmlspecialchars($dataType) . ']</td></tr>';
                         echo '<tr><td style="color:#64748b;">SPEC (LSL - USL)</td><td style="font-weight:bold; color:#0369a1;">' . $specStr . '</td></tr>';
-                        echo '<tr><td style="color:#64748b;">MEASUREMENT</td><td>' . htmlspecialchars($measItem) . '</td></tr>';
                         echo '<tr><td style="color:#64748b;">TARGET ZST / ZLT</td><td style="font-weight:bold;">' . $targetZst . ' / ' . $targetZlt . '</td></tr>';
                         echo '<tr><td style="color:#64748b;">MONTH</td><td>' . $monthFormatted . '</td></tr>';
-                        echo '</table></div>';
+                        echo '</table>';
+                        echo '</div></div>';
 
-                        echo '<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px;">';
-                        echo '<div style="font-size:10px; font-weight:bold; color:#0284c7; margin-bottom:6px; border-bottom:1px solid #e2e8f0; padding-bottom:4px;">DATA SUMMARY</div>';
+                        // 2. Side-by-side: Data Summary (Left) & Measurement Data Grid (Right)
+                        echo '<div class="flex-layout">';
+
+                        // Left Side: Data Summary
+                        echo '<div class="left-box">';
+                        echo '<div class="summary-card-box">';
+                        echo '<div class="summary-card-header"><i class="fa-solid fa-chart-simple" style="margin-right:4px;"></i> DATA SUMMARY</div>';
+                        echo '<div class="summary-card-body">';
                         echo '<table class="summary-table">';
                         echo '<tr><td style="color:#64748b; width:50%;">Sample Q\'ty(n)</td><td style="text-align:right; font-weight:bold;">' . $nCount . '</td></tr>';
                         echo '<tr><td style="color:#64748b;">Center spec</td><td style="text-align:right; font-weight:bold;">' . $centerSpec . '</td></tr>';
@@ -754,11 +777,11 @@ try {
                         echo '<tr><td style="color:#64748b;">Zst</td><td style="text-align:right; font-weight:bold; color:#0284c7;">' . $zstDisplay . '</td></tr>';
                         echo '<tr><td style="color:#64748b;">Zlt</td><td style="color:#0369a1; text-align:right; font-weight:bold;">' . $zltDisplay . '</td></tr>';
                         echo '</table></div>';
-                        echo '</div>'; // end left-box
+                        echo '</div></div>'; // end summary-card-body, summary-card-box & left-box
 
                         // Right Side: Grid Table
                         echo '<div class="right-box">';
-                        echo '<div style="font-size:10px; font-weight:bold; color:#0284c7; margin-bottom:6px;"><i class="fa-solid fa-table-cells"></i> MEASUREMENT DATA GRID (' . $monthFormatted . ')</div>';
+                        echo '<div class="grid-card-header"><i class="fa-solid fa-table-cells" style="margin-right:5px; color:#0284c7;"></i> MEASUREMENT DATA GRID (' . $monthFormatted . ')</div>';
                         echo '<table class="grid-table"><thead><tr>';
                         echo '<th style="background:#0f172a; color:#fff; width:55px;">Jam</th>';
                         for ($d = 1; $d <= $daysInMonth; $d++) {

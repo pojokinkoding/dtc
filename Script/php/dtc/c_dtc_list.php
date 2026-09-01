@@ -396,6 +396,7 @@ try {
         $comboKey = $mNameKey . '|' . $lNameKey . '|' . $sNameKey;
 
         $rmCreatedAt = $activeRMMap[$comboKey] ?? ($activeRMMap[$mNameKey] ?? null);
+        $row['rm_created_at'] = $rmCreatedAt;
 
         if ($isQualitative && !isset($paramsWithCheckpoints[$pid])) {
             // Qualitative param with no checkpoints yet — not overdue (nothing to fill yet)

@@ -190,7 +190,7 @@ $(document).ready(function () {
         }
         return `<tr data-existing-image="${checkpoint.reference_image || ''}">
             <td class="master-cp-number" style="padding:6px 4px; text-align:center; color:var(--text-muted); font-weight:bold;"></td>
-            <td style="padding:6px 4px;"><input class="form-control master-cp-name" value="${checkpoint.checkpoint_name || ''}" placeholder="e.g. Suhu / Dimensi" required style="width:100%; padding:6px 8px; font-size:11.5px;"></td>
+            <td style="padding:6px 4px;"><input class="form-control master-cp-name" value="${checkpoint.checkpoint_name || ''}" placeholder="e.g. Suhu / Dimensi" style="width:100%; padding:6px 8px; font-size:11.5px;"></td>
             <td style="padding:6px 4px;"><select class="form-control master-cp-type" style="width:100%; padding:6px; font-size:11px;"><option value="Qualitative" ${checkpointType === 'Qualitative' ? 'selected' : ''}>Qualitative</option><option value="Quantitative" ${checkpointType === 'Quantitative' ? 'selected' : ''}>Quantitative</option></select></td>
             <td style="padding:6px 4px;"><input class="form-control master-cp-spec" value="${checkpoint.spec_value || ''}" placeholder="e.g. OK / Max 5s" style="width:100%; padding:6px 8px; font-size:11.5px;"></td>
             <td style="padding:6px 4px;"><input type="number" step="0.1" class="form-control master-cp-target" value="${formatDec1(checkpoint.target_value)}" placeholder="Target" style="width:100%; text-align:center; padding:6px 4px; font-size:11.5px; color:#34d399; font-weight:bold;"></td>
@@ -266,6 +266,8 @@ $(document).ready(function () {
         if (checkpoints) {
             $('#measuring_item').val('Qualitative');
             if (!$('#master-checkpoint-tbody tr').length) resetMasterCheckpoints();
+        } else {
+            $('#measuring_item').val('Quantitative');
         }
     }
 
@@ -430,11 +432,34 @@ $(document).ready(function () {
     $('#form-master-spec').submit(function (e) {
         e.preventDefault();
 
-        let btn = $('#btn-save-spec');
-        btn.prop('disabled', true).text('Saving...');
+        const modelName = ($('#model_name').val() || '').trim();
+        const itemCheckName = ($('#item_check_name').val() || '').trim();
+        const dataType = ($('#data_type').val() || '').trim();
+        const lineName = ($('#line_name').val() || '').trim();
+        const sectionName = ($('#section_name').val() || '').trim();
+        const processName = ($('#process_name').val() || '').trim();
 
+        if (!modelName || !itemCheckName || !dataType || !lineName || !sectionName || !processName) {
+            Swal.fire('Error', 'Mohon lengkapi semua field Basic Information yang wajib diisi (*)', 'warning');
+            return;
+        }
+
+        let btn = $('#btn-save-spec');
         const formData = new FormData(this);
-        if (isCheckpointType()) {
+
+        if (!isCheckpointType()) {
+            const targetVal = ($('#target_value').val() || '').trim();
+            const lslVal = ($('#lsl').val() || '').trim();
+            const uslVal = ($('#usl').val() || '').trim();
+            if (targetVal === '' || lslVal === '' || uslVal === '') {
+                Swal.fire('Error', 'Mohon isi Target Value, LSL, dan USL', 'warning');
+                return;
+            }
+            if (parseFloat(lslVal) > parseFloat(uslVal)) {
+                Swal.fire('Error', 'Nilai LSL tidak boleh lebih besar dari USL', 'warning');
+                return;
+            }
+        } else {
             let checkpoints = [];
             let invalid = false;
             $('#master-checkpoint-tbody tr').each(function (index) {
@@ -447,12 +472,13 @@ $(document).ready(function () {
                 checkpoints.push({ checkpoint_name: name, checkpoint_type: $(this).find('.master-cp-type').val(), spec_value: $(this).find('.master-cp-spec').val().trim(), lsl, target_value: target, usl, image_index: index, reference_image: $(this).data('existing-image') || '' });
             });
             if (invalid || !checkpoints.length) {
-                btn.prop('disabled', false).html('<i class="fa-solid fa-floppy-disk"></i> Save Spec');
                 Swal.fire('Error', 'Minimal satu checkpoint wajib diisi dan LSL tidak boleh lebih besar dari USL.', 'error');
                 return;
             }
             formData.append('checkpoints', JSON.stringify(checkpoints));
         }
+
+        btn.prop('disabled', true).text('Saving...');
 
         $.ajax({
             url: 'Script/php/dtc/c_master_spec_save.php',

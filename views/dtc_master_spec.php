@@ -162,7 +162,7 @@
             <button id="btn-close-modal" style="background: none; border: none; color: var(--text-light); font-size: 24px; cursor: pointer; line-height: 1;">&times;</button>
         </div>
         
-        <form id="form-master-spec">
+        <form id="form-master-spec" novalidate>
             <input type="hidden" id="spec_id" name="spec_id" value="">
             
             <h4 style="margin-top:0; font-size: 12px; color: var(--accent); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; margin-bottom: 15px;">1. Basic Information</h4>

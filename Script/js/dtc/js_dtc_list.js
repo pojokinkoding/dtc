@@ -61,7 +61,22 @@ $(document).ready(function () {
             {
                 data: 'model_name',
                 render: function (data, type, row) {
-                    let html = `<span style="color: #e2e8f0; font-weight: 500;">${data}</span>`;
+                    let html = `<span style="color: #e2e8f0; font-weight: 600;">${data}</span>`;
+                    
+                    if (row.rm_created_at) {
+                        let parts = (row.rm_created_at || '').split(' ');
+                        let datePart = parts[0] || '';
+                        let timePart = (parts[1] || '').substring(0, 5);
+                        let dp = datePart.split('-');
+                        let d = dp[2] || '';
+                        let m = dp[1] || '';
+                        let monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                        let mName = monthNames[parseInt(m, 10)] || m;
+                        html += `<div style="font-size: 10px; color: #38bdf8; margin-top: 3px; display: inline-flex; align-items: center; gap: 4px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); padding: 1px 6px; border-radius: 6px;" title="Model Naik: ${row.rm_created_at}">
+                            <i class="fa-regular fa-clock" style="font-size: 9px;"></i> Naik: ${d} ${mName} ${timePart}
+                        </div>`;
+                    }
+
                     let overdue = parseInt(row.overdue_today_count || 0);
                     if (overdue > 0) {
                         html += `<br><span title="${overdue} sesi shift hari ini belum terisi dan sudah melewati waktunya"
@@ -520,8 +535,29 @@ $(document).ready(function () {
                                         ? `<i class="fa-solid fa-times btn-remove-rm" data-id="${r.running_id}" data-section="${r.section_name}" title="Remove Running Model"></i>`
                                         : '';
 
-                                    tabsContentHtml += `<span class="running-model-badge${isActive}" data-id="${r.running_id}" data-model="${r.model_name}" data-line="${r.line_name}" data-section="${r.section_name}" title="Click to filter table by ${r.model_name}">
+                                    // Format created_at date & time for badge display
+                                    let timeBadgeHtml = '';
+                                    let titleDate = '';
+                                    if (r.created_at) {
+                                        let parts = (r.created_at || '').split(' ');
+                                        let datePart = parts[0] || '';
+                                        let timePart = (parts[1] || '').substring(0, 5); // HH:mm
+                                        let dp = datePart.split('-');
+                                        let d = dp[2] || '';
+                                        let m = dp[1] || '';
+                                        let monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                                        let mName = monthNames[parseInt(m, 10)] || m;
+                                        let formattedDate = `${d} ${mName}`;
+                                        titleDate = `Naik: ${d} ${mName} ${timePart}`;
+
+                                        timeBadgeHtml = `<span style="background: rgba(255,255,255,0.14); color: #e0f2fe; font-size: 9.5px; padding: 1px 6px; border-radius: 8px; margin-left: 2px; font-weight: 600; display: inline-flex; align-items: center; gap: 3px;" title="Waktu Naik Model: ${r.created_at}">
+                                            <i class="fa-regular fa-clock" style="font-size: 8.5px; opacity: 0.85;"></i> ${formattedDate} ${timePart}
+                                        </span>`;
+                                    }
+
+                                    tabsContentHtml += `<span class="running-model-badge${isActive}" data-id="${r.running_id}" data-model="${r.model_name}" data-line="${r.line_name}" data-section="${r.section_name}" title="Model: ${r.model_name} | ${titleDate} (Klik untuk filter)">
                                                 <i class="fa-solid fa-cube"></i> ${r.model_name}
+                                                ${timeBadgeHtml}
                                                 <i class="fa-solid fa-pen-to-square btn-bulk-input-rm" data-model="${r.model_name}" data-line="${r.line_name}" data-section="${r.section_name}" title="Input Pengukuran Model ${r.model_name}" style="margin-left: 4px; cursor: pointer; color: #60a5fa;"></i>
                                                 ${deleteBtnHtml}
                                              </span>`;

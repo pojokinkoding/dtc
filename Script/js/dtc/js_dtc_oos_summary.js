@@ -238,7 +238,18 @@ $(document).ready(function () {
                 });
 
                 $('#oos-samples-container').html(samplesHtml);
-                $('#modal-quick-update-oos').css('display', 'flex');
+                $('body').addClass('modal-open-oos');
+                if ('zoom' in document.body.style) {
+                    document.body.style.zoom = 1;
+                }
+                document.body.style.transform = 'none';
+                document.body.style.width = '100%';
+
+                let $modal = $('#modal-quick-update-oos');
+                if ($modal.length > 0 && $modal.parent()[0] !== document.body) {
+                    $modal.appendTo('body');
+                }
+                $modal.css({ 'display': 'flex', 'z-index': '999999' });
             },
             error: function () {
                 $('#btn-save-oos-update').prop('disabled', false);
@@ -273,6 +284,10 @@ $(document).ready(function () {
     // Close Modal
     $(document).on('click', '#btn-close-oos-modal, #btn-cancel-oos-modal', function () {
         $('#modal-quick-update-oos').hide();
+        $('body').removeClass('modal-open-oos');
+        if (typeof applyFitScreen === 'function') {
+            setTimeout(applyFitScreen, 60);
+        }
     });
 
     // Save Updated Measurements
@@ -308,6 +323,10 @@ $(document).ready(function () {
 
                 if (res.status === 'success') {
                     $('#modal-quick-update-oos').hide();
+                    $('body').removeClass('modal-open-oos');
+                    if (typeof applyFitScreen === 'function') {
+                        setTimeout(applyFitScreen, 60);
+                    }
                     Swal.fire({
                         icon: 'success',
                         title: 'Berhasil!',

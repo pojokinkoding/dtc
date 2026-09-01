@@ -23,7 +23,9 @@ $(document).ready(function () {
             {
                 data: null,
                 render: function (data, type, row) {
-                    return `LSL: ${row.lsl} | USL: ${row.usl}`;
+                    let lslStr = row.lsl !== null && row.lsl !== undefined && row.lsl !== '' ? parseFloat(row.lsl).toFixed(1) : '-';
+                    let uslStr = row.usl !== null && row.usl !== undefined && row.usl !== '' ? parseFloat(row.usl).toFixed(1) : '-';
+                    return `LSL: ${lslStr} | USL: ${uslStr}`;
                 }
             },
             {
@@ -163,6 +165,12 @@ $(document).ready(function () {
     const btnCancel = document.getElementById('btn-cancel-modal');
     const formAdd = document.getElementById('form-master-spec');
 
+    function formatDec1(val) {
+        if (val === null || val === undefined || val === '') return '';
+        let num = parseFloat(val);
+        return isNaN(num) ? '' : num.toFixed(1);
+    }
+
     function isCheckpointType() {
         const type = String($('#data_type').val() || '').toUpperCase();
         return type === 'TIME CHECK' || type === 'F/PROOF';
@@ -176,9 +184,9 @@ $(document).ready(function () {
             <td style="padding:7px;"><input class="form-control master-cp-name" value="${checkpoint.checkpoint_name || ''}" required style="padding:6px; font-size:11px;"></td>
             <td style="padding:7px;"><select class="form-control master-cp-type" style="padding:6px; font-size:11px;"><option value="Qualitative" ${checkpointType === 'Qualitative' ? 'selected' : ''}>Qualitative</option><option value="Quantitative" ${checkpointType === 'Quantitative' ? 'selected' : ''}>Quantitative</option></select></td>
             <td style="padding:7px;"><input class="form-control master-cp-spec" value="${checkpoint.spec_value || ''}" style="padding:6px; font-size:11px;"></td>
-            <td style="padding:7px;"><input type="number" step="0.001" class="form-control master-cp-lsl" value="${checkpoint.lsl ?? ''}" style="padding:6px; font-size:11px;"></td>
-            <td style="padding:7px;"><input type="number" step="0.001" class="form-control master-cp-target" value="${checkpoint.target_value ?? ''}" style="padding:6px; font-size:11px;"></td>
-            <td style="padding:7px;"><input type="number" step="0.001" class="form-control master-cp-usl" value="${checkpoint.usl ?? ''}" style="padding:6px; font-size:11px;"></td>
+            <td style="padding:7px;"><input type="number" step="0.1" class="form-control master-cp-lsl" value="${formatDec1(checkpoint.lsl)}" style="padding:6px; font-size:11px;"></td>
+            <td style="padding:7px;"><input type="number" step="0.1" class="form-control master-cp-target" value="${formatDec1(checkpoint.target_value)}" style="padding:6px; font-size:11px;"></td>
+            <td style="padding:7px;"><input type="number" step="0.1" class="form-control master-cp-usl" value="${formatDec1(checkpoint.usl)}" style="padding:6px; font-size:11px;"></td>
             <td style="padding:7px;"><input type="file" accept="image/png,image/jpeg,image/gif" class="master-cp-image" style="font-size:10px; max-width:145px;"><div class="master-cp-current-image" style="font-size:10px; margin-top:3px;">${imageText}</div></td>
             <td style="padding:7px; text-align:center;"><button type="button" class="btn-remove-master-cp" title="Hapus checkpoint" style="color:#f87171; background:none; border:0; cursor:pointer;"><i class="fa-solid fa-trash"></i></button></td>
         </tr>`;
@@ -312,12 +320,12 @@ $(document).ready(function () {
         $('#section_name').val(data.section_name);
         $('#process_name').val(data.process_name);
         $('#measuring_item').val(data.measuring_item);
-        $('#lsl').val(data.lsl);
-        $('#usl').val(data.usl);
-        $('#target_value').val(data.target_value);
+        $('#lsl').val(formatDec1(data.lsl));
+        $('#usl').val(formatDec1(data.usl));
+        $('#target_value').val(formatDec1(data.target_value));
         $('#uom').val(data.uom);
-        $('#target_zst').val(data.target_zst);
-        $('#target_zlt').val(data.target_zlt);
+        $('#target_zst').val(data.target_zst !== null && data.target_zst !== undefined ? parseFloat(data.target_zst).toFixed(2) : '3.00');
+        $('#target_zlt').val(data.target_zlt !== null && data.target_zlt !== undefined ? parseFloat(data.target_zlt).toFixed(2) : '4.00');
         syncSpecFormByType();
         if (String(data.data_type).toUpperCase() === 'TIME CHECK' || String(data.data_type).toUpperCase() === 'F/PROOF') {
             loadMasterSpecCheckpoints(data.spec_id);

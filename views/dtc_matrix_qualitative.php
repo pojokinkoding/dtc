@@ -796,4 +796,3 @@ if (empty($model) || empty($line) || empty($section)) {
 </script>
 
 <?php require_once __DIR__ . '/modal_bulk_input.php'; ?>
-<?php require_once __DIR__ . '/modal_bulk_input.php'; ?>

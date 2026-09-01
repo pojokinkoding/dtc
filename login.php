@@ -41,6 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Login - DTC</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" href="logo.png" type="image/png">
     <style>
         :root {
             --bg-dark: #0f172a;
@@ -54,37 +55,74 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         body {
             font-family: 'Inter', sans-serif;
-            background-color: var(--bg-dark);
+            background-color: #0b132b;
             color: var(--text-light);
             margin: 0;
-            padding: 0;
-            background-image: radial-gradient(circle at 10% 20%, rgb(14, 26, 48) 0%, rgb(9, 16, 29) 90%);
+            padding: 20px;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            box-sizing: border-box;
+            background-image: 
+                radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.2) 0%, transparent 45%),
+                radial-gradient(circle at 80% 80%, rgba(225, 29, 72, 0.15) 0%, transparent 45%),
+                radial-gradient(rgba(255, 255, 255, 0.15) 1.5px, transparent 1.5px);
+            background-size: 100% 100%, 100% 100%, 24px 24px;
+            background-position: center center, center center, 0 0;
         }
 
         .login-card {
-            background: var(--bg-card);
-            border-radius: 16px;
-            padding: 40px;
+            background: rgba(15, 23, 42, 0.85);
+            border-radius: 18px;
+            padding: 35px 40px;
             width: 100%;
-            max-width: 400px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            max-width: 420px;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.1);
             text-align: center;
+            box-sizing: border-box;
+            position: relative;
+            z-index: 10;
         }
 
-        .login-card h2 {
-            margin-top: 0;
-            margin-bottom: 30px;
-            font-size: 28px;
-            font-weight: 700;
+        .login-brand {
+            margin-bottom: 25px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .login-brand img {
+            height: 55px;
+            object-fit: contain;
+            margin-bottom: 12px;
+            filter: drop-shadow(0 4px 15px rgba(225, 29, 72, 0.3));
+            transition: transform 0.3s ease;
+        }
+
+        .login-brand img:hover {
+            transform: scale(1.05);
+        }
+
+        .login-brand h2 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-transform: uppercase;
             background: linear-gradient(90deg, #60a5fa, #a78bfa);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+        }
+
+        .login-brand p {
+            margin: 5px 0 0 0;
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 500;
         }
 
         .form-group {
@@ -112,6 +150,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             outline: none;
             transition: all 0.3s ease;
             box-sizing: border-box;
+        }
+
+        .password-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+
+        .password-wrapper .form-control {
+            padding-right: 42px;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 15px;
+            padding: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s ease, transform 0.2s ease;
+            outline: none;
+        }
+
+        .toggle-password:hover {
+            color: #60a5fa;
+            transform: translateY(-50%) scale(1.1);
         }
 
         .form-control:focus {
@@ -152,7 +224,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
 
     <div class="login-card">
-        <h2>DTC Login</h2>
+        <div class="login-brand">
+            <img src="logo.png" alt="LG Logo">
+            <h2>System Digital Time Check</h2>
+            <p>Digital Time Check Quality Control</p>
+        </div>
         
         <?php if ($error): ?>
             <div class="error-message">
@@ -167,11 +243,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" name="password" class="form-control" placeholder="Enter password" required>
+                <div class="password-wrapper">
+                    <input type="password" id="password" name="password" class="form-control" placeholder="Enter password" required>
+                    <button type="button" id="toggle-password-btn" class="toggle-password" title="Show / Hide Password" aria-label="Toggle password visibility">
+                        <i class="fa-solid fa-eye" id="toggle-password-icon"></i>
+                    </button>
+                </div>
             </div>
             <button type="submit" class="btn-login">Log In</button>
         </form>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const toggleBtn = document.getElementById('toggle-password-btn');
+            const passwordInput = document.getElementById('password');
+            const toggleIcon = document.getElementById('toggle-password-icon');
+
+            if (toggleBtn && passwordInput && toggleIcon) {
+                toggleBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const isPassword = passwordInput.getAttribute('type') === 'password';
+                    passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
+                    toggleIcon.className = isPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+                    toggleBtn.style.color = isPassword ? '#60a5fa' : '';
+                    passwordInput.focus();
+                });
+            }
+        });
+    </script>
 
 </body>
 </html>

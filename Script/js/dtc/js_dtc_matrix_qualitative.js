@@ -399,9 +399,10 @@ $(document).ready(function () {
         } else {
             $('#edit_spec_bounds').css('display', 'none');
         }
-        $('#edit_cp_lsl').val(cp.lsl !== null && cp.lsl !== undefined ? cp.lsl : '');
-        $('#edit_cp_target_value').val(cp.target_value !== null && cp.target_value !== undefined ? cp.target_value : '');
-        $('#edit_cp_usl').val(cp.usl !== null && cp.usl !== undefined ? cp.usl : '');
+        let formatDec1 = (v) => (v !== null && v !== undefined && v !== '' && !isNaN(v)) ? parseFloat(v).toFixed(1) : '';
+        $('#edit_cp_lsl').val(formatDec1(cp.lsl));
+        $('#edit_cp_target_value').val(formatDec1(cp.target_value));
+        $('#edit_cp_usl').val(formatDec1(cp.usl));
 
         $('#modal-edit-checkpoint').addClass('active');
     });
@@ -688,9 +689,10 @@ function openQuantInputModal(selectedDay) {
     $('#modal-quant-datatype-badge').text(`[${paramInfo.data_type || 'Time Check'}]`);
 
     // Spec Box Info (Prefer Checkpoint Spec, Fallback to Parameter Spec)
-    let lslVal = (cp.lsl !== undefined && cp.lsl !== null) ? cp.lsl : (paramInfo.lsl !== null ? paramInfo.lsl : '-');
-    let targetVal = (cp.target_value !== undefined && cp.target_value !== null) ? cp.target_value : (paramInfo.target_value !== null ? paramInfo.target_value : '-');
-    let uslVal = (cp.usl !== undefined && cp.usl !== null) ? cp.usl : (paramInfo.usl !== null ? paramInfo.usl : '-');
+    let formatDec1Val = (v) => (v !== undefined && v !== null && v !== '' && v !== '-' && !isNaN(v)) ? parseFloat(v).toFixed(1) : '-';
+    let lslVal = (cp.lsl !== undefined && cp.lsl !== null && cp.lsl !== '') ? formatDec1Val(cp.lsl) : (paramInfo.lsl !== null ? formatDec1Val(paramInfo.lsl) : '-');
+    let targetVal = (cp.target_value !== undefined && cp.target_value !== null && cp.target_value !== '') ? formatDec1Val(cp.target_value) : (paramInfo.target_value !== null ? formatDec1Val(paramInfo.target_value) : '-');
+    let uslVal = (cp.usl !== undefined && cp.usl !== null && cp.usl !== '') ? formatDec1Val(cp.usl) : (paramInfo.usl !== null ? formatDec1Val(paramInfo.usl) : '-');
 
     $('#quant-spec-lsl').text(lslVal);
     $('#quant-spec-target').text(targetVal);

@@ -3,16 +3,82 @@
     .swal2-container {
         z-index: 9999999 !important;
     }
+    #modal-bulk-input {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        background: rgba(0, 0, 0, 0.88) !important;
+        z-index: 999999 !important;
+        display: none;
+        justify-content: center !important;
+        align-items: center !important;
+        padding: 12px !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+    }
+    #modal-bulk-input .bulk-modal-card {
+        width: 98vw !important;
+        max-width: 1900px !important;
+        height: calc(100vh - 24px) !important;
+        max-height: calc(100vh - 24px) !important;
+        display: flex !important;
+        flex-direction: column !important;
+        background: #0f172a !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: 12px !important;
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.9) !important;
+        overflow: hidden !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        box-sizing: border-box !important;
+    }
+    #modal-bulk-input .bulk-modal-header {
+        background: rgba(15, 23, 42, 0.98) !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+        padding: 8px 16px !important;
+        flex-shrink: 0 !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        font-size: 12px !important;
+    }
+    #modal-bulk-input #bulk-input-body {
+        padding: 14px 18px !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        background: rgba(15, 23, 42, 0.4) !important;
+    }
+    #modal-bulk-input .bulk-modal-footer {
+        background: rgba(15, 23, 42, 0.98) !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+        padding: 10px 20px !important;
+        flex-shrink: 0 !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+    }
+    body.modal-open-bulk {
+        overflow: hidden !important;
+    }
 </style>
 <script>
     window.currentIsAdmin = <?= json_encode(isset($_SESSION['role']) && strtolower(trim($_SESSION['role'])) === 'admin') ?>;
     window.isAdmin = window.currentIsAdmin;
 </script>
-<div id="modal-bulk-input" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 99999; justify-content: center; align-items: center; padding: 10px;">
-    <div class="card" style="width: 98vw; max-width: 1900px; height: 95vh; display: flex; flex-direction: column; background: #0f172a; border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; box-shadow: 0 25px 60px rgba(0,0,0,0.9); overflow: hidden;">
+<div id="modal-bulk-input">
+    <div class="card bulk-modal-card">
         
         <!-- Ultra-Slim Header Bar (Minimal Space Usage + Alarm System) -->
-        <div style="background: rgba(15,23,42,0.98); border-bottom: 1px solid rgba(255,255,255,0.1); padding: 6px 16px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
+        <div class="bulk-modal-header">
             <div style="display: flex; align-items: center; gap: 12px;">
                 <span style="font-weight: 700; color: #f8fafc; display: inline-flex; align-items: center; gap: 6px;">
                     <i class="fa-solid fa-list-check" style="color: #60a5fa;"></i> Bulk Input Pengukuran
@@ -51,7 +117,7 @@
         </div>
 
         <!-- Body / Scrollable Form Container -->
-        <div id="bulk-input-body" class="card-body" style="padding: 20px; overflow-y: auto; flex-grow: 1; background: rgba(15,23,42,0.4);">
+        <div id="bulk-input-body" class="card-body">
             <div id="bulk-loading-state" style="display: none; text-align: center; padding: 60px 20px;">
                 <i class="fa-solid fa-spinner fa-spin" style="font-size: 36px; color: #60a5fa; margin-bottom: 15px;"></i>
                 <p style="color: #94a3b8; font-size: 14px;">Memuat form pengukuran untuk model...</p>
@@ -71,7 +137,7 @@
         </div>
 
         <!-- Footer -->
-        <div class="card-footer" style="background: rgba(15,23,42,0.95); border-top: 1px solid rgba(255,255,255,0.1); padding: 15px 25px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center;">
+        <div class="card-footer bulk-modal-footer">
             <div id="bulk-form-summary" style="font-size: 13px; color: #94a3b8;">
                 Total Item Check: <strong id="bulk-total-count" style="color: #f8fafc;">0</strong> | Terisi: <strong id="bulk-filled-count" style="color: #34d399;">0</strong>
             </div>

@@ -163,6 +163,23 @@ function sortShiftTimeLabels($labels) {
             'process_name' => $param['process_name']
         ];
         
+        // Auto-heal / sync checkpoints from Master Spec template if not yet present in dtc_checkpoints
+        try {
+            $conn->prepare("
+                INSERT INTO dtc_checkpoints
+                    (parameter_id, checkpoint_name, checkpoint_type, spec_value, lsl, target_value, usl, reference_image, sort_order)
+                SELECT p.parameter_id, t.checkpoint_name, t.checkpoint_type, t.spec_value,
+                       t.lsl, t.target_value, t.usl, t.reference_image, t.sort_order
+                FROM dtc_master_parameters p
+                INNER JOIN dtc_master_spec_checkpoints t ON t.spec_id = p.spec_id
+                WHERE p.parameter_id = :pid
+                  AND NOT EXISTS (
+                      SELECT 1 FROM dtc_checkpoints c
+                      WHERE c.parameter_id = p.parameter_id AND c.checkpoint_name = t.checkpoint_name
+                  )
+            ")->execute([':pid' => $param_id]);
+        } catch (Exception $e) {}
+
         // Get checkpoints for this parameter
         $stmtCp = $conn->prepare("SELECT * FROM dtc_checkpoints WHERE parameter_id = :pid ORDER BY sort_order ASC, checkpoint_id ASC");
         $stmtCp->execute([':pid' => $param_id]);

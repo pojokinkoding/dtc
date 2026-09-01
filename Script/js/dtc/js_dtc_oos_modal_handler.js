@@ -59,11 +59,18 @@ $(document).ready(function () {
         $('#oos-sessions-loading').show();
         $('#btn-save-oos-param-modal').prop('disabled', true);
 
+        $('body').addClass('modal-open-oos');
+        if ('zoom' in document.body.style) {
+            document.body.style.zoom = 1;
+        }
+        document.body.style.transform = 'none';
+        document.body.style.width = '100%';
+
         let $modal = $('#modal-oos-param-update');
         if ($modal.length > 0 && $modal.parent()[0] !== document.body) {
             $modal.appendTo('body');
         }
-        $modal.css({ 'display': 'flex', 'z-index': '9999' });
+        $modal.css({ 'display': 'flex', 'z-index': '999999' });
 
         $.ajax({
             url: 'Script/php/dtc/c_oos_summary.php',
@@ -351,6 +358,10 @@ $(document).ready(function () {
     // Close Modal
     $(document).on('click', '.btn-close-oos-param-modal', function () {
         $('#modal-oos-param-update').hide();
+        $('body').removeClass('modal-open-oos');
+        if (typeof applyFitScreen === 'function') {
+            setTimeout(applyFitScreen, 60);
+        }
     });
 
     // Submit Save for all modified sessions
@@ -391,6 +402,10 @@ $(document).ready(function () {
 
         if (sessionDataList.length === 0) {
             $('#modal-oos-param-update').hide();
+            $('body').removeClass('modal-open-oos');
+            if (typeof applyFitScreen === 'function') {
+                setTimeout(applyFitScreen, 60);
+            }
             return;
         }
 
@@ -449,6 +464,10 @@ $(document).ready(function () {
 
                 if (res.status === 'success') {
                     $('#modal-oos-param-update').hide();
+                    $('body').removeClass('modal-open-oos');
+                    if (typeof applyFitScreen === 'function') {
+                        setTimeout(applyFitScreen, 60);
+                    }
                     Swal.fire({
                         icon: 'success',
                         title: 'Berhasil!',

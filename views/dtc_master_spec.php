@@ -211,16 +211,16 @@
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
                     <label style="font-size: 11px; margin-bottom: 4px;">LSL</label>
-                    <input type="number" step="0.001" id="lsl" name="lsl" class="form-control" style="padding: 8px; font-size: 12px;" value="70" required>
+                    <input type="number" step="0.1" id="lsl" name="lsl" class="form-control" style="padding: 8px; font-size: 12px;" value="70.0" required>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
                     <label style="font-size: 11px; margin-bottom: 4px;">USL</label>
-                    <input type="number" step="0.001" id="usl" name="usl" class="form-control" style="padding: 8px; font-size: 12px;" value="150" required>
+                    <input type="number" step="0.1" id="usl" name="usl" class="form-control" style="padding: 8px; font-size: 12px;" value="150.0" required>
                 </div>
                 
                 <div class="form-group" style="margin-bottom: 0;">
                     <label style="font-size: 11px; margin-bottom: 4px;">Target Value</label>
-                    <input type="number" step="0.001" id="target_value" name="target_value" class="form-control" style="padding: 8px; font-size: 12px;" value="110" required>
+                    <input type="number" step="0.1" id="target_value" name="target_value" class="form-control" style="padding: 8px; font-size: 12px;" value="110.0" required>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
                     <label style="font-size: 11px; margin-bottom: 4px;">UoM (Unit)</label>

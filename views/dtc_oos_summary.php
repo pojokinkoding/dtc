@@ -160,15 +160,79 @@
 </div>
 
 <!-- Modal Quick Update OOS Measurements -->
-<div id="modal-quick-update-oos" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 99999; justify-content: center; align-items: center; padding: 15px;">
-    <div class="card" style="width: 650px; max-width: 95%; max-height: 90vh; overflow-y: auto; background: #0f172a; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 20px 40px rgba(0,0,0,0.8);">
-        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding: 14px 18px;">
+<style>
+    #modal-quick-update-oos {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        background: rgba(0, 0, 0, 0.88) !important;
+        z-index: 999999 !important;
+        display: none;
+        justify-content: center !important;
+        align-items: center !important;
+        padding: 15px !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+    }
+    #modal-quick-update-oos .quick-oos-card {
+        width: 680px !important;
+        max-width: 96vw !important;
+        height: calc(100vh - 40px) !important;
+        max-height: 800px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        background: #0f172a !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: 12px !important;
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.9) !important;
+        overflow: hidden !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        box-sizing: border-box !important;
+    }
+    #modal-quick-update-oos .quick-oos-header {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+        padding: 12px 18px !important;
+        flex-shrink: 0 !important;
+        background: rgba(15, 23, 42, 0.98) !important;
+    }
+    #modal-quick-update-oos .quick-oos-body {
+        padding: 16px 20px !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        background: rgba(15, 23, 42, 0.4) !important;
+    }
+    #modal-quick-update-oos .quick-oos-footer {
+        padding: 10px 18px !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+        display: flex !important;
+        justify-content: flex-end !important;
+        gap: 10px !important;
+        background: rgba(15, 23, 42, 0.98) !important;
+        flex-shrink: 0 !important;
+    }
+</style>
+<div id="modal-quick-update-oos">
+    <div class="card quick-oos-card">
+        <div class="card-header quick-oos-header">
             <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
                 <i class="fa-solid fa-pen-to-square" style="color: #60a5fa;"></i> Update Pengukuran Out of Spec
             </h3>
-            <i class="fa-solid fa-times" id="btn-close-oos-modal" style="cursor: pointer; font-size: 18px; color: #94a3b8;"></i>
+            <i class="fa-solid fa-times" id="btn-close-oos-modal" style="cursor: pointer; font-size: 18px; color: #94a3b8; padding: 2px 6px;" title="Tutup Modal"></i>
         </div>
-        <div class="card-body" style="padding: 20px;">
+        <div class="card-body quick-oos-body">
             <form id="form-quick-update-oos">
                 <input type="hidden" id="oos_edit_session_id" name="session_id">
                 
@@ -195,9 +259,9 @@
                     <textarea id="oos_edit_remarks" name="remarks" rows="2" placeholder="Masukkan catatan atau tindakan perbaikan..." style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(15,23,42,0.8); color: white; font-size: 12px;"></textarea>
                 </div>
 
-                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <div class="card-footer quick-oos-footer">
                     <button type="button" id="btn-cancel-oos-modal" class="btn-rich-secondary" style="padding: 8px 16px; font-size: 12px;">Batal</button>
-                    <button type="submit" id="btn-save-oos-update" class="btn-rich-primary" style="padding: 8px 18px; font-size: 12px;">
+                    <button type="submit" id="btn-save-oos-update" class="btn-rich-primary" style="padding: 8px 18px; font-size: 12px; font-weight: 700;">
                         <i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan
                     </button>
                 </div>

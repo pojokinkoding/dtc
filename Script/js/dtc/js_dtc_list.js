@@ -1494,6 +1494,13 @@ window.openBulkInputModal = function (modelName, lineName, sectionName, paramId)
         $('#btn-toggle-bulk-mute').css({ 'background': 'rgba(239,68,68,0.25)', 'color': '#f87171', 'border-color': 'rgba(239,68,68,0.4)' });
     }
 
+    $('body').addClass('modal-open-bulk');
+    if ('zoom' in document.body.style) {
+        document.body.style.zoom = 1;
+    }
+    document.body.style.transform = 'none';
+    document.body.style.width = '100%';
+
     // CRITICAL FIX: Move modal to direct child of <body> to escape any parent CSS transform/zoom
     // (body.style.zoom or body.style.transform breaks position:fixed stacking context)
     let $modal = $('#modal-bulk-input');
@@ -1503,7 +1510,7 @@ window.openBulkInputModal = function (modelName, lineName, sectionName, paramId)
     if ($('#bulk_date_input').length > 0) {
         $('#bulk_date_input').val(getManufacturingProdDateStr());
     }
-    $modal.css({ 'display': 'flex', 'z-index': '99999' });
+    $modal.css({ 'display': 'flex', 'z-index': '999999' });
     loadBulkFormData();
 
     if (bulkFormRefreshInterval) clearInterval(bulkFormRefreshInterval);
@@ -2033,9 +2040,6 @@ function parseSlotMinutes(slotLabel) {
 }
 
 function isSlotBeforeModelCreation(slotLabel, timeLabels, slotIdx, createdAtStr, inspectionDateStr) {
-    let isUserAdmin = window.currentIsAdmin || window.isAdmin || (typeof isAdmin !== 'undefined' && isAdmin);
-    if (isUserAdmin) return false;
-
     if (!createdAtStr || !inspectionDateStr || !slotLabel) return false;
 
     let parts = createdAtStr.trim().split(' ');
@@ -2343,6 +2347,10 @@ $(document).on('click', '#btn-close-bulk-modal, #btn-cancel-bulk-modal', functio
     window.currentBulkFilterLine = '';
     window.currentBulkFilterSection = '';
     $('#modal-bulk-input').hide();
+    $('body').removeClass('modal-open-bulk');
+    if (typeof applyFitScreen === 'function') {
+        setTimeout(applyFitScreen, 60);
+    }
 });
 
 $(document).on('change', '#bulk_date_input', function () {

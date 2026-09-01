@@ -24,7 +24,7 @@ try {
     // --- MODE DETAIL (PARAM_ID > 0): Direct Parameter Fetching (Bypasses dtc_running_models) ---
     if ($param_filter > 0) {
         $stmtP = $conn->prepare("
-            SELECT p.parameter_id, p.spec_id, p.target_month,
+            SELECT p.parameter_id, p.spec_id, p.target_month, p.created_at,
                    COALESCE(p.model_name, spec.model_name) as model_name,
                    COALESCE(p.line_name, spec.line_name) as line_name,
                    COALESCE(p.section_name, spec.section_name) as section_name,
@@ -200,7 +200,7 @@ try {
                 'line_name' => $paramSingle['line_name'],
                 'section_name' => $paramSingle['section_name'],
                 'target_month' => $paramSingle['target_month'],
-                'created_at' => $rm_created_at,
+                'created_at' => $rm_created_at ?: ($paramSingle['created_at'] ?? null),
                 'parameters' => [[
                     'parameter_id' => $pid,
                     'process_name' => $paramSingle['process_name'],
@@ -326,7 +326,7 @@ try {
         $tMonth = $rm['target_month'];
 
         $sqlParams = "
-            SELECT p.parameter_id, p.spec_id,
+            SELECT p.parameter_id, p.spec_id, p.created_at,
                    COALESCE(p.model_name, spec.model_name) as model_name,
                    COALESCE(p.line_name, spec.line_name) as line_name,
                    COALESCE(p.section_name, spec.section_name) as section_name,
@@ -493,7 +493,7 @@ try {
             'line_name' => $lName,
             'section_name' => $sName,
             'target_month' => $tMonth,
-            'created_at' => $rm['created_at'] ?? null,
+            'created_at' => !empty($rm['created_at']) ? $rm['created_at'] : ($parameters[0]['created_at'] ?? null),
             'items' => $items
         ];
     }

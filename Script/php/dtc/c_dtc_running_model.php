@@ -156,13 +156,14 @@ try {
         }
 
         // 2. Ensure parameter entries exist in dtc_master_parameters for this line, section, model, data type & month
-        $paramTypeCondition = $isGeneral ? '' : "\n              AND UPPER(TRIM(data_type)) = UPPER(TRIM(:datatype))";
+        $paramTypeCondition = $isGeneral ? '' : "\n              AND UPPER(TRIM(COALESCE(p.data_type, spec.data_type))) = UPPER(TRIM(:datatype))";
         $checkParamStmt = $conn->prepare("
-            SELECT COUNT(*) FROM dtc_master_parameters 
-            WHERE target_month = :m 
-              AND UPPER(TRIM(line_name)) = UPPER(TRIM(:line)) 
-              AND UPPER(TRIM(section_name)) = UPPER(TRIM(:section)) 
-              AND UPPER(TRIM(model_name)) = UPPER(TRIM(:model))
+            SELECT COUNT(*) FROM dtc_master_parameters p
+            LEFT JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id
+            WHERE p.target_month = :m 
+              AND UPPER(TRIM(COALESCE(p.line_name, spec.line_name))) = UPPER(TRIM(:line)) 
+              AND UPPER(TRIM(COALESCE(p.section_name, spec.section_name))) = UPPER(TRIM(:section)) 
+              AND UPPER(TRIM(COALESCE(p.model_name, spec.model_name))) = UPPER(TRIM(:model))
               $paramTypeCondition
         ");
         $checkParamArgs = [':m' => $month, ':line' => $line, ':section' => $section, ':model' => $model];
@@ -222,18 +223,19 @@ try {
 
         // Salin template checkpoint Master Spec ke parameter bulan berjalan. Query ini juga
         // menangani parameter yang sudah pernah dibuat tetapi belum punya checkpoint.
-        $syncTypeCondition = $isGeneral ? '' : "\n              AND UPPER(TRIM(p.data_type)) = UPPER(TRIM(:datatype))";
+        $syncTypeCondition = $isGeneral ? '' : "\n              AND UPPER(TRIM(COALESCE(p.data_type, spec.data_type))) = UPPER(TRIM(:datatype))";
         $syncCheckpointStmt = $conn->prepare("
             INSERT INTO dtc_checkpoints
                 (parameter_id, checkpoint_name, checkpoint_type, spec_value, lsl, target_value, usl, reference_image, sort_order)
             SELECT p.parameter_id, t.checkpoint_name, t.checkpoint_type, t.spec_value,
                    t.lsl, t.target_value, t.usl, t.reference_image, t.sort_order
             FROM dtc_master_parameters p
+            LEFT JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id
             INNER JOIN dtc_master_spec_checkpoints t ON t.spec_id = p.spec_id
             WHERE p.target_month = :m
-              AND UPPER(TRIM(p.line_name)) = UPPER(TRIM(:line))
-              AND UPPER(TRIM(p.section_name)) = UPPER(TRIM(:section))
-              AND UPPER(TRIM(p.model_name)) = UPPER(TRIM(:model))
+              AND UPPER(TRIM(COALESCE(p.line_name, spec.line_name))) = UPPER(TRIM(:line))
+              AND UPPER(TRIM(COALESCE(p.section_name, spec.section_name))) = UPPER(TRIM(:section))
+              AND UPPER(TRIM(COALESCE(p.model_name, spec.model_name))) = UPPER(TRIM(:model))
               $syncTypeCondition
               AND NOT EXISTS (
                   SELECT 1 FROM dtc_checkpoints c

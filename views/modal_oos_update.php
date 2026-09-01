@@ -6,19 +6,84 @@
     .swal2-container {
         z-index: 9999999 !important;
     }
+    #modal-oos-param-update {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        background: rgba(0, 0, 0, 0.88) !important;
+        z-index: 999999 !important;
+        display: none;
+        justify-content: center !important;
+        align-items: center !important;
+        padding: 15px !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+    }
+    #modal-oos-param-update .oos-modal-card {
+        width: 780px !important;
+        max-width: 96vw !important;
+        height: calc(100vh - 40px) !important;
+        max-height: 850px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        background: #0f172a !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: 12px !important;
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.9) !important;
+        overflow: hidden !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        box-sizing: border-box !important;
+    }
+    #modal-oos-param-update .oos-modal-header {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+        padding: 12px 18px !important;
+        flex-shrink: 0 !important;
+        background: rgba(15, 23, 42, 0.98) !important;
+    }
+    #modal-oos-param-update .oos-modal-body {
+        padding: 16px 20px !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        background: rgba(15, 23, 42, 0.4) !important;
+    }
+    #modal-oos-param-update .oos-modal-footer {
+        padding: 10px 18px !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+        display: flex !important;
+        justify-content: flex-end !important;
+        gap: 10px !important;
+        background: rgba(15, 23, 42, 0.98) !important;
+        flex-shrink: 0 !important;
+    }
+    body.modal-open-oos {
+        overflow: hidden !important;
+    }
 </style>
 <script>
     window.currentIsAdmin = <?= (isset($_SESSION['role']) && strtolower(trim($_SESSION['role'])) === 'admin') ? 'true' : 'false' ?>;
 </script>
-<div id="modal-oos-param-update" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; padding: 15px;">
-    <div class="card" style="width: 750px; max-width: 95%; max-height: 90vh; display: flex; flex-direction: column; background: #0f172a; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 20px 40px rgba(0,0,0,0.8);">
-        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding: 14px 18px; flex-shrink: 0;">
+<div id="modal-oos-param-update">
+    <div class="card oos-modal-card">
+        <div class="card-header oos-modal-header">
             <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
                 <i class="fa-solid fa-triangle-exclamation" style="color: #ef4444;"></i> Update Pengukuran Out of Spec
             </h3>
-            <i class="fa-solid fa-times btn-close-oos-param-modal" style="cursor: pointer; font-size: 18px; color: #94a3b8;"></i>
+            <i class="fa-solid fa-times btn-close-oos-param-modal" style="cursor: pointer; font-size: 18px; color: #94a3b8; padding: 2px 6px;" title="Tutup Modal"></i>
         </div>
-        <div class="card-body" style="padding: 20px; overflow-y: auto; flex: 1;">
+        <div class="card-body oos-modal-body">
             <form id="form-oos-param-update">
                 <input type="hidden" id="oos_param_id">
                 <input type="hidden" id="oos_param_month">
@@ -49,9 +114,9 @@
                 </div>
             </form>
         </div>
-        <div class="card-footer" style="padding: 12px 18px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: flex-end; gap: 10px; background: rgba(15,23,42,0.9); flex-shrink: 0;">
+        <div class="card-footer oos-modal-footer">
             <button type="button" class="btn-rich-secondary btn-close-oos-param-modal" style="padding: 8px 16px; font-size: 12px;">Batal</button>
-            <button type="button" id="btn-save-oos-param-modal" class="btn-rich-primary" style="padding: 8px 18px; font-size: 12px;">
+            <button type="button" id="btn-save-oos-param-modal" class="btn-rich-primary" style="padding: 8px 18px; font-size: 12px; font-weight: 700;">
                 <i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan
             </button>
         </div>

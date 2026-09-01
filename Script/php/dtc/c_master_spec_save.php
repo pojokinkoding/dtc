@@ -53,6 +53,24 @@ function saveMasterSpecCheckpoints(PDO $conn, int $specId, array $checkpoints, a
             ':sort_order' => $index
         ]);
     }
+
+    // Auto-sync template checkpoints to current month's parameters with this spec_id
+    $currentMonth = date('Y-m');
+    $stmtSync = $conn->prepare("
+        INSERT INTO dtc_checkpoints
+            (parameter_id, checkpoint_name, checkpoint_type, spec_value, lsl, target_value, usl, reference_image, sort_order)
+        SELECT p.parameter_id, t.checkpoint_name, t.checkpoint_type, t.spec_value,
+               t.lsl, t.target_value, t.usl, t.reference_image, t.sort_order
+        FROM dtc_master_parameters p
+        INNER JOIN dtc_master_spec_checkpoints t ON t.spec_id = p.spec_id
+        WHERE p.spec_id = :spec_id
+          AND p.target_month = :target_month
+          AND NOT EXISTS (
+              SELECT 1 FROM dtc_checkpoints c
+              WHERE c.parameter_id = p.parameter_id AND c.checkpoint_name = t.checkpoint_name
+          )
+    ");
+    $stmtSync->execute([':spec_id' => $specId, ':target_month' => $currentMonth]);
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

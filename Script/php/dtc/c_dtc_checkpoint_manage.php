@@ -335,9 +335,34 @@ try {
                 echo json_encode(['status' => 'success', 'message' => 'Hari berhasil dikunci.']);
             }
             break;
+
+        case 'sync_from_master':
+            $param_id = intval($_POST['parameter_id'] ?? $_GET['parameter_id'] ?? 0);
+            if (!$param_id) {
+                echo json_encode(['status' => 'error', 'message' => 'Missing parameter_id']);
+                exit;
+            }
+
+            $stmtSync = $conn->prepare("
+                INSERT INTO dtc_checkpoints
+                    (parameter_id, checkpoint_name, checkpoint_type, spec_value, lsl, target_value, usl, reference_image, sort_order)
+                SELECT p.parameter_id, t.checkpoint_name, t.checkpoint_type, t.spec_value,
+                       t.lsl, t.target_value, t.usl, t.reference_image, t.sort_order
+                FROM dtc_master_parameters p
+                INNER JOIN dtc_master_spec_checkpoints t ON t.spec_id = p.spec_id
+                WHERE p.parameter_id = :pid
+                  AND NOT EXISTS (
+                      SELECT 1 FROM dtc_checkpoints c
+                      WHERE c.parameter_id = p.parameter_id AND c.checkpoint_name = t.checkpoint_name
+                  )
+            ");
+            $stmtSync->execute([':pid' => $param_id]);
+            $count = $stmtSync->rowCount();
+            echo json_encode(['status' => 'success', 'message' => "Berhasil menyinkronkan $count checkpoint dari Master Spec.", 'synced_count' => $count]);
+            break;
             
         default:
-            echo json_encode(['status' => 'error', 'message' => 'Invalid action. Use: list, add, delete, upload_image, toggle_close_day']);
+            echo json_encode(['status' => 'error', 'message' => 'Invalid action. Use: list, add, delete, upload_image, toggle_close_day, sync_from_master']);
     }
     
 } catch (Exception $e) {

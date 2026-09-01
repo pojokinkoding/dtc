@@ -74,6 +74,47 @@ BEGIN
     END IF;
 END $$
 
+DROP PROCEDURE IF EXISTS dtc_safe_update_running_model_unique $$
+CREATE PROCEDURE dtc_safe_update_running_model_unique()
+BEGIN
+    DECLARE v_has_data_type INT DEFAULT 0;
+    DECLARE v_index_exists INT DEFAULT 0;
+
+    SELECT COUNT(*) INTO v_index_exists
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = 'dtc_running_models'
+      AND index_name = 'uq_running_model';
+
+    SELECT COUNT(*) INTO v_has_data_type
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = 'dtc_running_models'
+      AND index_name = 'uq_running_model'
+      AND column_name = 'data_type';
+
+    IF v_index_exists > 0 AND v_has_data_type = 0 THEN
+        SET @sql = 'ALTER TABLE `dtc_running_models` DROP INDEX `uq_running_model`';
+        PREPARE stmt FROM @sql;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+
+        SET @sql = 'ALTER TABLE `dtc_running_models` ADD UNIQUE KEY `uq_running_model` (`target_month`, `line_name`, `section_name`, `model_name`, `data_type`)';
+        PREPARE stmt FROM @sql;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+        SELECT ' [OK] Unique Key `uq_running_model` diperbarui dengan kolom `data_type`.' AS result;
+    ELSEIF v_index_exists = 0 THEN
+        SET @sql = 'ALTER TABLE `dtc_running_models` ADD UNIQUE KEY `uq_running_model` (`target_month`, `line_name`, `section_name`, `model_name`, `data_type`)';
+        PREPARE stmt FROM @sql;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+        SELECT ' [OK] Unique Key `uq_running_model` berhasil dibuat.' AS result;
+    ELSE
+        SELECT ' [SKIP] Unique Key `uq_running_model` sudah memiliki kolom `data_type`.' AS result;
+    END IF;
+END $$
+
 DELIMITER ;
 
 -- 2. ALTER tabel dtc_checkpoints (Tambah kolom checkpoint_type)
@@ -99,10 +140,9 @@ CALL dtc_safe_add_index('dtc_checkpoints', 'idx_checkpoint_param', '`parameter_i
 CALL dtc_safe_add_index('dtc_measurements', 'idx_meas_checkpoint', '`checkpoint_id`');
 
 -- Update composite unique key pada dtc_running_models agar mendukung multi data_type
-ALTER TABLE `dtc_running_models` DROP INDEX IF EXISTS `uq_running_model`;
-ALTER TABLE `dtc_running_models` ADD UNIQUE KEY `uq_running_model` (`target_month`, `line_name`, `section_name`, `model_name`, `data_type`);
+CALL dtc_safe_update_running_model_unique();
 
--- 7. Standardisasi Collation (Mencegah Error 1267 Illegal Mix of Collations)
+-- 8. Standardisasi Collation (Mencegah Error 1267 Illegal Mix of Collations)
 ALTER TABLE `dtc_users` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ALTER TABLE `dtc_master_dtc_specs` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ALTER TABLE `dtc_master_parameters` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -116,3 +156,4 @@ ALTER TABLE `dtc_app_settings` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_
 -- Bersihkan stored procedure pembantu
 DROP PROCEDURE IF EXISTS dtc_safe_add_column;
 DROP PROCEDURE IF EXISTS dtc_safe_add_index;
+DROP PROCEDURE IF EXISTS dtc_safe_update_running_model_unique;

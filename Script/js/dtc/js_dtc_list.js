@@ -285,32 +285,7 @@ $(document).ready(function () {
     }
 
     function updateTabCounts() {
-        let counts = Object.assign({}, window.missingCounts || { 'All': 0, 'CTQ': 0, 'CTP': 0, 'Time Check': 0, 'F/Proof': 0 });
-
-        // Calculate/sync counts directly from loaded DataTable rows if present
-        if (typeof table !== 'undefined' && table && table.rows) {
-            let tableData = table.rows({ search: 'applied' }).data();
-            if (tableData && tableData.length > 0) {
-                let dtCounts = { 'All': 0, 'CTQ': 0, 'CTP': 0, 'Time Check': 0, 'F/Proof': 0 };
-                let hasOverdue = false;
-                for (let i = 0; i < tableData.length; i++) {
-                    let row = tableData[i];
-                    let overdue = parseInt(row.overdue_today_count || 0);
-                    if (overdue > 0) {
-                        hasOverdue = true;
-                        dtCounts['All']++;
-                        let type = (row.data_type || '').trim().toUpperCase();
-                        if (type === 'CTQ') dtCounts['CTQ']++;
-                        else if (type === 'CTP') dtCounts['CTP']++;
-                        else if (type === 'TIME CHECK') dtCounts['Time Check']++;
-                        else if (type === 'F/PROOF') dtCounts['F/Proof']++;
-                    }
-                }
-                if (hasOverdue) {
-                    counts = dtCounts;
-                }
-            }
-        }
+        let counts = Object.assign({ 'All': 0, 'CTQ': 0, 'CTP': 0, 'Time Check': 0, 'F/Proof': 0 }, window.missingCounts || {});
 
         $('.dtc-filter-tabs .filter-tab-btn, .filter-tab-btn[data-filter]').each(function () {
             let filter = $(this).attr('data-filter');

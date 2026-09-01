@@ -403,8 +403,31 @@ $(document).ready(function () {
         $('#edit_cp_lsl').val(formatDec1(cp.lsl));
         $('#edit_cp_target_value').val(formatDec1(cp.target_value));
         $('#edit_cp_usl').val(formatDec1(cp.usl));
+        let tolVal = '';
+        if (cp.target_value !== null && cp.target_value !== undefined && cp.target_value !== '' &&
+            cp.usl !== null && cp.usl !== undefined && cp.usl !== '') {
+            let t = parseFloat(cp.target_value);
+            let u = parseFloat(cp.usl);
+            if (!isNaN(t) && !isNaN(u) && u >= t) {
+                tolVal = formatDec1(u - t);
+            }
+        }
+        $('#edit_cp_tol').val(tolVal);
 
         $('#modal-edit-checkpoint').addClass('active');
+    });
+
+    $('#edit_cp_target_value, #edit_cp_tol').on('input', function () {
+        let targetStr = $('#edit_cp_target_value').val();
+        let tolStr = $('#edit_cp_tol').val();
+        if (targetStr !== '' && tolStr !== '') {
+            let t = parseFloat(targetStr);
+            let tol = parseFloat(tolStr);
+            if (!isNaN(t) && !isNaN(tol)) {
+                $('#edit_cp_lsl').val((t - tol).toFixed(1));
+                $('#edit_cp_usl').val((t + tol).toFixed(1));
+            }
+        }
     });
 
     $('#btn-close-edit-cp, #btn-cancel-edit-cp').on('click', function () {

@@ -210,17 +210,20 @@
                     </select>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
-                    <label style="font-size: 11px; margin-bottom: 4px;">LSL</label>
+                    <label style="font-size: 11px; margin-bottom: 4px; color:#34d399;">Target Value</label>
+                    <input type="number" step="0.1" id="target_value" name="target_value" class="form-control" style="padding: 8px; font-size: 12px;" value="110.0" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size: 11px; margin-bottom: 4px; color:#a78bfa;" title="Toleransi Simetris (±)">±</label>
+                    <input type="number" step="0.1" id="quant_tolerance" class="form-control" style="padding: 8px; font-size: 12px;" placeholder="e.g. 10.0">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size: 11px; margin-bottom: 4px; color:#f87171;">LSL</label>
                     <input type="number" step="0.1" id="lsl" name="lsl" class="form-control" style="padding: 8px; font-size: 12px;" value="70.0" required>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
-                    <label style="font-size: 11px; margin-bottom: 4px;">USL</label>
+                    <label style="font-size: 11px; margin-bottom: 4px; color:#60a5fa;">USL</label>
                     <input type="number" step="0.1" id="usl" name="usl" class="form-control" style="padding: 8px; font-size: 12px;" value="150.0" required>
-                </div>
-                
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label style="font-size: 11px; margin-bottom: 4px;">Target Value</label>
-                    <input type="number" step="0.1" id="target_value" name="target_value" class="form-control" style="padding: 8px; font-size: 12px;" value="110.0" required>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
                     <label style="font-size: 11px; margin-bottom: 4px;">UoM (Unit)</label>
@@ -248,13 +251,14 @@
                         <thead><tr style="color:var(--text-muted); text-align:left; border-bottom:1px solid rgba(255,255,255,0.1); background: rgba(15,23,42,0.7);">
                             <th style="padding:8px 4px; width:35px; text-align:center;">No</th>
                             <th style="padding:8px 6px;">Checkpoint Name *</th>
-                            <th style="padding:8px 6px; width:115px;">Type</th>
+                            <th style="padding:8px 6px; width:110px;">Type</th>
                             <th style="padding:8px 6px;">Spec Value</th>
-                            <th style="padding:8px 4px; width:75px; text-align:center; color:#f87171;">LSL</th>
-                            <th style="padding:8px 4px; width:75px; text-align:center; color:#34d399;">Target</th>
-                            <th style="padding:8px 4px; width:75px; text-align:center; color:#60a5fa;">USL</th>
-                            <th style="padding:8px 6px; width:170px;">Reference Image</th>
-                            <th style="padding:8px 4px; width:40px; text-align:center;"></th>
+                            <th style="padding:8px 4px; width:70px; text-align:center; color:#34d399;">Target</th>
+                            <th style="padding:8px 4px; width:55px; text-align:center; color:#a78bfa;" title="Toleransi Simetris (±)">±</th>
+                            <th style="padding:8px 4px; width:70px; text-align:center; color:#f87171;">LSL</th>
+                            <th style="padding:8px 4px; width:70px; text-align:center; color:#60a5fa;">USL</th>
+                            <th style="padding:8px 6px; width:160px;">Reference Image</th>
+                            <th style="padding:8px 4px; width:35px; text-align:center;"></th>
                         </tr></thead>
                         <tbody id="master-checkpoint-tbody"></tbody>
                     </table>

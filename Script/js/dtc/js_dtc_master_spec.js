@@ -179,14 +179,24 @@ $(document).ready(function () {
     function masterCheckpointRow(index, checkpoint = {}) {
         const imageText = checkpoint.reference_image ? `<a href="${checkpoint.reference_image}" target="_blank" style="color:#60a5fa;">Current image</a>` : '';
         const checkpointType = checkpoint.checkpoint_type || 'Qualitative';
+        let tolVal = '';
+        if (checkpoint.target_value !== undefined && checkpoint.target_value !== null && checkpoint.target_value !== '' &&
+            checkpoint.usl !== undefined && checkpoint.usl !== null && checkpoint.usl !== '') {
+            let t = parseFloat(checkpoint.target_value);
+            let u = parseFloat(checkpoint.usl);
+            if (!isNaN(t) && !isNaN(u) && u >= t) {
+                tolVal = formatDec1(u - t);
+            }
+        }
         return `<tr data-existing-image="${checkpoint.reference_image || ''}">
             <td class="master-cp-number" style="padding:6px 4px; text-align:center; color:var(--text-muted); font-weight:bold;"></td>
             <td style="padding:6px 4px;"><input class="form-control master-cp-name" value="${checkpoint.checkpoint_name || ''}" placeholder="e.g. Suhu / Dimensi" required style="width:100%; padding:6px 8px; font-size:11.5px;"></td>
             <td style="padding:6px 4px;"><select class="form-control master-cp-type" style="width:100%; padding:6px; font-size:11px;"><option value="Qualitative" ${checkpointType === 'Qualitative' ? 'selected' : ''}>Qualitative</option><option value="Quantitative" ${checkpointType === 'Quantitative' ? 'selected' : ''}>Quantitative</option></select></td>
             <td style="padding:6px 4px;"><input class="form-control master-cp-spec" value="${checkpoint.spec_value || ''}" placeholder="e.g. OK / Max 5s" style="width:100%; padding:6px 8px; font-size:11.5px;"></td>
-            <td style="padding:6px 4px;"><input type="number" step="0.1" class="form-control master-cp-lsl" value="${formatDec1(checkpoint.lsl)}" placeholder="LSL" style="width:100%; text-align:center; padding:6px 4px; font-size:11.5px;"></td>
-            <td style="padding:6px 4px;"><input type="number" step="0.1" class="form-control master-cp-target" value="${formatDec1(checkpoint.target_value)}" placeholder="Target" style="width:100%; text-align:center; padding:6px 4px; font-size:11.5px;"></td>
-            <td style="padding:6px 4px;"><input type="number" step="0.1" class="form-control master-cp-usl" value="${formatDec1(checkpoint.usl)}" placeholder="USL" style="width:100%; text-align:center; padding:6px 4px; font-size:11.5px;"></td>
+            <td style="padding:6px 4px;"><input type="number" step="0.1" class="form-control master-cp-target" value="${formatDec1(checkpoint.target_value)}" placeholder="Target" style="width:100%; text-align:center; padding:6px 4px; font-size:11.5px; color:#34d399; font-weight:bold;"></td>
+            <td style="padding:6px 4px;"><input type="number" step="0.1" class="form-control master-cp-tol" value="${tolVal}" placeholder="±" title="Toleransi (±) untuk menghitung LSL & USL otomatis" style="width:100%; text-align:center; padding:6px 4px; font-size:11.5px; border-color:rgba(167,139,250,0.6); color:#a78bfa;"></td>
+            <td style="padding:6px 4px;"><input type="number" step="0.1" class="form-control master-cp-lsl" value="${formatDec1(checkpoint.lsl)}" placeholder="LSL" style="width:100%; text-align:center; padding:6px 4px; font-size:11.5px; color:#f87171;"></td>
+            <td style="padding:6px 4px;"><input type="number" step="0.1" class="form-control master-cp-usl" value="${formatDec1(checkpoint.usl)}" placeholder="USL" style="width:100%; text-align:center; padding:6px 4px; font-size:11.5px; color:#60a5fa;"></td>
             <td style="padding:6px 4px;"><input type="file" accept="image/png,image/jpeg,image/gif" class="master-cp-image" style="font-size:10px; width:100%; max-width:160px;"><div class="master-cp-current-image" style="font-size:10px; margin-top:2px;">${imageText}</div></td>
             <td style="padding:6px 4px; text-align:center;"><button type="button" class="btn-remove-master-cp" title="Hapus checkpoint" style="color:#f87171; background:none; border:0; cursor:pointer; font-size:13px; padding:4px;"><i class="fa-solid fa-trash"></i></button></td>
         </tr>`;
@@ -201,11 +211,47 @@ $(document).ready(function () {
 
     function syncMasterCheckpointTypeRow($row) {
         const isQuantitative = $row.find('.master-cp-type').val() === 'Quantitative';
-        const $limits = $row.find('.master-cp-lsl, .master-cp-target, .master-cp-usl');
+        const $limits = $row.find('.master-cp-lsl, .master-cp-target, .master-cp-tol, .master-cp-usl');
         $limits.prop('disabled', !isQuantitative);
         if (!isQuantitative) $limits.val('');
         $limits.css('opacity', isQuantitative ? '1' : '0.4');
     }
+
+    // Auto calculate LSL & USL from Target and Tolerance in checkpoint row
+    $(document).on('input', '.master-cp-target, .master-cp-tol', function () {
+        const $row = $(this).closest('tr');
+        const targetStr = $row.find('.master-cp-target').val();
+        const tolStr = $row.find('.master-cp-tol').val();
+        if (targetStr !== '' && tolStr !== '') {
+            const target = parseFloat(targetStr);
+            const tol = parseFloat(tolStr);
+            if (!isNaN(target) && !isNaN(tol)) {
+                const lslVal = (target - tol).toFixed(1);
+                const uslVal = (target + tol).toFixed(1);
+                $row.find('.master-cp-lsl').val(lslVal);
+                $row.find('.master-cp-usl').val(uslVal);
+
+                const $spec = $row.find('.master-cp-spec');
+                if (!$spec.val().trim() || $spec.val().includes('±') || $spec.val().includes('+/-')) {
+                    $spec.val(`${target} ± ${tol}`);
+                }
+            }
+        }
+    });
+
+    // Auto calculate LSL & USL in Single Quant Spec Section (Target ± Tolerance)
+    $('#target_value, #quant_tolerance').on('input', function () {
+        const targetStr = $('#target_value').val();
+        const tolStr = $('#quant_tolerance').val();
+        if (targetStr !== '' && tolStr !== '') {
+            const target = parseFloat(targetStr);
+            const tol = parseFloat(tolStr);
+            if (!isNaN(target) && !isNaN(tol)) {
+                $('#lsl').val((target - tol).toFixed(1));
+                $('#usl').val((target + tol).toFixed(1));
+            }
+        }
+    });
 
     function resetMasterCheckpoints() {
         $('#master-checkpoint-tbody').html(masterCheckpointRow(0));
@@ -297,6 +343,7 @@ $(document).ready(function () {
     btnAdd.onclick = function () {
         formAdd.reset();
         $('#spec_id').val('');
+        $('#quant_tolerance').val('');
         resetMasterCheckpoints();
         syncSpecFormByType();
         $('#modal-title').text('Add Master Spec');
@@ -323,6 +370,18 @@ $(document).ready(function () {
         $('#lsl').val(formatDec1(data.lsl));
         $('#usl').val(formatDec1(data.usl));
         $('#target_value').val(formatDec1(data.target_value));
+        
+        let quantTol = '';
+        if (data.target_value !== null && data.target_value !== undefined && data.target_value !== '' &&
+            data.usl !== null && data.usl !== undefined && data.usl !== '') {
+            let t = parseFloat(data.target_value);
+            let u = parseFloat(data.usl);
+            if (!isNaN(t) && !isNaN(u) && u >= t) {
+                quantTol = formatDec1(u - t);
+            }
+        }
+        $('#quant_tolerance').val(quantTol);
+
         $('#uom').val(data.uom);
         $('#target_zst').val(data.target_zst !== null && data.target_zst !== undefined ? parseFloat(data.target_zst).toFixed(2) : '3.00');
         $('#target_zlt').val(data.target_zlt !== null && data.target_zlt !== undefined ? parseFloat(data.target_zlt).toFixed(2) : '4.00');

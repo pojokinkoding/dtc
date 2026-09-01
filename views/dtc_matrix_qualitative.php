@@ -606,19 +606,23 @@ if (empty($model) || empty($line) || empty($section)) {
                 </select>
             </div>
 
-            <!-- Quantitative Spec Bounds (LSL, Target, USL) -->
-            <div id="edit_spec_bounds" style="display: none; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 10px; margin-bottom: 10px;">
-                <div>
-                    <label style="color: #f87171;">LSL (Min)</label>
-                    <input type="number" step="any" id="edit_cp_lsl" name="lsl" placeholder="e.g. 60">
-                </div>
+            <!-- Quantitative Spec Bounds (Target, Tolerance, LSL, USL) -->
+            <div id="edit_spec_bounds" style="display: none; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; margin-top: 10px; margin-bottom: 10px;">
                 <div>
                     <label style="color: #34d399;">Target</label>
-                    <input type="number" step="any" id="edit_cp_target_value" name="target_value" placeholder="e.g. 80">
+                    <input type="number" step="0.1" id="edit_cp_target_value" name="target_value" placeholder="e.g. 80.0">
+                </div>
+                <div>
+                    <label style="color: #a78bfa;" title="Toleransi Simetris (±)">±</label>
+                    <input type="number" step="0.1" id="edit_cp_tol" placeholder="e.g. 10.0">
+                </div>
+                <div>
+                    <label style="color: #f87171;">LSL (Min)</label>
+                    <input type="number" step="0.1" id="edit_cp_lsl" name="lsl" placeholder="e.g. 70.0">
                 </div>
                 <div>
                     <label style="color: #60a5fa;">USL (Max)</label>
-                    <input type="number" step="any" id="edit_cp_usl" name="usl" placeholder="e.g. 100">
+                    <input type="number" step="0.1" id="edit_cp_usl" name="usl" placeholder="e.g. 90.0">
                 </div>
             </div>
             

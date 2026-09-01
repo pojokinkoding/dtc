@@ -155,7 +155,7 @@ function sortShiftTimeLabels($labels) {
                 WHERE p.parameter_id = :pid
                   AND NOT EXISTS (
                       SELECT 1 FROM dtc_checkpoints c
-                      WHERE c.parameter_id = p.parameter_id AND c.checkpoint_name = t.checkpoint_name
+                      WHERE c.parameter_id = p.parameter_id AND BINARY c.checkpoint_name = BINARY t.checkpoint_name
                   )
             ")->execute([':pid' => $param_id]);
         } catch (Exception $e) {}

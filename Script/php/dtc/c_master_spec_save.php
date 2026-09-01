@@ -17,7 +17,7 @@ function ensureMasterSpecCheckpointTable(PDO $conn): void {
         sort_order INT NOT NULL DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_master_spec_checkpoint (spec_id)
-    )");
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 }
 
 function saveMasterSpecCheckpoints(PDO $conn, int $specId, array $checkpoints, array $files): void {
@@ -67,7 +67,7 @@ function saveMasterSpecCheckpoints(PDO $conn, int $specId, array $checkpoints, a
           AND p.target_month = :target_month
           AND NOT EXISTS (
               SELECT 1 FROM dtc_checkpoints c
-              WHERE c.parameter_id = p.parameter_id AND c.checkpoint_name = t.checkpoint_name
+              WHERE c.parameter_id = p.parameter_id AND BINARY c.checkpoint_name = BINARY t.checkpoint_name
           )
     ");
     $stmtSync->execute([':spec_id' => $specId, ':target_month' => $currentMonth]);

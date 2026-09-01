@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS dtc_master_spec_checkpoints (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_master_checkpoint_spec FOREIGN KEY (spec_id)
         REFERENCES dtc_master_dtc_specs(spec_id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Stored Procedure pembantu untuk menambah kolom secara aman (idempotent)
 DELIMITER $$
@@ -92,6 +92,17 @@ CALL dtc_safe_add_column('dtc_measurements', 'checkpoint_id', "INT DEFAULT NULL 
 CALL dtc_safe_add_index('dtc_master_spec_checkpoints', 'idx_master_spec_checkpoint', '`spec_id`');
 CALL dtc_safe_add_index('dtc_checkpoints', 'idx_checkpoint_param', '`parameter_id`');
 CALL dtc_safe_add_index('dtc_measurements', 'idx_meas_checkpoint', '`checkpoint_id`');
+
+-- 7. Standardisasi Collation (Mencegah Error 1267 Illegal Mix of Collations)
+ALTER TABLE `dtc_users` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE `dtc_master_dtc_specs` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE `dtc_master_parameters` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE `dtc_inspection_sessions` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE `dtc_checkpoints` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE `dtc_master_spec_checkpoints` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE `dtc_measurements` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE `dtc_running_models` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE `dtc_app_settings` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Bersihkan stored procedure pembantu
 DROP PROCEDURE IF EXISTS dtc_safe_add_column;

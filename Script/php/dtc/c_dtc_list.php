@@ -40,6 +40,18 @@ try {
     if ($period === 'current') {
         $wherePeriod = " AND p.target_month = :current_month ";
         $queryParams[':current_month'] = $currentMonth;
+
+        // In current month view, if no specific model is selected, strictly filter to active running models
+        if (empty($model_filter) && (empty($selected_month) || $selected_month === $currentMonth)) {
+            $wherePeriod .= " AND EXISTS (
+                SELECT 1 FROM dtc_running_models rm 
+                WHERE rm.target_month = :current_month 
+                  AND rm.is_active = 1 
+                  AND UPPER(TRIM(rm.model_name)) = UPPER(TRIM(COALESCE(p.model_name, spec.model_name)))
+                  AND UPPER(TRIM(rm.line_name)) = UPPER(TRIM(COALESCE(p.line_name, spec.line_name)))
+                  AND UPPER(TRIM(rm.section_name)) = UPPER(TRIM(COALESCE(p.section_name, spec.section_name)))
+            ) ";
+        }
     } else if ($period === 'history') {
         $wherePeriod = " AND (p.target_month <= :current_month OR p.target_month IS NULL) ";
         $queryParams[':current_month'] = $currentMonth;
@@ -61,49 +73,6 @@ try {
     if (!empty($model_filter)) {
         $wherePeriod .= " AND (p.model_name = :model OR spec.model_name = :model) ";
         $queryParams[':model'] = $model_filter;
-    }
-
-    $running_models = trim($_GET['running_models'] ?? '');
-    if (!empty($running_models)) {
-        $models_arr = json_decode($running_models, true);
-        if (!is_array($models_arr)) {
-            if (strpos($running_models, '||') !== false) {
-                $models_arr = explode('||', $running_models);
-            } else {
-                $models_arr = explode(',', $running_models);
-            }
-        }
-        if (is_array($models_arr) && !empty($models_arr)) {
-            $orClauses = [];
-            foreach (array_values($models_arr) as $idx => $m_val) {
-                if (is_array($m_val)) {
-                    $mL = trim($m_val['line_name'] ?? '');
-                    $mS = trim($m_val['section_name'] ?? '');
-                    $mM = trim($m_val['model_name'] ?? '');
-                    $phM = ':rmod_m_' . $idx;
-                    $subCond = "(p.model_name = $phM OR spec.model_name = $phM)";
-                    $queryParams[$phM] = $mM;
-                    if (!empty($mL)) {
-                        $phL = ':rmod_l_' . $idx;
-                        $subCond .= " AND (p.line_name = $phL OR spec.line_name = $phL)";
-                        $queryParams[$phL] = $mL;
-                    }
-                    if (!empty($mS)) {
-                        $phS = ':rmod_s_' . $idx;
-                        $subCond .= " AND (p.section_name = $phS OR spec.section_name = $phS)";
-                        $queryParams[$phS] = $mS;
-                    }
-                    $orClauses[] = "(" . $subCond . ")";
-                } else if (is_string($m_val) && trim($m_val) !== '') {
-                    $phM = ':rmod_m_' . $idx;
-                    $orClauses[] = "(p.model_name = $phM OR spec.model_name = $phM)";
-                    $queryParams[$phM] = trim($m_val);
-                }
-            }
-            if (!empty($orClauses)) {
-                $wherePeriod .= " AND (" . implode(" OR ", $orClauses) . ") ";
-            }
-        }
     }
 
     $section_filter = trim($_GET['section'] ?? '');
@@ -443,8 +412,8 @@ try {
                     $nextSlotMinsFrom7 = $curSlotMinsFrom7 + 120;
                 }
 
-                // If running model was created AFTER this slot's session window ended -> NOT OVERDUE!
-                if ($createdMinsFrom7 !== null && $createdMinsFrom7 >= $nextSlotMinsFrom7) {
+                // If running model was created AFTER this slot time -> NOT OVERDUE!
+                if ($createdMinsFrom7 !== null && $createdMinsFrom7 > $curSlotMinsFrom7) {
                     continue;
                 }
 

@@ -169,8 +169,8 @@ try {
                     $nextSlotMinsFrom7 = $curSlotMinsFrom7 + 120;
                 }
 
-                // If running model was created AFTER this slot's session window ended -> NOT OVERDUE!
-                if ($createdMinsFrom7 !== null && $createdMinsFrom7 >= $nextSlotMinsFrom7) {
+                // If running model was created AFTER this slot time -> NOT OVERDUE!
+                if ($createdMinsFrom7 !== null && $createdMinsFrom7 > $curSlotMinsFrom7) {
                     continue;
                 }
 

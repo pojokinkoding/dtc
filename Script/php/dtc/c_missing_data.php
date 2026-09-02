@@ -70,15 +70,8 @@ if (!function_exists('isSlotBeforeCreationHelper')) {
         
         $curSlotMins = $parseMinsFrom7($slotTime);
         
-        $nextSlotTime = $timeLabels[$slotIdx + 1] ?? null;
-        if ($nextSlotTime) {
-            $nextSlotMins = $parseMinsFrom7($nextSlotTime);
-        } else {
-            $nextSlotMins = $curSlotMins + 120; // fallback to 2 hours
-        }
-        
-        // If the model was created on or after this slot's window ended, then this slot is before creation
-        return $createdMinutesFrom7 >= $nextSlotMins;
+        // If the model was created on or after this slot's scheduled time, this slot is before creation
+        return $createdMinutesFrom7 > $curSlotMins;
     }
 }
 
@@ -191,11 +184,9 @@ try {
         $secKey = strtolower(trim($line_name)) . '|' . strtolower(trim($section_name));
         $k = $secKey . '|' . strtolower(trim($model_name));
 
-        // If active running models exist, filter out parameters that are not active running models
-        if (!empty($runningSet)) {
-            if (!isset($runningSet[$k])) {
-                continue;
-            }
+        // Only process parameters that belong to currently active running models
+        if (!isset($runningSet[$k])) {
+            continue;
         }
 
         // Qualitative rule: skip if no checkpoints

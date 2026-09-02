@@ -62,15 +62,8 @@ if (!function_exists('isSlotBeforeCreationHelper')) {
         
         $curSlotMins = $parseMinsFrom7($slotTime);
         
-        $nextSlotTime = $timeLabels[$slotIdx + 1] ?? null;
-        if ($nextSlotTime) {
-            $nextSlotMins = $parseMinsFrom7($nextSlotTime);
-        } else {
-            $nextSlotMins = $curSlotMins + 120; // fallback to 2 hours
-        }
-        
-        // If the model was created on or after this slot's window ended, then this slot is before creation
-        return $createdMinutesFrom7 >= $nextSlotMins;
+        // If the model was created on or after this slot's scheduled time, then this slot is before creation
+        return $createdMinutesFrom7 > $curSlotMins;
     }
 }
 
@@ -252,8 +245,8 @@ try {
                 }
                 if (!$matched) continue;
             }
-        } else if (!empty($runningSet)) {
-            // Strictly match line_name | section_name | model_name
+        } else {
+            // Strictly match line_name | section_name | model_name from active dtc_running_models
             if (!isset($runningSet[$comboKey])) {
                 continue;
             }

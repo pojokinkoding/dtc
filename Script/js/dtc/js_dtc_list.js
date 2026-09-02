@@ -705,6 +705,9 @@ $(document).ready(function () {
                 dataType: 'json',
                 success: function (res) {
                     if (res.status === 'success') {
+                        if (activeModelFilter && activeModelFilter.id == runningId) {
+                            activeModelFilter = null;
+                        }
                         loadRunningModels();
                     } else {
                         Swal.fire({ icon: 'error', title: 'Error!', text: res.message, background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#ef4444' });

@@ -23,6 +23,7 @@ if (!function_exists('getDBConnection')) {
             $conn = new PDO($dsn, DB_USER, DB_PASS);
             $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             $conn->setAttribute(PDO::ATTR_CASE, PDO::CASE_LOWER);
+            $conn->exec("SET time_zone = '+07:00'");
             return $conn;
         } catch (PDOException $e) {
             throw new Exception("Connection failed: " . $e->getMessage());

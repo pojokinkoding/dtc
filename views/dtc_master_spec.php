@@ -121,8 +121,11 @@
         </select>
     </div>
     
-    <div class="header-actions">
-        <button id="btn-add-spec" class="btn-rich-primary">
+    <div class="header-actions" style="display: flex; gap: 10px;">
+        <button id="btn-copy-model-spec" class="btn-rich-secondary" style="display: inline-flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-clone"></i> Copy by Model
+        </button>
+        <button id="btn-add-spec" class="btn-rich-primary" style="display: inline-flex; align-items: center; gap: 6px;">
             <i class="fa-solid fa-plus"></i> Add New Spec
         </button>
     </div>
@@ -269,6 +272,89 @@
                 <button type="button" id="btn-cancel-modal" class="btn-rich-secondary">Cancel</button>
                 <button type="submit" id="btn-save-spec" class="btn-rich-primary">
                     <i class="fa-solid fa-floppy-disk"></i> Save Spec
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Copy Specs by Model -->
+<div id="modal-copy-model-spec" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
+    <div class="modal-content" style="background-color: var(--bg-card); padding: 22px 26px; border-radius: 10px; width: 95%; max-width: 650px; max-height: 90vh; overflow-x: hidden; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-clone" style="color: var(--accent); font-size: 18px;"></i>
+                <h2 style="margin: 0; font-size: 17px; color: white;">Copy Specs by Model</h2>
+            </div>
+            <button id="btn-close-copy-modal" style="background: none; border: none; color: var(--text-light); font-size: 24px; cursor: pointer; line-height: 1;">&times;</button>
+        </div>
+
+        <p style="font-size: 12px; color: var(--text-muted); margin-top: 0; margin-bottom: 16px;">
+            Duplikasi seluruh spesifikasi dan template checkpoint dari suatu model ke model baru dengan cepat.
+        </p>
+
+        <form id="form-copy-model-spec" novalidate>
+            <div style="background: rgba(15,23,42,0.4); padding: 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); margin-bottom: 16px;">
+                <h4 style="margin-top: 0; font-size: 12px; color: var(--primary); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i> Sumber Data (Source)
+                </h4>
+                <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 11px; margin-bottom: 4px;">Pilih Model Sumber *</label>
+                        <select id="copy_source_model" name="source_model" class="form-control" style="padding: 8px; font-size: 12px;" required>
+                            <option value="">-- Pilih Model Sumber --</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 11px; margin-bottom: 4px;">Filter Line (Opsional)</label>
+                        <select id="copy_source_line" name="source_line" class="form-control" style="padding: 8px; font-size: 12px;">
+                            <option value="">Semua Line</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 11px; margin-bottom: 4px;">Filter Section (Opsional)</label>
+                        <select id="copy_source_section" name="source_section" class="form-control" style="padding: 8px; font-size: 12px;">
+                            <option value="">Semua Section</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="copy-preview-info" style="margin-top: 10px; font-size: 11.5px; color: #34d399; display: none;">
+                    <i class="fa-solid fa-circle-check"></i> <span id="copy-preview-count">0</span> spesifikasi ditemukan dan siap disalin.
+                </div>
+            </div>
+
+            <div style="background: rgba(15,23,42,0.4); padding: 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); margin-bottom: 16px;">
+                <h4 style="margin-top: 0; font-size: 12px; color: var(--accent); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Target Tujuan (Destination)
+                </h4>
+                <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 11px; margin-bottom: 4px;">Nama Model Baru / Tujuan *</label>
+                        <input type="text" id="copy_target_model" name="target_model" class="form-control" style="padding: 8px; font-size: 12px;" placeholder="Contoh: Model_B_2026" required>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 11px; margin-bottom: 4px;">Target Line (Opsional)</label>
+                        <select id="copy_target_line" name="target_line" class="form-control" style="padding: 8px; font-size: 12px;">
+                            <option value="">-- Sama Seperti Sumber --</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 11px; margin-bottom: 4px;">Target Section (Opsional)</label>
+                        <select id="copy_target_section" name="target_section" class="form-control" style="padding: 8px; font-size: 12px;">
+                            <option value="">-- Sama Seperti Sumber --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 16px;">
+                <button type="button" id="btn-cancel-copy-modal" class="btn-rich-secondary">Batal</button>
+                <button type="submit" id="btn-submit-copy-model" class="btn-rich-primary">
+                    <i class="fa-solid fa-clone"></i> Salin Semua Spesifikasi
                 </button>
             </div>
         </form>

@@ -38,8 +38,9 @@ $(document).ready(function () {
                 data: null,
                 render: function (data, type, row) {
                     return `
-                        <button class="btn-edit" data-id="${row.spec_id}" style="background-color: #3b82f6; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-right: 4px;"><i class="fa-solid fa-pen"></i></button>
-                        <button class="btn-delete" data-id="${row.spec_id}" style="background-color: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-trash"></i></button>
+                        <button class="btn-edit" data-id="${row.spec_id}" title="Edit Spec" style="background-color: #3b82f6; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-right: 4px;"><i class="fa-solid fa-pen"></i></button>
+                        <button class="btn-copy" data-id="${row.spec_id}" title="Copy Spec" style="background-color: #10b981; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-right: 4px;"><i class="fa-solid fa-copy"></i></button>
+                        <button class="btn-delete" data-id="${row.spec_id}" title="Delete Spec" style="background-color: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-trash"></i></button>
                     `;
                 }
             }
@@ -348,13 +349,13 @@ $(document).ready(function () {
         $('#quant_tolerance').val('');
         resetMasterCheckpoints();
         syncSpecFormByType();
-        $('#modal-title').text('Add Master Spec');
+        $('#modal-title').html('<i class="fa-solid fa-plus" style="margin-right:6px; color:var(--primary);"></i> Add Master Spec');
+        $('#btn-save-spec').html('<i class="fa-solid fa-floppy-disk"></i> Save Spec');
         modal.style.display = 'flex';
     }
 
     btnClose.onclick = function () { modal.style.display = 'none'; }
     btnCancel.onclick = function () { modal.style.display = 'none'; }
-    window.onclick = function (event) { if (event.target == modal) { modal.style.display = "none"; } }
 
     // Edit Button Click
     $('#master-spec-table tbody').on('click', '.btn-edit', function () {
@@ -392,7 +393,50 @@ $(document).ready(function () {
             loadMasterSpecCheckpoints(data.spec_id);
         }
 
-        $('#modal-title').text('Edit Master Spec');
+        $('#modal-title').html('<i class="fa-solid fa-pen" style="margin-right:6px; color:var(--primary);"></i> Edit Master Spec');
+        $('#btn-save-spec').html('<i class="fa-solid fa-floppy-disk"></i> Save Spec');
+        modal.style.display = 'flex';
+    });
+
+    // Copy Button Click (Row Action Popup)
+    $('#master-spec-table tbody').on('click', '.btn-copy', function () {
+        let data = table.row($(this).parents('tr')).data();
+
+        // Empty spec_id so it will INSERT as a new spec
+        $('#spec_id').val('');
+        $('#model_name').val(data.model_name);
+        $('#item_check_name').val(data.item_check_name);
+        $('#sub_item_check_name').val(data.sub_item_check_name);
+        $('#data_type').val(data.data_type);
+        $('#line_name').val(data.line_name);
+        $('#section_name').val(data.section_name);
+        $('#process_name').val(data.process_name);
+        $('#measuring_item').val(data.measuring_item);
+        $('#lsl').val(formatDec1(data.lsl));
+        $('#usl').val(formatDec1(data.usl));
+        $('#target_value').val(formatDec1(data.target_value));
+        
+        let quantTol = '';
+        if (data.target_value !== null && data.target_value !== undefined && data.target_value !== '' &&
+            data.usl !== null && data.usl !== undefined && data.usl !== '') {
+            let t = parseFloat(data.target_value);
+            let u = parseFloat(data.usl);
+            if (!isNaN(t) && !isNaN(u) && u >= t) {
+                quantTol = formatDec1(u - t);
+            }
+        }
+        $('#quant_tolerance').val(quantTol);
+
+        $('#uom').val(data.uom);
+        $('#target_zst').val(data.target_zst !== null && data.target_zst !== undefined ? parseFloat(data.target_zst).toFixed(2) : '3.00');
+        $('#target_zlt').val(data.target_zlt !== null && data.target_zlt !== undefined ? parseFloat(data.target_zlt).toFixed(2) : '4.00');
+        syncSpecFormByType();
+        if (String(data.data_type).toUpperCase() === 'TIME CHECK' || String(data.data_type).toUpperCase() === 'F/PROOF') {
+            loadMasterSpecCheckpoints(data.spec_id);
+        }
+
+        $('#modal-title').html('<i class="fa-solid fa-copy" style="margin-right:6px; color:var(--accent);"></i> Copy Master Spec');
+        $('#btn-save-spec').html('<i class="fa-solid fa-copy"></i> Save as New Spec');
         modal.style.display = 'flex';
     });
 
@@ -419,6 +463,7 @@ $(document).ready(function () {
                         if (response.status === 'success') {
                             Swal.fire('Deleted!', response.message, 'success');
                             table.ajax.reload(null, false);
+                            loadSelectOptions();
                         } else {
                             Swal.fire('Error!', response.message, 'error');
                         }
@@ -428,7 +473,7 @@ $(document).ready(function () {
         });
     });
 
-    // Form Submit (Save / Update)
+    // Form Submit (Save / Update / Copy)
     $('#form-master-spec').submit(function (e) {
         e.preventDefault();
 
@@ -493,6 +538,7 @@ $(document).ready(function () {
                     Swal.fire('Success!', response.message, 'success');
                     modal.style.display = 'none';
                     table.ajax.reload(null, false);
+                    loadSelectOptions();
                 } else {
                     Swal.fire('Error', response.message, 'error');
                 }
@@ -503,4 +549,124 @@ $(document).ready(function () {
             }
         });
     });
+
+    // 3. Modal Copy by Model Logic
+    const modalCopy = document.getElementById('modal-copy-model-spec');
+    const btnOpenCopy = document.getElementById('btn-copy-model-spec');
+    const btnCloseCopy = document.getElementById('btn-close-copy-modal');
+    const btnCancelCopy = document.getElementById('btn-cancel-copy-modal');
+    const formCopy = document.getElementById('form-copy-model-spec');
+
+    function updateCopyModelDropdowns() {
+        let uniqueModels = [...new Set(masterSpecsList.map(s => s.model_name).filter(Boolean))].sort();
+        let modelOpts = '<option value="">-- Pilih Model Sumber --</option>';
+        uniqueModels.forEach(m => {
+            modelOpts += `<option value="${m}">${m}</option>`;
+        });
+        $('#copy_source_model').html(modelOpts);
+
+        // Lines and Sections for Copy Modal
+        let uniqueLines = [...new Set(masterSpecsList.map(s => s.line_name).filter(Boolean))].sort();
+        let lineFilterOpts = '<option value="">Semua Line</option>';
+        let lineTargetOpts = '<option value="">-- Sama Seperti Sumber --</option>';
+        uniqueLines.forEach(l => {
+            lineFilterOpts += `<option value="${l}">${l}</option>`;
+            lineTargetOpts += `<option value="${l}">${l}</option>`;
+        });
+        $('#copy_source_line').html(lineFilterOpts);
+        $('#copy_target_line').html(lineTargetOpts);
+
+        let uniqueSections = [...new Set(masterSpecsList.map(s => s.section_name).filter(Boolean))].sort();
+        let sectionFilterOpts = '<option value="">Semua Section</option>';
+        let sectionTargetOpts = '<option value="">-- Sama Seperti Sumber --</option>';
+        uniqueSections.forEach(s => {
+            sectionFilterOpts += `<option value="${s}">${s}</option>`;
+            sectionTargetOpts += `<option value="${s}">${s}</option>`;
+        });
+        $('#copy_source_section').html(sectionFilterOpts);
+        $('#copy_target_section').html(sectionTargetOpts);
+    }
+
+    function calculateCopyPreview() {
+        let srcModel = $('#copy_source_model').val();
+        let srcLine = $('#copy_source_line').val();
+        let srcSec = $('#copy_source_section').val();
+
+        if (!srcModel) {
+            $('#copy-preview-info').hide();
+            return;
+        }
+
+        let filtered = masterSpecsList.filter(s => s.model_name === srcModel);
+        if (srcLine) filtered = filtered.filter(s => s.line_name === srcLine);
+        if (srcSec) filtered = filtered.filter(s => s.section_name === srcSec);
+
+        $('#copy-preview-count').text(filtered.length);
+        $('#copy-preview-info').show();
+    }
+
+    if (btnOpenCopy) {
+        btnOpenCopy.onclick = function () {
+            formCopy.reset();
+            updateCopyModelDropdowns();
+            $('#copy-preview-info').hide();
+            modalCopy.style.display = 'flex';
+        };
+    }
+
+    if (btnCloseCopy) {
+        btnCloseCopy.onclick = function () { modalCopy.style.display = 'none'; };
+    }
+    if (btnCancelCopy) {
+        btnCancelCopy.onclick = function () { modalCopy.style.display = 'none'; };
+    }
+
+    $('#copy_source_model, #copy_source_line, #copy_source_section').on('change', calculateCopyPreview);
+
+    // Copy Model Form Submission
+    $('#form-copy-model-spec').on('submit', function (e) {
+        e.preventDefault();
+
+        let srcModel = ($('#copy_source_model').val() || '').trim();
+        let tgtModel = ($('#copy_target_model').val() || '').trim();
+
+        if (!srcModel) {
+            Swal.fire('Peringatan', 'Harap pilih Model Sumber yang ingin disalin.', 'warning');
+            return;
+        }
+        if (!tgtModel) {
+            Swal.fire('Peringatan', 'Harap masukkan Nama Model Baru / Tujuan.', 'warning');
+            return;
+        }
+
+        let btn = $('#btn-submit-copy-model');
+        btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Menyalin...');
+
+        $.ajax({
+            url: 'Script/php/dtc/c_master_spec_copy.php',
+            type: 'POST',
+            data: $(this).serialize(),
+            dataType: 'json',
+            success: function (res) {
+                btn.prop('disabled', false).html('<i class="fa-solid fa-clone"></i> Salin Semua Spesifikasi');
+                if (res.status === 'success') {
+                    Swal.fire('Berhasil!', res.message, 'success');
+                    modalCopy.style.display = 'none';
+                    table.ajax.reload(null, false);
+                    loadSelectOptions();
+                } else {
+                    Swal.fire('Error', res.message, 'error');
+                }
+            },
+            error: function () {
+                btn.prop('disabled', false).html('<i class="fa-solid fa-clone"></i> Salin Semua Spesifikasi');
+                Swal.fire('Error', 'Gagal terhubung ke server.', 'error');
+            }
+        });
+    });
+
+    window.onclick = function (event) {
+        if (event.target == modal) { modal.style.display = "none"; }
+        if (event.target == modalCopy) { modalCopy.style.display = "none"; }
+    };
 });

@@ -23,14 +23,6 @@ $(document).ready(function () {
             {
                 data: null,
                 render: function (data, type, row) {
-                    let lslStr = row.lsl !== null && row.lsl !== undefined && row.lsl !== '' ? parseFloat(row.lsl).toFixed(1) : '-';
-                    let uslStr = row.usl !== null && row.usl !== undefined && row.usl !== '' ? parseFloat(row.usl).toFixed(1) : '-';
-                    return `LSL: ${lslStr} | USL: ${uslStr}`;
-                }
-            },
-            {
-                data: null,
-                render: function (data, type, row) {
                     return `${row.target_zst} / ${row.target_zlt}`;
                 }
             },

@@ -145,7 +145,6 @@
                     <th>Section</th>
                     <th>Process</th>
                     <th>Measuring Item</th>
-                    <th>Spec (LSL - USL)</th>
                     <th>Target Zst/Zlt</th>
                     <th>Actions</th>
                 </tr>

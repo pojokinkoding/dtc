@@ -3,7 +3,11 @@ $(document).ready(function () {
     var table = $('#master-spec-table').DataTable({
         ajax: {
             url: 'Script/php/dtc/c_master_spec_list.php',
-            dataSrc: 'data'
+            dataSrc: function (json) {
+                let data = json.data || [];
+                updateMasterSpecSummary(data);
+                return data;
+            }
         },
         columns: [
             { data: 'spec_id' },
@@ -44,17 +48,17 @@ $(document).ready(function () {
     });
 
     // 1.5 Filter Tabs Logic
-    $('.filter-tab-btn').on('click', function () {
+    $('.dtc-filter-tabs .filter-tab-btn').on('click', function () {
         // Update active class
-        $('.filter-tab-btn').removeClass('active');
+        $('.dtc-filter-tabs .filter-tab-btn').removeClass('active');
         $(this).addClass('active');
 
         // Apply filter to column 4 (Data Type) since sub item is now column 3
         let filterValue = $(this).data('filter');
-        if (filterValue === "") {
+        if (filterValue === "" || filterValue === undefined) {
             table.column(4).search('').draw();
         } else {
-            table.column(4).search(filterValue).draw();
+            table.column(4).search(String(filterValue)).draw();
         }
 
         // Recalculate layout
@@ -64,6 +68,68 @@ $(document).ready(function () {
                 if (table.responsive) table.responsive.recalc();
             }
         }, 50);
+    });
+
+    // 1.6 Master Spec KPI Summary Logic
+    function updateMasterSpecSummary(data) {
+        if (!Array.isArray(data)) return;
+
+        let total = data.length;
+        let ref01 = 0, ref02 = 0, ref03 = 0;
+        let ctq = 0, ctp = 0, tc = 0, fp = 0;
+
+        data.forEach(item => {
+            let line = (item.line_name || '').toUpperCase().trim();
+            let type = (item.data_type || '').toUpperCase().trim();
+
+            if (line === 'REF 01') ref01++;
+            else if (line === 'REF 02') ref02++;
+            else if (line === 'REF 03') ref03++;
+
+            if (type === 'CTQ') ctq++;
+            else if (type === 'CTP') ctp++;
+            else if (type === 'TIME CHECK') tc++;
+            else if (type === 'F/PROOF' || type === 'FOOL PROOF') fp++;
+        });
+
+        $('#kpi-val-total').text(total.toLocaleString());
+        $('#kpi-val-ref01').text(ref01.toLocaleString());
+        $('#kpi-val-ref02').text(ref02.toLocaleString());
+        $('#kpi-val-ref03').text(ref03.toLocaleString());
+        if (ref03 > 0) {
+            $('#card-kpi-ref03').show();
+        } else {
+            $('#card-kpi-ref03').hide();
+        }
+
+        $('#kpi-val-ctq').text(ctq.toLocaleString());
+        $('#kpi-val-ctp').text(ctp.toLocaleString());
+        $('#kpi-val-tc').text(tc.toLocaleString());
+        $('#kpi-val-fp').text(fp.toLocaleString());
+
+        // Update tab badges
+        $('#badge-all').text(total.toLocaleString());
+        $('#badge-ctq').text(ctq.toLocaleString());
+        $('#badge-ctp').text(ctp.toLocaleString());
+        $('#badge-time-check').text(tc.toLocaleString());
+        $('#badge-f-proof').text(fp.toLocaleString());
+    }
+
+    // Click on KPI card to quickly filter table
+    $(document).on('click', '.spec-kpi-card', function () {
+        let kpi = $(this).data('kpi');
+        if (kpi === 'all') {
+            $('#filter-line').val('').trigger('change');
+            $('#filter-section').val('').trigger('change');
+            $('#filter-item-check').val('').trigger('change');
+            $('.dtc-filter-tabs .filter-tab-btn[data-filter=""]').trigger('click');
+        } else if (kpi === 'line') {
+            let line = $(this).data('line');
+            $('#filter-line').val(line).trigger('change');
+        } else if (kpi === 'type') {
+            let type = $(this).data('type');
+            $(`.dtc-filter-tabs .filter-tab-btn[data-filter="${type}"]`).trigger('click');
+        }
     });
 
     let masterSpecsList = [];
@@ -657,8 +723,430 @@ $(document).ready(function () {
         });
     });
 
+    // 4. Manage Lines & Sections Modal Logic
+    const modalManageLS = document.getElementById('modal-manage-lines-sections');
+    const btnOpenManageLS = document.getElementById('btn-manage-line-section');
+    const btnCloseManageLSModal = document.getElementById('btn-close-manage-ls-modal');
+    const btnCloseManageLS = document.getElementById('btn-close-manage-ls');
+
+    let currentMasterLines = [];
+    let currentMasterSections = [];
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    function renderMasterLinesTable(lines) {
+        currentMasterLines = lines || [];
+        $('#badge-lines-count').text(currentMasterLines.length);
+        let html = '';
+        if (!currentMasterLines.length) {
+            html = '<tr><td colspan="5" style="text-align:center; padding:15px; color:var(--text-muted);">Belum ada data Line.</td></tr>';
+        } else {
+            currentMasterLines.forEach((l, idx) => {
+                html += `
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                        <td style="padding: 8px 10px; text-align: center; color: var(--text-muted);">${idx + 1}</td>
+                        <td style="padding: 8px 10px; font-weight: 600; color: #38bdf8;">${escapeHtml(l.line_name)}</td>
+                        <td style="padding: 8px 10px; color: var(--text-muted);">${escapeHtml(l.description || '-')}</td>
+                        <td style="padding: 8px 10px; text-align: center; color: var(--text-light);">${l.sort_order ?? 0}</td>
+                        <td style="padding: 8px 10px; text-align: center;">
+                            <button type="button" class="btn-edit-line" data-id="${l.line_id}" data-name="${escapeHtml(l.line_name)}" data-desc="${escapeHtml(l.description || '')}" data-sort="${l.sort_order ?? 0}" title="Edit Line" style="background: #3b82f6; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-right: 4px; font-size: 11px;"><i class="fa-solid fa-pen"></i></button>
+                            <button type="button" class="btn-delete-line" data-id="${l.line_id}" data-name="${escapeHtml(l.line_name)}" title="Hapus Line" style="background: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+        $('#tbody-manage-lines').html(html);
+
+        // Update line options in Manage Section form dropdown
+        let secLineOpts = '<option value="">Semua Line (General)</option>';
+        currentMasterLines.forEach(l => {
+            secLineOpts += `<option value="${escapeHtml(l.line_name)}">${escapeHtml(l.line_name)}</option>`;
+        });
+        $('#manage_section_line').html(secLineOpts);
+    }
+
+    function renderMasterSectionsTable(sections) {
+        currentMasterSections = sections || [];
+        $('#badge-sections-count').text(currentMasterSections.length);
+        let html = '';
+        if (!currentMasterSections.length) {
+            html = '<tr><td colspan="6" style="text-align:center; padding:15px; color:var(--text-muted);">Belum ada data Section.</td></tr>';
+        } else {
+            currentMasterSections.forEach((s, idx) => {
+                let lineBadge = s.line_name ? `<span style="padding: 2px 6px; border-radius: 4px; background: rgba(56,189,248,0.15); color: #38bdf8; font-size: 10.5px;">${escapeHtml(s.line_name)}</span>` : '<span style="color: var(--text-muted); font-size: 11px;">Semua Line</span>';
+                html += `
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                        <td style="padding: 8px 10px; text-align: center; color: var(--text-muted);">${idx + 1}</td>
+                        <td style="padding: 8px 10px; font-weight: 600; color: #c084fc;">${escapeHtml(s.section_name)}</td>
+                        <td style="padding: 8px 10px;">${lineBadge}</td>
+                        <td style="padding: 8px 10px; color: var(--text-muted);">${escapeHtml(s.description || '-')}</td>
+                        <td style="padding: 8px 10px; text-align: center; color: var(--text-light);">${s.sort_order ?? 0}</td>
+                        <td style="padding: 8px 10px; text-align: center;">
+                            <button type="button" class="btn-edit-section" data-id="${s.section_id}" data-name="${escapeHtml(s.section_name)}" data-line="${escapeHtml(s.line_name || '')}" data-desc="${escapeHtml(s.description || '')}" data-sort="${s.sort_order ?? 0}" title="Edit Section" style="background: #3b82f6; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-right: 4px; font-size: 11px;"><i class="fa-solid fa-pen"></i></button>
+                            <button type="button" class="btn-delete-section" data-id="${s.section_id}" data-name="${escapeHtml(s.section_name)}" title="Hapus Section" style="background: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+        $('#tbody-manage-sections').html(html);
+    }
+
+    function loadMasterLinesAndSections(callback = null) {
+        $.getJSON('Script/php/dtc/c_master_lines_sections_list.php', function (res) {
+            if (res.status === 'success') {
+                renderMasterLinesTable(res.lines);
+                renderMasterSectionsTable(res.sections);
+            }
+            if (callback) callback();
+        });
+    }
+
+    if (btnOpenManageLS) {
+        btnOpenManageLS.onclick = function () {
+            loadMasterLinesAndSections();
+            $('#tab-btn-lines').addClass('active');
+            $('#tab-btn-sections').removeClass('active');
+            $('#panel-manage-lines').show();
+            $('#panel-manage-sections').hide();
+            modalManageLS.style.display = 'flex';
+        };
+    }
+    if (btnCloseManageLSModal) {
+        btnCloseManageLSModal.onclick = function () { modalManageLS.style.display = 'none'; };
+    }
+    if (btnCloseManageLS) {
+        btnCloseManageLS.onclick = function () { modalManageLS.style.display = 'none'; };
+    }
+
+    // Tabs switching in Manage Modal
+    $('#tab-btn-lines').on('click', function (e) {
+        e.preventDefault();
+        $('#tab-btn-lines').addClass('active');
+        $('#tab-btn-sections').removeClass('active');
+        $('#panel-manage-lines').show();
+        $('#panel-manage-sections').hide();
+    });
+
+    $('#tab-btn-sections').on('click', function (e) {
+        e.preventDefault();
+        $('#tab-btn-sections').addClass('active');
+        $('#tab-btn-lines').removeClass('active');
+        $('#panel-manage-sections').show();
+        $('#panel-manage-lines').hide();
+    });
+
+    // Reset Line Form
+    function resetLineForm() {
+        $('#manage_line_id').val('');
+        $('#manage_line_name').val('');
+        $('#manage_line_desc').val('');
+        $('#manage_line_sort').val('');
+        $('#form-line-title').html('<i class="fa-solid fa-plus"></i> Tambah Line Baru');
+        $('#btn-save-line').html('<i class="fa-solid fa-floppy-disk"></i> Simpan');
+        $('#btn-reset-line').hide();
+    }
+    $('#btn-reset-line').on('click', resetLineForm);
+
+    // Save Line
+    $('#form-manage-line').on('submit', function (e) {
+        e.preventDefault();
+        let btn = $('#btn-save-line');
+        btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...');
+
+        $.ajax({
+            url: 'Script/php/dtc/c_master_line_save.php',
+            type: 'POST',
+            data: $(this).serialize(),
+            dataType: 'json',
+            success: function (res) {
+                btn.prop('disabled', false).html('<i class="fa-solid fa-floppy-disk"></i> Simpan');
+                if (res.status === 'success') {
+                    Swal.fire('Berhasil!', res.message, 'success');
+                    resetLineForm();
+                    loadMasterLinesAndSections();
+                    loadSelectOptions();
+                } else {
+                    Swal.fire('Error', res.message, 'error');
+                }
+            },
+            error: function () {
+                btn.prop('disabled', false).html('<i class="fa-solid fa-floppy-disk"></i> Simpan');
+                Swal.fire('Error', 'Gagal terhubung ke server.', 'error');
+            }
+        });
+    });
+
+    // Edit Line Click
+    $(document).on('click', '.btn-edit-line', function () {
+        let id = $(this).data('id');
+        let name = $(this).data('name');
+        let desc = $(this).data('desc');
+        let sort = $(this).data('sort');
+
+        $('#manage_line_id').val(id);
+        $('#manage_line_name').val(name).focus();
+        $('#manage_line_desc').val(desc);
+        $('#manage_line_sort').val(sort);
+
+        $('#form-line-title').html('<i class="fa-solid fa-pen"></i> Edit Line: ' + escapeHtml(name));
+        $('#btn-save-line').html('<i class="fa-solid fa-floppy-disk"></i> Update Line');
+        $('#btn-reset-line').show();
+    });
+
+    // Delete Line Click
+    $(document).on('click', '.btn-delete-line', function () {
+        let id = $(this).data('id');
+        let name = $(this).data('name');
+
+        Swal.fire({
+            title: 'Hapus Line?',
+            text: `Anda yakin ingin menghapus Line '${name}'?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#475569',
+            confirmButtonText: 'Ya, Hapus!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: 'Script/php/dtc/c_master_line_delete.php',
+                    type: 'POST',
+                    data: { line_id: id },
+                    dataType: 'json',
+                    success: function (res) {
+                        if (res.status === 'success') {
+                            Swal.fire('Terhapus!', res.message, 'success');
+                            resetLineForm();
+                            loadMasterLinesAndSections();
+                            loadSelectOptions();
+                        } else {
+                            Swal.fire('Error', res.message, 'error');
+                        }
+                    },
+                    error: function () {
+                        Swal.fire('Error', 'Gagal terhubung ke server.', 'error');
+                    }
+                });
+            }
+        });
+    });
+
+    // Reset Section Form
+    function resetSectionForm() {
+        $('#manage_section_id').val('');
+        $('#manage_section_name').val('');
+        $('#manage_section_line').val('');
+        $('#manage_section_desc').val('');
+        $('#manage_section_sort').val('');
+        $('#form-section-title').html('<i class="fa-solid fa-plus"></i> Tambah Section Baru');
+        $('#btn-save-section').html('<i class="fa-solid fa-floppy-disk"></i> Simpan');
+        $('#btn-reset-section').hide();
+    }
+    $('#btn-reset-section').on('click', resetSectionForm);
+
+    // Save Section
+    $('#form-manage-section').on('submit', function (e) {
+        e.preventDefault();
+        let btn = $('#btn-save-section');
+        btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...');
+
+        $.ajax({
+            url: 'Script/php/dtc/c_master_section_save.php',
+            type: 'POST',
+            data: $(this).serialize(),
+            dataType: 'json',
+            success: function (res) {
+                btn.prop('disabled', false).html('<i class="fa-solid fa-floppy-disk"></i> Simpan');
+                if (res.status === 'success') {
+                    Swal.fire('Berhasil!', res.message, 'success');
+                    resetSectionForm();
+                    loadMasterLinesAndSections();
+                    loadSelectOptions();
+                } else {
+                    Swal.fire('Error', res.message, 'error');
+                }
+            },
+            error: function () {
+                btn.prop('disabled', false).html('<i class="fa-solid fa-floppy-disk"></i> Simpan');
+                Swal.fire('Error', 'Gagal terhubung ke server.', 'error');
+            }
+        });
+    });
+
+    // Edit Section Click
+    $(document).on('click', '.btn-edit-section', function () {
+        let id = $(this).data('id');
+        let name = $(this).data('name');
+        let line = $(this).data('line');
+        let desc = $(this).data('desc');
+        let sort = $(this).data('sort');
+
+        $('#manage_section_id').val(id);
+        $('#manage_section_name').val(name).focus();
+        $('#manage_section_line').val(line);
+        $('#manage_section_desc').val(desc);
+        $('#manage_section_sort').val(sort);
+
+        $('#form-section-title').html('<i class="fa-solid fa-pen"></i> Edit Section: ' + escapeHtml(name));
+        $('#btn-save-section').html('<i class="fa-solid fa-floppy-disk"></i> Update Section');
+        $('#btn-reset-section').show();
+    });
+
+    // Delete Section Click
+    $(document).on('click', '.btn-delete-section', function () {
+        let id = $(this).data('id');
+        let name = $(this).data('name');
+
+        Swal.fire({
+            title: 'Hapus Section?',
+            text: `Anda yakin ingin menghapus Section '${name}'?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#475569',
+            confirmButtonText: 'Ya, Hapus!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: 'Script/php/dtc/c_master_section_delete.php',
+                    type: 'POST',
+                    data: { section_id: id },
+                    dataType: 'json',
+                    success: function (res) {
+                        if (res.status === 'success') {
+                            Swal.fire('Terhapus!', res.message, 'success');
+                            resetSectionForm();
+                            loadMasterLinesAndSections();
+                            loadSelectOptions();
+                        } else {
+                            Swal.fire('Error', res.message, 'error');
+                        }
+                    },
+                    error: function () {
+                        Swal.fire('Error', 'Gagal terhubung ke server.', 'error');
+                    }
+                });
+            }
+        });
+    });
+
+    // Quick Add Line from Spec Form
+    $('#btn-quick-add-line').on('click', function () {
+        Swal.fire({
+            title: 'Tambah Line Baru',
+            html: `
+                <div style="text-align: left; padding: 5px;">
+                    <label style="font-size: 12px; color: var(--text-light); margin-bottom: 4px; display: block;">Nama Line *</label>
+                    <input id="swal_line_name" class="swal2-input" placeholder="e.g. REF 03" style="width: 100%; margin: 0 0 12px 0; font-size: 13px; box-sizing: border-box; background: rgba(15,23,42,0.8); color: white; border: 1px solid #334155;">
+                    <label style="font-size: 12px; color: var(--text-light); margin-bottom: 4px; display: block;">Deskripsi (Opsional)</label>
+                    <input id="swal_line_desc" class="swal2-input" placeholder="e.g. Refrigerator Line 03" style="width: 100%; margin: 0; font-size: 13px; box-sizing: border-box; background: rgba(15,23,42,0.8); color: white; border: 1px solid #334155;">
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: '<i class="fa-solid fa-plus"></i> Tambahkan',
+            cancelButtonText: 'Batal',
+            confirmButtonColor: '#0284c7',
+            cancelButtonColor: '#475569',
+            focusConfirm: false,
+            preConfirm: () => {
+                const name = ($('#swal_line_name').val() || '').trim();
+                const desc = ($('#swal_line_desc').val() || '').trim();
+                if (!name) {
+                    Swal.showValidationMessage('Nama Line wajib diisi.');
+                    return false;
+                }
+                return { line_name: name, description: desc };
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: 'Script/php/dtc/c_master_line_save.php',
+                    type: 'POST',
+                    data: result.value,
+                    dataType: 'json',
+                    success: function (res) {
+                        if (res.status === 'success') {
+                            Swal.fire('Berhasil!', res.message, 'success');
+                            loadSelectOptions(function () {
+                                if (res.line && res.line.line_name) {
+                                    $('#line_name').val(res.line.line_name);
+                                }
+                            });
+                        } else {
+                            Swal.fire('Error', res.message, 'error');
+                        }
+                    },
+                    error: function () {
+                        Swal.fire('Error', 'Gagal terhubung ke server.', 'error');
+                    }
+                });
+            }
+        });
+    });
+
+    // Quick Add Section from Spec Form
+    $('#btn-quick-add-section').on('click', function () {
+        const currentLine = $('#line_name').val() || '';
+        Swal.fire({
+            title: 'Tambah Section Baru',
+            html: `
+                <div style="text-align: left; padding: 5px;">
+                    <label style="font-size: 12px; color: var(--text-light); margin-bottom: 4px; display: block;">Nama Section *</label>
+                    <input id="swal_section_name" class="swal2-input" placeholder="e.g. Final Assembly" style="width: 100%; margin: 0 0 12px 0; font-size: 13px; box-sizing: border-box; background: rgba(15,23,42,0.8); color: white; border: 1px solid #334155;">
+                    <label style="font-size: 12px; color: var(--text-light); margin-bottom: 4px; display: block;">Deskripsi (Opsional)</label>
+                    <input id="swal_section_desc" class="swal2-input" placeholder="e.g. Stasiun Rakit Akhir" style="width: 100%; margin: 0; font-size: 13px; box-sizing: border-box; background: rgba(15,23,42,0.8); color: white; border: 1px solid #334155;">
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: '<i class="fa-solid fa-plus"></i> Tambahkan',
+            cancelButtonText: 'Batal',
+            confirmButtonColor: '#0284c7',
+            cancelButtonColor: '#475569',
+            focusConfirm: false,
+            preConfirm: () => {
+                const name = ($('#swal_section_name').val() || '').trim();
+                const desc = ($('#swal_section_desc').val() || '').trim();
+                if (!name) {
+                    Swal.showValidationMessage('Nama Section wajib diisi.');
+                    return false;
+                }
+                return { section_name: name, line_name: currentLine, description: desc };
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: 'Script/php/dtc/c_master_section_save.php',
+                    type: 'POST',
+                    data: result.value,
+                    dataType: 'json',
+                    success: function (res) {
+                        if (res.status === 'success') {
+                            Swal.fire('Berhasil!', res.message, 'success');
+                            loadSelectOptions(function () {
+                                if (res.section && res.section.section_name) {
+                                    $('#section_name').val(res.section.section_name);
+                                }
+                            });
+                        } else {
+                            Swal.fire('Error', res.message, 'error');
+                        }
+                    },
+                    error: function () {
+                        Swal.fire('Error', 'Gagal terhubung ke server.', 'error');
+                    }
+                });
+            }
+        });
+    });
+
     window.onclick = function (event) {
         if (event.target == modal) { modal.style.display = "none"; }
         if (event.target == modalCopy) { modalCopy.style.display = "none"; }
+        if (event.target == modalManageLS) { modalManageLS.style.display = "none"; }
     };
 });

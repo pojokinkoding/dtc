@@ -142,7 +142,29 @@ CALL dtc_safe_add_index('dtc_measurements', 'idx_meas_checkpoint', '`checkpoint_
 -- Update composite unique key pada dtc_running_models agar mendukung multi data_type
 CALL dtc_safe_update_running_model_unique();
 
--- 8. Standardisasi Collation (Mencegah Error 1267 Illegal Mix of Collations)
+-- 8. Buat tabel master lines & sections jika belum ada
+CREATE TABLE IF NOT EXISTS dtc_master_lines (
+    line_id INT AUTO_INCREMENT PRIMARY KEY,
+    line_name VARCHAR(50) NOT NULL UNIQUE,
+    description VARCHAR(255) DEFAULT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS dtc_master_sections (
+    section_id INT AUTO_INCREMENT PRIMARY KEY,
+    section_name VARCHAR(50) NOT NULL,
+    line_name VARCHAR(50) DEFAULT NULL,
+    description VARCHAR(255) DEFAULT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CALL dtc_safe_add_index('dtc_master_sections', 'idx_master_section_line', '`line_name`');
+
+-- 9. Standardisasi Collation (Mencegah Error 1267 Illegal Mix of Collations)
 ALTER TABLE `dtc_users` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ALTER TABLE `dtc_master_dtc_specs` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ALTER TABLE `dtc_master_parameters` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -152,6 +174,8 @@ ALTER TABLE `dtc_master_spec_checkpoints` CONVERT TO CHARACTER SET utf8mb4 COLLA
 ALTER TABLE `dtc_measurements` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ALTER TABLE `dtc_running_models` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ALTER TABLE `dtc_app_settings` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE `dtc_master_lines` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE `dtc_master_sections` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Bersihkan stored procedure pembantu
 DROP PROCEDURE IF EXISTS dtc_safe_add_column;

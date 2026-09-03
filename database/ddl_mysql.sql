@@ -166,3 +166,41 @@ CREATE TABLE IF NOT EXISTS dtc_app_settings (
     setting_value TEXT,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
+-- 9. Tabel Master Lines (Data Master Line Produksi)
+CREATE TABLE IF NOT EXISTS dtc_master_lines (
+    line_id INT AUTO_INCREMENT PRIMARY KEY,
+    line_name VARCHAR(50) NOT NULL UNIQUE,
+    description VARCHAR(255) DEFAULT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- 10. Tabel Master Sections (Data Master Section Produksi)
+CREATE TABLE IF NOT EXISTS dtc_master_sections (
+    section_id INT AUTO_INCREMENT PRIMARY KEY,
+    section_name VARCHAR(50) NOT NULL,
+    line_name VARCHAR(50) DEFAULT NULL,
+    description VARCHAR(255) DEFAULT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_master_section_line (line_name)
+);
+
+-- Seed Default Sections
+INSERT IGNORE INTO dtc_master_sections (section_name, line_name, sort_order) VALUES
+('Accessories', NULL, 1),
+('Charging', NULL, 2),
+('Clamping', NULL, 3),
+('Cutting Vinyl', NULL, 4),
+('Cycle', NULL, 5),
+('H Press Out Door', NULL, 6),
+('PU Case', NULL, 7),
+('PU Door', NULL, 8),
+('Pre Case', NULL, 9),
+('V Forming Male A', NULL, 10),
+('V Forming Male B', NULL, 11),
+('V Forming Male C', NULL, 12);
+

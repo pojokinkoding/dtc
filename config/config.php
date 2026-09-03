@@ -6,8 +6,8 @@ date_default_timezone_set('Asia/Jakarta');
 
 // Database Configuration
 define('DB_HOST', 'localhost');
-define('DB_USER', 'user');
-define('DB_PASS', 'root');
+define('DB_USER', 'root');
+define('DB_PASS', '');
 define('DB_NAME', 'dtc_v1');
 // hosting
 // define('DB_HOST', 'meccadigital.co.id');
@@ -108,6 +108,71 @@ if (!function_exists('getUserAccessFilterSQL')) {
         }
         
         return $sql;
+    }
+}
+
+if (!function_exists('ensureMasterLinesAndSectionsTables')) {
+    function ensureMasterLinesAndSectionsTables(PDO $conn): void {
+        static $ensured = false;
+        if ($ensured) return;
+
+        $conn->exec("CREATE TABLE IF NOT EXISTS dtc_master_lines (
+            line_id INT AUTO_INCREMENT PRIMARY KEY,
+            line_name VARCHAR(50) NOT NULL UNIQUE,
+            description VARCHAR(255) DEFAULT NULL,
+            sort_order INT NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+        $conn->exec("CREATE TABLE IF NOT EXISTS dtc_master_sections (
+            section_id INT AUTO_INCREMENT PRIMARY KEY,
+            section_name VARCHAR(50) NOT NULL,
+            line_name VARCHAR(50) DEFAULT NULL,
+            description VARCHAR(255) DEFAULT NULL,
+            sort_order INT NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+        // Seed lines if empty
+        $cntLines = $conn->query("SELECT COUNT(*) FROM dtc_master_lines")->fetchColumn();
+        if ((int)$cntLines === 0) {
+            $conn->exec("INSERT IGNORE INTO dtc_master_lines (line_name, description, sort_order) VALUES
+                ('REF 01', 'Refrigerator Line 01', 1),
+                ('REF 02', 'Refrigerator Line 02', 2)");
+
+            $conn->exec("INSERT IGNORE INTO dtc_master_lines (line_name, sort_order)
+                SELECT DISTINCT line_name, 10
+                FROM dtc_master_dtc_specs
+                WHERE line_name IS NOT NULL AND TRIM(line_name) != ''");
+        }
+
+        // Seed sections if empty
+        $cntSections = $conn->query("SELECT COUNT(*) FROM dtc_master_sections")->fetchColumn();
+        if ((int)$cntSections === 0) {
+            $conn->exec("INSERT INTO dtc_master_sections (section_name, line_name, sort_order) VALUES
+                ('Accessories', NULL, 1),
+                ('Charging', NULL, 2),
+                ('Clamping', NULL, 3),
+                ('Cutting Vinyl', NULL, 4),
+                ('Cycle', NULL, 5),
+                ('H Press Out Door', NULL, 6),
+                ('PU Case', NULL, 7),
+                ('PU Door', NULL, 8),
+                ('Pre Case', NULL, 9),
+                ('V Forming Male A', NULL, 10),
+                ('V Forming Male B', NULL, 11),
+                ('V Forming Male C', NULL, 12)");
+
+            $conn->exec("INSERT INTO dtc_master_sections (section_name, line_name, sort_order)
+                SELECT DISTINCT section_name, NULL, 20
+                FROM dtc_master_dtc_specs s
+                WHERE section_name IS NOT NULL AND TRIM(section_name) != ''
+                  AND NOT EXISTS (SELECT 1 FROM dtc_master_sections m WHERE UPPER(m.section_name) = UPPER(s.section_name))");
+        }
+
+        $ensured = true;
     }
 }
 ?>

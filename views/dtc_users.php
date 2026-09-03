@@ -7,14 +7,16 @@ if (!isset($_SESSION['logged_in'])) {
 
 require_once 'config/config.php';
 $conn = getDBConnection();
-$db_lines = $conn->query("SELECT DISTINCT line_name FROM dtc_master_dtc_specs WHERE line_name IS NOT NULL AND line_name != '' ORDER BY line_name")->fetchAll(PDO::FETCH_COLUMN);
-$expected_lines = ['REF 01', 'REF 02'];
-$distinct_lines = array_unique(array_merge($expected_lines, $db_lines));
+ensureMasterLinesAndSectionsTables($conn);
+
+$db_lines = $conn->query("SELECT DISTINCT line_name FROM dtc_master_lines WHERE line_name IS NOT NULL AND TRIM(line_name) != '' ORDER BY sort_order ASC, line_name ASC")->fetchAll(PDO::FETCH_COLUMN);
+$spec_lines = $conn->query("SELECT DISTINCT line_name FROM dtc_master_dtc_specs WHERE line_name IS NOT NULL AND TRIM(line_name) != ''")->fetchAll(PDO::FETCH_COLUMN);
+$distinct_lines = array_unique(array_merge($db_lines, $spec_lines));
 sort($distinct_lines);
 
-$db_sections = $conn->query("SELECT DISTINCT section_name FROM dtc_master_dtc_specs WHERE section_name IS NOT NULL AND section_name != '' ORDER BY section_name")->fetchAll(PDO::FETCH_COLUMN);
-$expected_sections = ['Pre Case', 'PU Case', 'PU Door', 'Accessories', 'Cycle'];
-$distinct_sections = array_unique(array_merge($expected_sections, $db_sections));
+$db_sections = $conn->query("SELECT DISTINCT section_name FROM dtc_master_sections WHERE section_name IS NOT NULL AND TRIM(section_name) != '' ORDER BY sort_order ASC, section_name ASC")->fetchAll(PDO::FETCH_COLUMN);
+$spec_sections = $conn->query("SELECT DISTINCT section_name FROM dtc_master_dtc_specs WHERE section_name IS NOT NULL AND TRIM(section_name) != ''")->fetchAll(PDO::FETCH_COLUMN);
+$distinct_sections = array_unique(array_merge($db_sections, $spec_sections));
 sort($distinct_sections);
 ?>
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">

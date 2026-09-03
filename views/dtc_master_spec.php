@@ -1,3 +1,22 @@
+<?php
+require_once 'config/config.php';
+$conn = getDBConnection();
+$sqlSummary = "SELECT 
+    COUNT(spec_id) as total_spec,
+    SUM(CASE WHEN UPPER(line_name) = 'REF 01' THEN 1 ELSE 0 END) as ref01_count,
+    SUM(CASE WHEN UPPER(line_name) = 'REF 02' THEN 1 ELSE 0 END) as ref02_count,
+    SUM(CASE WHEN UPPER(line_name) = 'REF 03' THEN 1 ELSE 0 END) as ref03_count,
+    SUM(CASE WHEN UPPER(data_type) = 'CTQ' THEN 1 ELSE 0 END) as ctq_count,
+    SUM(CASE WHEN UPPER(data_type) = 'CTP' THEN 1 ELSE 0 END) as ctp_count,
+    SUM(CASE WHEN UPPER(data_type) = 'TIME CHECK' THEN 1 ELSE 0 END) as tc_count,
+    SUM(CASE WHEN UPPER(data_type) IN ('F/PROOF', 'FOOL PROOF') THEN 1 ELSE 0 END) as fp_count
+FROM dtc_master_dtc_specs
+WHERE 1=1 " . getIPAccessFilterSQL('line_name', 'section_name') . getUserAccessFilterSQL('line_name', 'section_name');
+$summarySpec = $conn->query($sqlSummary)->fetch(PDO::FETCH_ASSOC) ?: [
+    'total_spec' => 0, 'ref01_count' => 0, 'ref02_count' => 0, 'ref03_count' => 0,
+    'ctq_count' => 0, 'ctp_count' => 0, 'tc_count' => 0, 'fp_count' => 0
+];
+?>
 <style>
     /* Styling for DataTables in Dark Mode */
     .dataTables_wrapper {
@@ -98,16 +117,187 @@
         background-color: rgba(0, 0, 0, 0.2);
         border-bottom: 2px solid #334155 !important;
     }
+
+    .manage-ls-tab-btn {
+        padding: 6px 16px;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-muted);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .manage-ls-tab-btn:hover {
+        background: rgba(255, 255, 255, 0.15);
+        color: var(--text-light);
+    }
+    .manage-ls-tab-btn.active {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+    }
+
+    /* Master Spec KPI Summary Cards */
+    .spec-kpi-card {
+        background: linear-gradient(135deg, rgba(15,23,42,0.92), rgba(30,41,59,0.85));
+        border-radius: 10px;
+        padding: 10px 14px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        cursor: pointer;
+        transition: all 0.25s ease;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        position: relative;
+        overflow: hidden;
+    }
+    .spec-kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 22px rgba(0,0,0,0.5);
+        filter: brightness(1.15);
+    }
+    .tab-badge {
+        font-size: 10px;
+        padding: 2px 7px;
+        border-radius: 10px;
+        margin-left: 6px;
+        background: rgba(255, 255, 255, 0.15);
+        color: var(--text-light);
+        font-weight: 700;
+        display: inline-block;
+        line-height: 1.2;
+    }
+    .filter-tab-btn.active .tab-badge {
+        background: rgba(255, 255, 255, 0.3);
+        color: #ffffff;
+    }
 </style>
+
+<!-- Summary Total Master Spec KPI Banner -->
+<div id="master-spec-summary-banner" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px;">
+    <!-- 1. Total Spec -->
+    <div class="spec-kpi-card" data-kpi="all" title="Klik untuk menampilkan semua data" style="border: 1px solid rgba(56,189,248,0.35); border-left: 4px solid #38bdf8;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">
+            <span><i class="fa-solid fa-layer-group" style="color: #38bdf8; margin-right: 4px;"></i> TOTAL</span>
+            <span style="background: rgba(56,189,248,0.2); color: #38bdf8; font-size: 9px; padding: 1px 5px; border-radius: 4px; font-weight: 700;">SPEC</span>
+        </div>
+        <div id="kpi-val-total" style="font-size: 22px; font-weight: 900; color: #38bdf8; margin-top: 4px; line-height: 1;">
+            <?= number_format($summarySpec['total_spec'] ?? 0) ?>
+        </div>
+        <div style="font-size: 10.5px; color: #cbd5e1; margin-top: 4px; font-weight: 500;">
+            Total Master Spec
+        </div>
+    </div>
+
+    <!-- 2. REF 01 -->
+    <div class="spec-kpi-card" data-kpi="line" data-line="REF 01" title="Klik untuk filter Line REF 01" style="border: 1px solid rgba(2,132,199,0.35); border-left: 4px solid #0284c7;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">
+            <span><i class="fa-solid fa-industry" style="color: #0284c7; margin-right: 4px;"></i> REF 01</span>
+            <span style="background: rgba(2,132,199,0.2); color: #38bdf8; font-size: 9px; padding: 1px 5px; border-radius: 4px; font-weight: 700;">LINE</span>
+        </div>
+        <div id="kpi-val-ref01" style="font-size: 22px; font-weight: 900; color: #38bdf8; margin-top: 4px; line-height: 1;">
+            <?= number_format($summarySpec['ref01_count'] ?? 0) ?>
+        </div>
+        <div style="font-size: 10.5px; color: #cbd5e1; margin-top: 4px; font-weight: 500;">
+            Line REF 01
+        </div>
+    </div>
+
+    <!-- 3. REF 02 -->
+    <div class="spec-kpi-card" data-kpi="line" data-line="REF 02" title="Klik untuk filter Line REF 02" style="border: 1px solid rgba(59,130,246,0.35); border-left: 4px solid #3b82f6;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">
+            <span><i class="fa-solid fa-industry" style="color: #3b82f6; margin-right: 4px;"></i> REF 02</span>
+            <span style="background: rgba(59,130,246,0.2); color: #60a5fa; font-size: 9px; padding: 1px 5px; border-radius: 4px; font-weight: 700;">LINE</span>
+        </div>
+        <div id="kpi-val-ref02" style="font-size: 22px; font-weight: 900; color: #60a5fa; margin-top: 4px; line-height: 1;">
+            <?= number_format($summarySpec['ref02_count'] ?? 0) ?>
+        </div>
+        <div style="font-size: 10.5px; color: #cbd5e1; margin-top: 4px; font-weight: 500;">
+            Line REF 02
+        </div>
+    </div>
+
+    <!-- 4. CTQ -->
+    <div class="spec-kpi-card" data-kpi="type" data-type="CTQ" title="Klik untuk filter kategori CTQ" style="border: 1px solid rgba(244,63,94,0.35); border-left: 4px solid #f43f5e;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">
+            <span><i class="fa-solid fa-check-double" style="color: #f43f5e; margin-right: 4px;"></i> CTQ</span>
+            <span style="background: rgba(244,63,94,0.2); color: #fb7185; font-size: 9px; padding: 1px 5px; border-radius: 4px; font-weight: 700;">QUALITY</span>
+        </div>
+        <div id="kpi-val-ctq" style="font-size: 22px; font-weight: 900; color: #fb7185; margin-top: 4px; line-height: 1;">
+            <?= number_format($summarySpec['ctq_count'] ?? 0) ?>
+        </div>
+        <div style="font-size: 10.5px; color: #cbd5e1; margin-top: 4px; font-weight: 500;">
+            Critical to Quality
+        </div>
+    </div>
+
+    <!-- 5. CTP -->
+    <div class="spec-kpi-card" data-kpi="type" data-type="CTP" title="Klik untuk filter kategori CTP" style="border: 1px solid rgba(245,158,11,0.35); border-left: 4px solid #f59e0b;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">
+            <span><i class="fa-solid fa-sliders" style="color: #f59e0b; margin-right: 4px;"></i> CTP</span>
+            <span style="background: rgba(245,158,11,0.2); color: #fbbf24; font-size: 9px; padding: 1px 5px; border-radius: 4px; font-weight: 700;">PROCESS</span>
+        </div>
+        <div id="kpi-val-ctp" style="font-size: 22px; font-weight: 900; color: #fbbf24; margin-top: 4px; line-height: 1;">
+            <?= number_format($summarySpec['ctp_count'] ?? 0) ?>
+        </div>
+        <div style="font-size: 10.5px; color: #cbd5e1; margin-top: 4px; font-weight: 500;">
+            Critical to Process
+        </div>
+    </div>
+
+    <!-- 6. Time Check -->
+    <div class="spec-kpi-card" data-kpi="type" data-type="Time Check" title="Klik untuk filter kategori Time Check" style="border: 1px solid rgba(16,185,129,0.35); border-left: 4px solid #10b981;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">
+            <span><i class="fa-solid fa-clock" style="color: #10b981; margin-right: 4px;"></i> TIME CHECK</span>
+            <span style="background: rgba(16,185,129,0.2); color: #34d399; font-size: 9px; padding: 1px 5px; border-radius: 4px; font-weight: 700;">TIME</span>
+        </div>
+        <div id="kpi-val-tc" style="font-size: 22px; font-weight: 900; color: #34d399; margin-top: 4px; line-height: 1;">
+            <?= number_format($summarySpec['tc_count'] ?? 0) ?>
+        </div>
+        <div style="font-size: 10.5px; color: #cbd5e1; margin-top: 4px; font-weight: 500;">
+            Pemeriksaan Waktu
+        </div>
+    </div>
+
+    <!-- 7. Fool Proof -->
+    <div class="spec-kpi-card" data-kpi="type" data-type="F/Proof" title="Klik untuk filter kategori Fool Proof" style="border: 1px solid rgba(168,85,247,0.35); border-left: 4px solid #a855f7;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">
+            <span><i class="fa-solid fa-shield-halved" style="color: #a855f7; margin-right: 4px;"></i> FOOL PROOF</span>
+            <span style="background: rgba(168,85,247,0.2); color: #c084fc; font-size: 9px; padding: 1px 5px; border-radius: 4px; font-weight: 700;">F/PROOF</span>
+        </div>
+        <div id="kpi-val-fp" style="font-size: 22px; font-weight: 900; color: #c084fc; margin-top: 4px; line-height: 1;">
+            <?= number_format($summarySpec['fp_count'] ?? 0) ?>
+        </div>
+        <div style="font-size: 10.5px; color: #cbd5e1; margin-top: 4px; font-weight: 500;">
+            Fool Proof (Poka-Yoke)
+        </div>
+    </div>
+
+    <!-- 8. REF 03 (Shown if present) -->
+    <div id="card-kpi-ref03" class="spec-kpi-card" data-kpi="line" data-line="REF 03" title="Klik untuk filter Line REF 03" style="border: 1px solid rgba(139,92,246,0.35); border-left: 4px solid #8b5cf6; <?= ($summarySpec['ref03_count'] ?? 0) > 0 ? '' : 'display: none;' ?>">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">
+            <span><i class="fa-solid fa-industry" style="color: #8b5cf6; margin-right: 4px;"></i> REF 03</span>
+            <span style="background: rgba(139,92,246,0.2); color: #c4b5fd; font-size: 9px; padding: 1px 5px; border-radius: 4px; font-weight: 700;">LINE</span>
+        </div>
+        <div id="kpi-val-ref03" style="font-size: 22px; font-weight: 900; color: #c4b5fd; margin-top: 4px; line-height: 1;">
+            <?= number_format($summarySpec['ref03_count'] ?? 0) ?>
+        </div>
+        <div style="font-size: 10.5px; color: #cbd5e1; margin-top: 4px; font-weight: 500;">
+            Line REF 03
+        </div>
+    </div>
+</div>
 
 <div class="content-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 20px;">
     <!-- Filter Tabs -->
     <div class="dtc-filter-tabs" style="display: flex; gap: 10px; flex-wrap: wrap;">
-        <button class="filter-tab-btn active" data-filter="">All</button>
-        <button class="filter-tab-btn" data-filter="CTQ">CTQ</button>
-        <button class="filter-tab-btn" data-filter="CTP">CTP</button>
-        <button class="filter-tab-btn" data-filter="Time Check">Time Check</button>
-        <button class="filter-tab-btn" data-filter="F/Proof">F/Proof</button>
+        <button class="filter-tab-btn active" data-filter="">All <span class="tab-badge" id="badge-all"><?= number_format($summarySpec['total_spec'] ?? 0) ?></span></button>
+        <button class="filter-tab-btn" data-filter="CTQ">CTQ <span class="tab-badge" id="badge-ctq"><?= number_format($summarySpec['ctq_count'] ?? 0) ?></span></button>
+        <button class="filter-tab-btn" data-filter="CTP">CTP <span class="tab-badge" id="badge-ctp"><?= number_format($summarySpec['ctp_count'] ?? 0) ?></span></button>
+        <button class="filter-tab-btn" data-filter="Time Check">Time Check <span class="tab-badge" id="badge-time-check"><?= number_format($summarySpec['tc_count'] ?? 0) ?></span></button>
+        <button class="filter-tab-btn" data-filter="F/Proof">F/Proof <span class="tab-badge" id="badge-f-proof"><?= number_format($summarySpec['fp_count'] ?? 0) ?></span></button>
         
         <!-- Dropdown Filters -->
         <select id="filter-line" style="margin-left: 10px; padding: 6px 12px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(15,23,42,0.8); color: white; min-width: 120px;">
@@ -121,7 +311,10 @@
         </select>
     </div>
     
-    <div class="header-actions" style="display: flex; gap: 10px;">
+    <div class="header-actions" style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <button id="btn-manage-line-section" class="btn-rich-secondary" style="display: inline-flex; align-items: center; gap: 6px; background: rgba(56,189,248,0.15); border-color: rgba(56,189,248,0.4); color: #38bdf8;">
+            <i class="fa-solid fa-layer-group"></i> Kelola Line & Section
+        </button>
         <button id="btn-copy-model-spec" class="btn-rich-secondary" style="display: inline-flex; align-items: center; gap: 6px;">
             <i class="fa-solid fa-clone"></i> Copy by Model
         </button>
@@ -187,11 +380,21 @@
                     <select id="data_type" name="data_type" class="form-control" style="padding: 8px; font-size: 12px;" required></select>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
-                    <label style="font-size: 11px; margin-bottom: 4px;">Line Name</label>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <label style="font-size: 11px; margin-bottom: 0;">Line Name</label>
+                        <button type="button" id="btn-quick-add-line" style="background: none; border: none; font-size: 10.5px; color: #38bdf8; cursor: pointer; padding: 0; display: inline-flex; align-items: center; gap: 3px;" title="Tambah Line Baru">
+                            <i class="fa-solid fa-circle-plus"></i> Tambah
+                        </button>
+                    </div>
                     <select id="line_name" name="line_name" class="form-control" style="padding: 8px; font-size: 12px;" required></select>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
-                    <label style="font-size: 11px; margin-bottom: 4px;">Section Name</label>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <label style="font-size: 11px; margin-bottom: 0;">Section Name</label>
+                        <button type="button" id="btn-quick-add-section" style="background: none; border: none; font-size: 10.5px; color: #38bdf8; cursor: pointer; padding: 0; display: inline-flex; align-items: center; gap: 3px;" title="Tambah Section Baru">
+                            <i class="fa-solid fa-circle-plus"></i> Tambah
+                        </button>
+                    </div>
                     <select id="section_name" name="section_name" class="form-control" style="padding: 8px; font-size: 12px;" required></select>
                 </div>
                 <div class="form-group" style="margin-bottom: 0; grid-column: span 3;">
@@ -359,3 +562,138 @@
         </form>
     </div>
 </div>
+
+<!-- Modal Manage Lines & Sections -->
+<div id="modal-manage-lines-sections" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
+    <div class="modal-content" style="background-color: var(--bg-card); padding: 22px 26px; border-radius: 10px; width: 95%; max-width: 900px; max-height: 90vh; overflow-x: hidden; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-layer-group" style="color: #38bdf8; font-size: 18px;"></i>
+                <h2 style="margin: 0; font-size: 17px; color: white;">Kelola Master Line & Section</h2>
+            </div>
+            <button id="btn-close-manage-ls-modal" style="background: none; border: none; color: var(--text-light); font-size: 24px; cursor: pointer; line-height: 1;">&times;</button>
+        </div>
+
+        <!-- Sub Tabs -->
+        <div style="display: flex; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 10px;">
+            <button type="button" id="tab-btn-lines" class="manage-ls-tab-btn active" style="display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fa-solid fa-industry"></i> Master Lines <span id="badge-lines-count" style="font-size: 10px; padding: 2px 6px; border-radius: 10px; background: rgba(56,189,248,0.2); color: #38bdf8;">0</span>
+            </button>
+            <button type="button" id="tab-btn-sections" class="manage-ls-tab-btn" style="display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fa-solid fa-shapes"></i> Master Sections <span id="badge-sections-count" style="font-size: 10px; padding: 2px 6px; border-radius: 10px; background: rgba(168,85,247,0.2); color: #c084fc;">0</span>
+            </button>
+        </div>
+
+        <!-- Tab Panel: Lines -->
+        <div id="panel-manage-lines">
+            <div style="background: rgba(15,23,42,0.4); padding: 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); margin-bottom: 16px;">
+                <h4 id="form-line-title" style="margin-top: 0; font-size: 12px; color: #38bdf8; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-plus"></i> Tambah Line Baru
+                </h4>
+                <form id="form-manage-line" style="display: grid; grid-template-columns: 2fr 3fr 1fr auto; gap: 10px; align-items: flex-end;">
+                    <input type="hidden" id="manage_line_id" name="line_id" value="">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 11px; margin-bottom: 4px;">Nama Line *</label>
+                        <input type="text" id="manage_line_name" name="line_name" class="form-control" style="padding: 7px 10px; font-size: 12px;" placeholder="e.g. REF 03" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 11px; margin-bottom: 4px;">Deskripsi (Opsional)</label>
+                        <input type="text" id="manage_line_desc" name="description" class="form-control" style="padding: 7px 10px; font-size: 12px;" placeholder="e.g. Refrigerator Line 03">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 11px; margin-bottom: 4px;">Urutan</label>
+                        <input type="number" id="manage_line_sort" name="sort_order" class="form-control" style="padding: 7px 10px; font-size: 12px;" placeholder="Auto">
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                        <button type="submit" id="btn-save-line" class="btn-rich-primary" style="padding: 7px 14px; font-size: 12px; white-space: nowrap;">
+                            <i class="fa-solid fa-floppy-disk"></i> Simpan
+                        </button>
+                        <button type="button" id="btn-reset-line" class="btn-rich-secondary" style="padding: 7px 10px; font-size: 12px; display: none;" title="Batal Edit">
+                            <i class="fa-solid fa-rotate-left"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div style="border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                    <thead>
+                        <tr style="background: rgba(15,23,42,0.8); color: var(--text-muted); text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                            <th style="padding: 8px 10px; width: 40px; text-align: center;">No</th>
+                            <th style="padding: 8px 10px;">Nama Line</th>
+                            <th style="padding: 8px 10px;">Deskripsi</th>
+                            <th style="padding: 8px 10px; width: 70px; text-align: center;">Urutan</th>
+                            <th style="padding: 8px 10px; width: 90px; text-align: center;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-manage-lines">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tab Panel: Sections -->
+        <div id="panel-manage-sections" style="display: none;">
+            <div style="background: rgba(15,23,42,0.4); padding: 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); margin-bottom: 16px;">
+                <h4 id="form-section-title" style="margin-top: 0; font-size: 12px; color: #c084fc; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-plus"></i> Tambah Section Baru
+                </h4>
+                <form id="form-manage-section" style="display: grid; grid-template-columns: 2fr 2fr 2fr 1fr auto; gap: 10px; align-items: flex-end;">
+                    <input type="hidden" id="manage_section_id" name="section_id" value="">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 11px; margin-bottom: 4px;">Nama Section *</label>
+                        <input type="text" id="manage_section_name" name="section_name" class="form-control" style="padding: 7px 10px; font-size: 12px;" placeholder="e.g. Final Assembly" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 11px; margin-bottom: 4px;">Line (Opsional)</label>
+                        <select id="manage_section_line" name="line_name" class="form-control" style="padding: 7px 10px; font-size: 12px;">
+                            <option value="">Semua Line (General)</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 11px; margin-bottom: 4px;">Deskripsi (Opsional)</label>
+                        <input type="text" id="manage_section_desc" name="description" class="form-control" style="padding: 7px 10px; font-size: 12px;" placeholder="e.g. Stasiun Rakit Akhir">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 11px; margin-bottom: 4px;">Urutan</label>
+                        <input type="number" id="manage_section_sort" name="sort_order" class="form-control" style="padding: 7px 10px; font-size: 12px;" placeholder="Auto">
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                        <button type="submit" id="btn-save-section" class="btn-rich-primary" style="padding: 7px 14px; font-size: 12px; white-space: nowrap;">
+                            <i class="fa-solid fa-floppy-disk"></i> Simpan
+                        </button>
+                        <button type="button" id="btn-reset-section" class="btn-rich-secondary" style="padding: 7px 10px; font-size: 12px; display: none;" title="Batal Edit">
+                            <i class="fa-solid fa-rotate-left"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div style="border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                    <thead>
+                        <tr style="background: rgba(15,23,42,0.8); color: var(--text-muted); text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                            <th style="padding: 8px 10px; width: 40px; text-align: center;">No</th>
+                            <th style="padding: 8px 10px;">Nama Section</th>
+                            <th style="padding: 8px 10px; width: 140px;">Line Terkait</th>
+                            <th style="padding: 8px 10px;">Deskripsi</th>
+                            <th style="padding: 8px 10px; width: 70px; text-align: center;">Urutan</th>
+                            <th style="padding: 8px 10px; width: 90px; text-align: center;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-manage-sections">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div style="margin-top: 20px; display: flex; justify-content: flex-end; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 14px;">
+            <button type="button" id="btn-close-manage-ls" class="btn-rich-secondary" style="padding: 7px 18px; font-size: 12px;">
+                Tutup
+            </button>
+        </div>
+    </div>
+</div>
+

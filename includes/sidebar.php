@@ -4,27 +4,36 @@
             <h2 style="width:100%; text-align:center; margin:0; display: flex; align-items: center; justify-content: center; gap: 8px;"><img src="logo.png" alt="LG" class="logo-lg" style="height: 32px; vertical-align: middle;"> <span class="logo-text" style="color: var(--text-primary); font-weight: 800; letter-spacing: 1px;">DTC</span></h2>
         </div>
         <ul class="sidebar-menu">
+            <?php 
+            $currentUserRole = strtolower(trim($_SESSION['role'] ?? ''));
+            $isManagement = (strpos($currentUserRole, 'management') !== false);
+            ?>
+
+            <?php if (!$isManagement): ?>
             <!-- Group 1: Core Features -->
             <li>
                 <a href="index.php?page=dtc" class="<?php echo ($page == 'dtc' || $page == 'dtc_list') ? 'active' : ''; ?>">
                     <i class="fa-solid fa-list-check"></i> <span>DTC List</span>
                 </a>
             </li>
-            <?php 
-            $currentUserRole = strtolower(trim($_SESSION['role'] ?? ''));
-            if ($currentUserRole === 'admin' || strpos($currentUserRole, 'supervisor') !== false): 
-            ?>
+            <?php endif; ?>
+
+            <?php if ($currentUserRole === 'admin' || strpos($currentUserRole, 'supervisor') !== false || $isManagement): ?>
             <li>
                 <a href="index.php?page=missing_data" class="<?php echo ($page == 'missing_data') ? 'active' : ''; ?>">
                     <i class="fa-solid fa-border-none"></i> <span>Data Monitoring</span>
                 </a>
             </li>
             <?php endif; ?>
+
+            <?php if (!$isManagement): ?>
             <li>
                 <a href="index.php?page=dtc_history" class="<?php echo ($page == 'dtc_history') ? 'active' : ''; ?>">
                     <i class="fa-solid fa-clock-rotate-left"></i> <span>DTC History</span>
                 </a>
             </li>
+            <?php endif; ?>
+
             <?php if (isset($_SESSION['role']) && strtolower(trim($_SESSION['role'])) === 'admin'): ?>
 
             <!-- Group 2: Configuration & Admin -->
@@ -48,12 +57,14 @@
             <li style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; display: none;"></li>
             <?php endif; ?>
 
+            <?php if (!$isManagement): ?>
             <!-- Group 3: Help & Support -->
             <li style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
                 <a href="index.php?page=docs" class="<?php echo ($page == 'docs') ? 'active' : ''; ?>">
                     <i class="fa-solid fa-book-open"></i> <span>Documentation</span>
                 </a>
             </li>
+            <?php endif; ?>
 
             <!-- Group 4: Logout -->
             <li style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">

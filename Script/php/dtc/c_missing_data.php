@@ -4,10 +4,10 @@ require_once '../../../config/config.php';
 header('Content-Type: application/json');
 
 $userRole = strtolower(trim($_SESSION['role'] ?? ''));
-if ($userRole !== 'admin' && strpos($userRole, 'supervisor') === false) {
+if ($userRole !== 'admin' && strpos($userRole, 'supervisor') === false && strpos($userRole, 'management') === false) {
     echo json_encode([
         'status' => 'error',
-        'message' => 'Unauthorized access. Data Monitoring is restricted to Supervisor and Admin.'
+        'message' => 'Unauthorized access. Data Monitoring is restricted to Supervisor, Admin, and Management.'
     ]);
     exit;
 }

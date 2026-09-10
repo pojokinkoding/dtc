@@ -62,7 +62,7 @@ $(document).ready(function () {
                 data: 'model_name',
                 render: function (data, type, row) {
                     let html = `<span style="color: #e2e8f0; font-weight: 600;">${data}</span>`;
-                    
+
                     if (row.rm_created_at) {
                         let parts = (row.rm_created_at || '').split(' ');
                         let datePart = parts[0] || '';

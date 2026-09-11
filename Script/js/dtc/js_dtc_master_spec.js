@@ -6,6 +6,7 @@ $(document).ready(function () {
             dataSrc: function (json) {
                 let data = json.data || [];
                 updateMasterSpecSummary(data);
+                syncDropdownsFromData(data);
                 return data;
             }
         },
@@ -133,6 +134,30 @@ $(document).ready(function () {
     });
 
     let masterSpecsList = [];
+
+    function syncDropdownsFromData(data) {
+        if (!Array.isArray(data) || !data.length) return;
+        if (!masterSpecsList || !masterSpecsList.length) {
+            masterSpecsList = data;
+        }
+
+        // Auto-populate filter-line if it only has 1 or fewer options
+        let currentOptions = $('#filter-line option').length;
+        if (currentOptions <= 1) {
+            let uniqueLines = [...new Set(data.map(d => d.line_name).filter(Boolean))].sort();
+            if (uniqueLines.length > 0) {
+                let curLine = $('#filter-line').val();
+                let filterOpts = '<option value="">All Lines</option>';
+                uniqueLines.forEach(l => {
+                    filterOpts += `<option value="${l}">${l}</option>`;
+                });
+                $('#filter-line').html(filterOpts);
+                if (curLine) $('#filter-line').val(curLine);
+            }
+        }
+
+        updateSectionFilterOptions();
+    }
 
     function updateSectionFilterOptions() {
         let selectedLine = $('#filter-line').val();
@@ -372,7 +397,9 @@ $(document).ready(function () {
                     opts += '<option value="F/Proof">F/Proof</option>';
                     $('#data_type').html(opts);
                 }
-                if (res.lines) {
+                if (res.lines && res.lines.length > 0) {
+                    let curLine = $('#filter-line').val();
+                    let curModalLine = $('#line_name').val();
                     let opts = '<option value="">-- Select Line --</option>';
                     let filterOpts = '<option value="">All Lines</option>';
                     res.lines.forEach(l => {
@@ -381,18 +408,26 @@ $(document).ready(function () {
                     });
                     $('#line_name').html(opts);
                     $('#filter-line').html(filterOpts);
+                    if (curLine) $('#filter-line').val(curLine);
+                    if (curModalLine) $('#line_name').val(curModalLine);
                 }
-                if (res.sections) {
+                if (res.sections && res.sections.length > 0) {
+                    let curModalSec = $('#section_name').val();
                     let opts = '<option value="">-- Select Section --</option>';
                     res.sections.forEach(s => {
                         opts += `<option value="${s.section_name}">${s.section_name}</option>`;
                     });
                     $('#section_name').html(opts);
+                    if (curModalSec) $('#section_name').val(curModalSec);
                 }
-                if (res.specs) {
+                if (res.specs && res.specs.length > 0) {
                     masterSpecsList = res.specs;
                     updateSectionFilterOptions();
                 }
+                if (callback) callback();
+            },
+            error: function (xhr, status, err) {
+                console.warn("loadSelectOptions fallback active:", err);
                 if (callback) callback();
             }
         });

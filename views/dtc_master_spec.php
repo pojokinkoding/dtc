@@ -302,6 +302,8 @@ $summarySpec = $conn->query($sqlSummary)->fetch(PDO::FETCH_ASSOC) ?: [
         <!-- Dropdown Filters -->
         <select id="filter-line" style="margin-left: 10px; padding: 6px 12px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(15,23,42,0.8); color: white; min-width: 120px;">
             <option value="">All Lines</option>
+            <?php if (($summarySpec['ref01_count'] ?? 0) > 0): ?><option value="REF 01">REF 01</option><?php endif; ?>
+            <?php if (($summarySpec['ref02_count'] ?? 0) > 0): ?><option value="REF 02">REF 02</option><?php endif; ?>
         </select>
         <select id="filter-section" style="padding: 6px 12px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(15,23,42,0.8); color: white; min-width: 120px;">
             <option value="">All Sections</option>

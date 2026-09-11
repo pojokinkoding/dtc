@@ -16,6 +16,53 @@ $summarySpec = $conn->query($sqlSummary)->fetch(PDO::FETCH_ASSOC) ?: [
     'total_spec' => 0, 'ref01_count' => 0, 'ref02_count' => 0, 'ref03_count' => 0,
     'ctq_count' => 0, 'ctp_count' => 0, 'tc_count' => 0, 'fp_count' => 0
 ];
+
+// Pre-query lines from dtc_master_lines and dtc_master_dtc_specs (merged)
+$masterLinesMap = [];
+try {
+    $stmtML = $conn->query("SELECT DISTINCT line_name FROM dtc_master_lines WHERE line_name IS NOT NULL AND TRIM(line_name) != '' ORDER BY sort_order ASC, line_name ASC");
+    if ($stmtML) {
+        while ($r = $stmtML->fetch(PDO::FETCH_ASSOC)) {
+            $ln = trim($r['line_name']);
+            if ($ln !== '') $masterLinesMap[$ln] = $ln;
+        }
+    }
+} catch (Throwable $t) {}
+try {
+    $stmtSL = $conn->query("SELECT DISTINCT line_name FROM dtc_master_dtc_specs WHERE line_name IS NOT NULL AND TRIM(line_name) != '' ORDER BY line_name ASC");
+    if ($stmtSL) {
+        while ($r = $stmtSL->fetch(PDO::FETCH_ASSOC)) {
+            $ln = trim($r['line_name']);
+            if ($ln !== '' && !isset($masterLinesMap[$ln])) $masterLinesMap[$ln] = $ln;
+        }
+    }
+} catch (Throwable $t) {}
+if (empty($masterLinesMap)) {
+    $masterLinesMap = ['REF 01' => 'REF 01', 'REF 02' => 'REF 02'];
+}
+$masterLines = array_values($masterLinesMap);
+
+// Pre-query sections from dtc_master_sections and dtc_master_dtc_specs (merged)
+$masterSectionsMap = [];
+try {
+    $stmtMS = $conn->query("SELECT DISTINCT section_name FROM dtc_master_sections WHERE section_name IS NOT NULL AND TRIM(section_name) != '' ORDER BY sort_order ASC, section_name ASC");
+    if ($stmtMS) {
+        while ($r = $stmtMS->fetch(PDO::FETCH_ASSOC)) {
+            $sn = trim($r['section_name']);
+            if ($sn !== '') $masterSectionsMap[$sn] = $sn;
+        }
+    }
+} catch (Throwable $t) {}
+try {
+    $stmtSS = $conn->query("SELECT DISTINCT section_name FROM dtc_master_dtc_specs WHERE section_name IS NOT NULL AND TRIM(section_name) != '' ORDER BY section_name ASC");
+    if ($stmtSS) {
+        while ($r = $stmtSS->fetch(PDO::FETCH_ASSOC)) {
+            $sn = trim($r['section_name']);
+            if ($sn !== '' && !isset($masterSectionsMap[$sn])) $masterSectionsMap[$sn] = $sn;
+        }
+    }
+} catch (Throwable $t) {}
+$masterSections = array_values($masterSectionsMap);
 ?>
 <style>
     /* Styling for DataTables in Dark Mode */
@@ -302,11 +349,15 @@ $summarySpec = $conn->query($sqlSummary)->fetch(PDO::FETCH_ASSOC) ?: [
         <!-- Dropdown Filters -->
         <select id="filter-line" style="margin-left: 10px; padding: 6px 12px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(15,23,42,0.8); color: white; min-width: 120px;">
             <option value="">All Lines</option>
-            <?php if (($summarySpec['ref01_count'] ?? 0) > 0): ?><option value="REF 01">REF 01</option><?php endif; ?>
-            <?php if (($summarySpec['ref02_count'] ?? 0) > 0): ?><option value="REF 02">REF 02</option><?php endif; ?>
+            <?php foreach ($masterLines as $line): ?>
+                <option value="<?= htmlspecialchars($line) ?>"><?= htmlspecialchars($line) ?></option>
+            <?php endforeach; ?>
         </select>
         <select id="filter-section" style="padding: 6px 12px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(15,23,42,0.8); color: white; min-width: 120px;">
             <option value="">All Sections</option>
+            <?php foreach ($masterSections as $sec): ?>
+                <option value="<?= htmlspecialchars($sec) ?>"><?= htmlspecialchars($sec) ?></option>
+            <?php endforeach; ?>
         </select>
         <select id="filter-item-check" style="padding: 6px 12px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(15,23,42,0.8); color: white; min-width: 120px;">
             <option value="">All Item Checks</option>
@@ -379,7 +430,13 @@ $summarySpec = $conn->query($sqlSummary)->fetch(PDO::FETCH_ASSOC) ?: [
                 
                 <div class="form-group" style="margin-bottom: 0;">
                     <label style="font-size: 11px; margin-bottom: 4px;">Data Type</label>
-                    <select id="data_type" name="data_type" class="form-control" style="padding: 8px; font-size: 12px;" required></select>
+                    <select id="data_type" name="data_type" class="form-control" style="padding: 8px; font-size: 12px;" required>
+                        <option value="">-- Select Data Type --</option>
+                        <option value="CTQ">CTQ</option>
+                        <option value="CTP">CTP</option>
+                        <option value="Time Check">Time Check</option>
+                        <option value="F/Proof">F/Proof</option>
+                    </select>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
@@ -388,7 +445,12 @@ $summarySpec = $conn->query($sqlSummary)->fetch(PDO::FETCH_ASSOC) ?: [
                             <i class="fa-solid fa-circle-plus"></i> Tambah
                         </button>
                     </div>
-                    <select id="line_name" name="line_name" class="form-control" style="padding: 8px; font-size: 12px;" required></select>
+                    <select id="line_name" name="line_name" class="form-control" style="padding: 8px; font-size: 12px;" required>
+                        <option value="">-- Select Line --</option>
+                        <?php foreach ($masterLines as $line): ?>
+                            <option value="<?= htmlspecialchars($line) ?>"><?= htmlspecialchars($line) ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
@@ -397,7 +459,12 @@ $summarySpec = $conn->query($sqlSummary)->fetch(PDO::FETCH_ASSOC) ?: [
                             <i class="fa-solid fa-circle-plus"></i> Tambah
                         </button>
                     </div>
-                    <select id="section_name" name="section_name" class="form-control" style="padding: 8px; font-size: 12px;" required></select>
+                    <select id="section_name" name="section_name" class="form-control" style="padding: 8px; font-size: 12px;" required>
+                        <option value="">-- Select Section --</option>
+                        <?php foreach ($masterSections as $sec): ?>
+                            <option value="<?= htmlspecialchars($sec) ?>"><?= htmlspecialchars($sec) ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
                 <div class="form-group" style="margin-bottom: 0; grid-column: span 3;">
                     <label style="font-size: 11px; margin-bottom: 4px;">Process Name</label>

@@ -442,6 +442,7 @@ $(document).ready(function () {
         $('#quant_tolerance').val('');
         resetMasterCheckpoints();
         syncSpecFormByType();
+        loadSelectOptions(); // Always refresh latest Line and Section options from server
         $('#modal-title').html('<i class="fa-solid fa-plus" style="margin-right:6px; color:var(--primary);"></i> Add Master Spec');
         $('#btn-save-spec').html('<i class="fa-solid fa-floppy-disk"></i> Save Spec');
         modal.style.display = 'flex';

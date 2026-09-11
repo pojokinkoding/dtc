@@ -1,5 +1,5 @@
 <?php
-require_once '../../../config/config.php';
+require_once __DIR__ . '/../../../config/config.php';
 header('Content-Type: application/json');
 
 try {
@@ -15,6 +15,6 @@ try {
         if ($cp['usl'] !== null) $cp['usl'] = number_format((float)$cp['usl'], 1, '.', '');
     }
     echo json_encode(['status' => 'success', 'data' => $checkpoints]);
-} catch (Exception $e) {
+} catch (Throwable $e) {
     echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
 }

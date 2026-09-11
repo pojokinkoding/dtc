@@ -29,10 +29,10 @@ INSERT IGNORE INTO dtc_master_lines (line_name, description, sort_order) VALUES
 
 -- Seed any distinct lines from dtc_master_dtc_specs
 INSERT IGNORE INTO dtc_master_lines (line_name, sort_order)
-SELECT DISTINCT line_name, 10
-FROM dtc_master_dtc_specs
-WHERE line_name IS NOT NULL AND TRIM(line_name) != ''
-  AND line_name NOT IN (SELECT line_name FROM dtc_master_lines);
+SELECT DISTINCT s.line_name, 10
+FROM dtc_master_dtc_specs s
+WHERE s.line_name IS NOT NULL AND TRIM(s.line_name) != ''
+  AND NOT EXISTS (SELECT 1 FROM dtc_master_lines m WHERE CONVERT(m.line_name USING utf8mb4) = CONVERT(s.line_name USING utf8mb4));
 
 -- Seed Default Sections
 INSERT INTO dtc_master_sections (section_name, line_name, sort_order)
@@ -62,7 +62,7 @@ SELECT 'V Forming Male C', NULL, 12 WHERE NOT EXISTS (SELECT 1 FROM dtc_master_s
 
 -- Seed any distinct sections from dtc_master_dtc_specs
 INSERT INTO dtc_master_sections (section_name, line_name, sort_order)
-SELECT DISTINCT section_name, NULL, 10
+SELECT DISTINCT s.section_name, NULL, 10
 FROM dtc_master_dtc_specs s
-WHERE section_name IS NOT NULL AND TRIM(section_name) != ''
-  AND NOT EXISTS (SELECT 1 FROM dtc_master_sections m WHERE m.section_name = s.section_name);
+WHERE s.section_name IS NOT NULL AND TRIM(s.section_name) != ''
+  AND NOT EXISTS (SELECT 1 FROM dtc_master_sections m WHERE CONVERT(m.section_name USING utf8mb4) = CONVERT(s.section_name USING utf8mb4));

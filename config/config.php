@@ -17,17 +17,27 @@ define('DB_NAME', 'dtc_v1');
 
 if (!function_exists('getDBConnection')) {
     function getDBConnection() {
-        try {
-            // Construct DSN using the DB_HOST provided
-            $dsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4';
-            $conn = new PDO($dsn, DB_USER, DB_PASS);
-            $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-            $conn->setAttribute(PDO::ATTR_CASE, PDO::CASE_LOWER);
-            $conn->exec("SET time_zone = '+07:00'");
-            return $conn;
-        } catch (PDOException $e) {
-            throw new Exception("Connection failed: " . $e->getMessage());
+        $attempts = [
+            ['user' => DB_USER, 'pass' => DB_PASS],
+            ['user' => 'root', 'pass' => ''],
+            ['user' => 'root', 'pass' => 'root'],
+            ['user' => 'user', 'pass' => 'root']
+        ];
+        
+        $lastException = null;
+        foreach ($attempts as $auth) {
+            try {
+                $dsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4';
+                $conn = new PDO($dsn, $auth['user'], $auth['pass']);
+                $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                $conn->setAttribute(PDO::ATTR_CASE, PDO::CASE_LOWER);
+                $conn->exec("SET time_zone = '+07:00'");
+                return $conn;
+            } catch (PDOException $e) {
+                $lastException = $e;
+            }
         }
+        throw new Exception("Connection failed: " . ($lastException ? $lastException->getMessage() : 'Unknown error'));
     }
 }
 
@@ -116,63 +126,74 @@ if (!function_exists('ensureMasterLinesAndSectionsTables')) {
         static $ensured = false;
         if ($ensured) return;
 
-        $conn->exec("CREATE TABLE IF NOT EXISTS dtc_master_lines (
-            line_id INT AUTO_INCREMENT PRIMARY KEY,
-            line_name VARCHAR(50) NOT NULL UNIQUE,
-            description VARCHAR(255) DEFAULT NULL,
-            sort_order INT NOT NULL DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        try {
+            $conn->exec("CREATE TABLE IF NOT EXISTS dtc_master_lines (
+                line_id INT AUTO_INCREMENT PRIMARY KEY,
+                line_name VARCHAR(50) NOT NULL UNIQUE,
+                description VARCHAR(255) DEFAULT NULL,
+                sort_order INT NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
-        $conn->exec("CREATE TABLE IF NOT EXISTS dtc_master_sections (
-            section_id INT AUTO_INCREMENT PRIMARY KEY,
-            section_name VARCHAR(50) NOT NULL,
-            line_name VARCHAR(50) DEFAULT NULL,
-            description VARCHAR(255) DEFAULT NULL,
-            sort_order INT NOT NULL DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            $conn->exec("CREATE TABLE IF NOT EXISTS dtc_master_sections (
+                section_id INT AUTO_INCREMENT PRIMARY KEY,
+                section_name VARCHAR(50) NOT NULL,
+                line_name VARCHAR(50) DEFAULT NULL,
+                description VARCHAR(255) DEFAULT NULL,
+                sort_order INT NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
-        // Seed lines if empty
-        $cntLines = $conn->query("SELECT COUNT(*) FROM dtc_master_lines")->fetchColumn();
-        if ((int)$cntLines === 0) {
-            $conn->exec("INSERT IGNORE INTO dtc_master_lines (line_name, description, sort_order) VALUES
-                ('REF 01', 'Refrigerator Line 01', 1),
-                ('REF 02', 'Refrigerator Line 02', 2)");
+            // Seed lines if empty
+            $cntLines = (int)$conn->query("SELECT COUNT(*) FROM dtc_master_lines")->fetchColumn();
+            if ($cntLines === 0) {
+                $conn->exec("INSERT IGNORE INTO dtc_master_lines (line_name, description, sort_order) VALUES
+                    ('REF 01', 'Refrigerator Line 01', 1),
+                    ('REF 02', 'Refrigerator Line 02', 2)");
 
-            $conn->exec("INSERT IGNORE INTO dtc_master_lines (line_name, sort_order)
-                SELECT DISTINCT line_name, 10
-                FROM dtc_master_dtc_specs
-                WHERE line_name IS NOT NULL AND TRIM(line_name) != ''");
+                try {
+                    $conn->exec("INSERT IGNORE INTO dtc_master_lines (line_name, sort_order)
+                        SELECT DISTINCT line_name, 10
+                        FROM dtc_master_dtc_specs
+                        WHERE line_name IS NOT NULL AND TRIM(line_name) != ''");
+                } catch (Throwable $t) {}
+            }
+
+            // Seed sections if empty
+            $cntSections = (int)$conn->query("SELECT COUNT(*) FROM dtc_master_sections")->fetchColumn();
+            if ($cntSections === 0) {
+                $conn->exec("INSERT IGNORE INTO dtc_master_sections (section_name, line_name, sort_order) VALUES
+                    ('Accessories', NULL, 1),
+                    ('Charging', NULL, 2),
+                    ('Clamping', NULL, 3),
+                    ('Cutting Vinyl', NULL, 4),
+                    ('Cycle', NULL, 5),
+                    ('H Press Out Door', NULL, 6),
+                    ('PU Case', NULL, 7),
+                    ('PU Door', NULL, 8),
+                    ('Pre Case', NULL, 9),
+                    ('V Forming Male A', NULL, 10),
+                    ('V Forming Male B', NULL, 11),
+                    ('V Forming Male C', NULL, 12)");
+
+                try {
+                    $conn->exec("INSERT INTO dtc_master_sections (section_name, line_name, sort_order)
+                        SELECT DISTINCT s.section_name, NULL, 20
+                        FROM dtc_master_dtc_specs s
+                        WHERE s.section_name IS NOT NULL AND TRIM(s.section_name) != ''
+                          AND NOT EXISTS (
+                              SELECT 1 FROM dtc_master_sections m 
+                              WHERE CONVERT(m.section_name USING utf8mb4) = CONVERT(s.section_name USING utf8mb4)
+                          )");
+                } catch (Throwable $t) {}
+            }
+
+            $ensured = true;
+        } catch (Throwable $e) {
+            error_log("ensureMasterLinesAndSectionsTables error: " . $e->getMessage());
         }
-
-        // Seed sections if empty
-        $cntSections = $conn->query("SELECT COUNT(*) FROM dtc_master_sections")->fetchColumn();
-        if ((int)$cntSections === 0) {
-            $conn->exec("INSERT INTO dtc_master_sections (section_name, line_name, sort_order) VALUES
-                ('Accessories', NULL, 1),
-                ('Charging', NULL, 2),
-                ('Clamping', NULL, 3),
-                ('Cutting Vinyl', NULL, 4),
-                ('Cycle', NULL, 5),
-                ('H Press Out Door', NULL, 6),
-                ('PU Case', NULL, 7),
-                ('PU Door', NULL, 8),
-                ('Pre Case', NULL, 9),
-                ('V Forming Male A', NULL, 10),
-                ('V Forming Male B', NULL, 11),
-                ('V Forming Male C', NULL, 12)");
-
-            $conn->exec("INSERT INTO dtc_master_sections (section_name, line_name, sort_order)
-                SELECT DISTINCT section_name, NULL, 20
-                FROM dtc_master_dtc_specs s
-                WHERE section_name IS NOT NULL AND TRIM(section_name) != ''
-                  AND NOT EXISTS (SELECT 1 FROM dtc_master_sections m WHERE UPPER(m.section_name) = UPPER(s.section_name))");
-        }
-
-        $ensured = true;
     }
 }
 ?>

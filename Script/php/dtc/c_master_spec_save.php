@@ -1,6 +1,6 @@
 <?php
 // c_master_spec_save.php
-require_once '../../../config/config.php';
+require_once __DIR__ . '/../../../config/config.php';
 header('Content-Type: application/json');
 
 function ensureMasterSpecCheckpointTable(PDO $conn): void {
@@ -190,7 +190,7 @@ try {
         if ($isCheckpointType) saveMasterSpecCheckpoints($conn, $newSpecId, $checkpoints, $_FILES['checkpoint_images'] ?? []);
         echo json_encode(["status" => "success", "message" => "Master Spec created successfully"]);
     }
-} catch (Exception $e) {
+} catch (Throwable $e) {
     echo json_encode(["status" => "error", "message" => $e->getMessage()]);
 }
 ?>

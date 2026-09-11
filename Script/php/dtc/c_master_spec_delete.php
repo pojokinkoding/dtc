@@ -1,6 +1,6 @@
 <?php
 // c_master_spec_delete.php
-require_once '../../../config/config.php';
+require_once __DIR__ . '/../../../config/config.php';
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -29,9 +29,9 @@ try {
     } else {
         echo json_encode(["status" => "error", "message" => "Invalid spec_id"]);
     }
-} catch (Exception $e) {
+} catch (Throwable $e) {
     // Check if it's a constraint violation
-    if (strpos($e->getMessage(), 'ORA-02292') !== false) {
+    if (strpos($e->getMessage(), 'ORA-02292') !== false || strpos($e->getMessage(), '1451') !== false) {
         echo json_encode(["status" => "error", "message" => "Cannot delete this spec because it has associated measurement data."]);
     } else {
         echo json_encode(["status" => "error", "message" => $e->getMessage()]);

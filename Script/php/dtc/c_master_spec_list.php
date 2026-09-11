@@ -1,6 +1,6 @@
 <?php
 // c_master_spec_list.php
-require_once '../../../config/config.php';
+require_once __DIR__ . '/../../../config/config.php';
 header('Content-Type: application/json');
 
 try {
@@ -19,7 +19,7 @@ try {
     
     echo json_encode(["data" => $results]);
     
-} catch (Exception $e) {
+} catch (Throwable $e) {
     echo json_encode(["data" => [], "error" => $e->getMessage()]);
 }
 ?>

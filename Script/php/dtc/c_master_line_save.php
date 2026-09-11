@@ -1,6 +1,6 @@
 <?php
 // c_master_line_save.php
-require_once '../../../config/config.php';
+require_once __DIR__ . '/../../../config/config.php';
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -10,7 +10,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 try {
     $conn = getDBConnection();
-    ensureMasterLinesAndSectionsTables($conn);
+    if (function_exists('ensureMasterLinesAndSectionsTables')) {
+        try {
+            ensureMasterLinesAndSectionsTables($conn);
+        } catch (Throwable $t) {}
+    }
 
     $lineId = isset($_POST['line_id']) ? intval($_POST['line_id']) : 0;
     $lineName = trim($_POST['line_name'] ?? '');
@@ -98,7 +102,7 @@ try {
             ]
         ]);
     }
-} catch (Exception $e) {
+} catch (Throwable $e) {
     echo json_encode([
         'status' => 'error',
         'message' => $e->getMessage()

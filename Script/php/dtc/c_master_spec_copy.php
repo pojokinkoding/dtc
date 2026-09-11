@@ -1,6 +1,6 @@
 <?php
 // c_master_spec_copy.php
-require_once '../../../config/config.php';
+require_once __DIR__ . '/../../../config/config.php';
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -143,7 +143,7 @@ try {
         "copied_checkpoints" => $copiedCheckpointsCount
     ]);
 
-} catch (Exception $e) {
+} catch (Throwable $e) {
     if (isset($conn) && $conn->inTransaction()) {
         $conn->rollBack();
     }

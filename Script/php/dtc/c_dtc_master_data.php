@@ -17,65 +17,75 @@ try {
     $ipLineFilter = getIPAccessFilterSQL('line_name', 'section_name');
     $userLineFilter = getUserAccessFilterSQL('line_name', 'section_name');
 
-    // 1. Fetch unique lines
-    $lines = [];
+    // 1. Fetch unique lines from dtc_master_lines AND dtc_master_dtc_specs (MERGE)
+    $linesMap = [];
     try {
         $stmt_lines = $conn->query("SELECT DISTINCT line_name FROM dtc_master_lines WHERE line_name IS NOT NULL AND TRIM(line_name) != '' ORDER BY sort_order ASC, line_name ASC");
         if ($stmt_lines) {
-            $lines = $stmt_lines->fetchAll(PDO::FETCH_ASSOC);
-        }
-    } catch (Throwable $t) {
-        $lines = [];
-    }
-
-    // Fallback if empty or table missing: fetch distinct line_name from dtc_master_dtc_specs
-    if (empty($lines)) {
-        try {
-            $stmt_lines_fb = $conn->query("SELECT DISTINCT line_name FROM dtc_master_dtc_specs WHERE line_name IS NOT NULL AND TRIM(line_name) != '' ORDER BY line_name ASC");
-            if ($stmt_lines_fb) {
-                $lines = $stmt_lines_fb->fetchAll(PDO::FETCH_ASSOC);
+            while ($row = $stmt_lines->fetch(PDO::FETCH_ASSOC)) {
+                $name = trim($row['line_name']);
+                if ($name !== '') $linesMap[$name] = ['line_name' => $name];
             }
-        } catch (Throwable $t) {
-            $lines = [];
         }
-    }
+    } catch (Throwable $t) {}
 
-    // Default hardcoded fallback if still empty
-    if (empty($lines)) {
-        $lines = [
-            ['line_name' => 'REF 01'],
-            ['line_name' => 'REF 02']
-        ];
-    }
-
-    // 2. Fetch unique sections
-    $sections = [];
     try {
-        $stmt_sections = $conn->query("SELECT DISTINCT section_name FROM dtc_master_sections WHERE section_name IS NOT NULL AND TRIM(section_name) != '' ORDER BY sort_order ASC, section_name ASC");
-        if ($stmt_sections) {
-            $sections = $stmt_sections->fetchAll(PDO::FETCH_ASSOC);
-        }
-    } catch (Throwable $t) {
-        $sections = [];
-    }
-
-    // Fallback if empty or table missing: fetch distinct section_name from dtc_master_dtc_specs
-    if (empty($sections)) {
-        try {
-            $stmt_sections_fb = $conn->query("SELECT DISTINCT section_name FROM dtc_master_dtc_specs WHERE section_name IS NOT NULL AND TRIM(section_name) != '' ORDER BY section_name ASC");
-            if ($stmt_sections_fb) {
-                $sections = $stmt_sections_fb->fetchAll(PDO::FETCH_ASSOC);
+        $stmt_lines_fb = $conn->query("SELECT DISTINCT line_name FROM dtc_master_dtc_specs WHERE line_name IS NOT NULL AND TRIM(line_name) != '' ORDER BY line_name ASC");
+        if ($stmt_lines_fb) {
+            while ($row = $stmt_lines_fb->fetch(PDO::FETCH_ASSOC)) {
+                $name = trim($row['line_name']);
+                if ($name !== '' && !isset($linesMap[$name])) {
+                    $linesMap[$name] = ['line_name' => $name];
+                }
             }
-        } catch (Throwable $t) {
-            $sections = [];
+        }
+    } catch (Throwable $t) {}
+
+    if (empty($linesMap)) {
+        $linesMap['REF 01'] = ['line_name' => 'REF 01'];
+        $linesMap['REF 02'] = ['line_name' => 'REF 02'];
+    }
+    $lines = array_values($linesMap);
+
+    // 2. Fetch unique sections from dtc_master_sections AND dtc_master_dtc_specs (MERGE)
+    $sectionsMap = [];
+    try {
+        $stmt_sections = $conn->query("SELECT section_id, section_name, line_name FROM dtc_master_sections WHERE section_name IS NOT NULL AND TRIM(section_name) != '' ORDER BY sort_order ASC, section_name ASC");
+        if ($stmt_sections) {
+            while ($row = $stmt_sections->fetch(PDO::FETCH_ASSOC)) {
+                $sName = trim($row['section_name']);
+                if ($sName !== '') {
+                    $sectionsMap[$sName] = [
+                        'section_name' => $sName,
+                        'line_name' => $row['line_name'] ?? null
+                    ];
+                }
+            }
+        }
+    } catch (Throwable $t) {}
+
+    try {
+        $stmt_sections_fb = $conn->query("SELECT DISTINCT section_name, line_name FROM dtc_master_dtc_specs WHERE section_name IS NOT NULL AND TRIM(section_name) != '' ORDER BY section_name ASC");
+        if ($stmt_sections_fb) {
+            while ($row = $stmt_sections_fb->fetch(PDO::FETCH_ASSOC)) {
+                $sName = trim($row['section_name']);
+                if ($sName !== '' && !isset($sectionsMap[$sName])) {
+                    $sectionsMap[$sName] = [
+                        'section_name' => $sName,
+                        'line_name' => $row['line_name'] ?? null
+                    ];
+                }
+            }
+        }
+    } catch (Throwable $t) {}
+
+    if (empty($sectionsMap)) {
+        $defaultSections = ['Accessories', 'Charging', 'Clamping', 'Cutting Vinyl', 'Cycle', 'H Press Out Door', 'PU Case', 'PU Door', 'Pre Case', 'V Forming Male A', 'V Forming Male B', 'V Forming Male C'];
+        foreach ($defaultSections as $ds) {
+            $sectionsMap[$ds] = ['section_name' => $ds, 'line_name' => null];
         }
     }
-
-    // Default hardcoded fallback if still empty
-    if (empty($sections)) {
-        $defaultSections = ['Accessories', 'Charging', 'Clamping', 'Cutting Vinyl', 'Cycle', 'H Press Out Door', 'PU Case', 'PU Door', 'Pre Case', 'V Forming Male A', 'V Forming Male B', 'V Forming Male C'];
-        $sections = array_map(function($s) { return ['section_name' => $s]; }, $defaultSections);
-    }
+    $sections = array_values($sectionsMap);
 
     // 3. Fetch specs
     $specs = [];

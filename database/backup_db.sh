@@ -64,9 +64,7 @@ DB_HOST="${3:-${DB_HOST:-${DETECTED_DB_HOST:-localhost}}}"
 DB_PORT="${4:-${DB_PORT:-3306}}"
 PASSWORD="${DB_PASS:-$DETECTED_DB_PASS}"
 
-TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-BACKUP_FILE="${5:-backup_${DB_NAME}_${TIMESTAMP}.sql}"
-LATEST_FILE="backup_latest.sql"
+BACKUP_FILE="${5:-backupdatabase.sql}"
 
 echo -e "${CYAN}==============================================================================${NC}"
 echo -e "${BOLD}${CYAN}            BACKUP DATABASE SYSTEM (LINUX / UBUNTU / DEBIAN)                  ${NC}"
@@ -116,16 +114,13 @@ DUMP_EXIT=$?
 
 if [ $DUMP_EXIT -eq 0 ] && [ -s "$BACKUP_FILE" ]; then
     rm -f backup_err.tmp 2>/dev/null
-    cp -f "$BACKUP_FILE" "$LATEST_FILE" 2>/dev/null || true
-    cp -f "$BACKUP_FILE" "backup.sql" 2>/dev/null || true
 
     FILE_SIZE=$(ls -lh "$BACKUP_FILE" | awk '{print $5}')
 
     echo -e "\n${GREEN}==============================================================================${NC}"
     echo -e "${BOLD}${GREEN}[OK] BACKUP DATABASE BERHASIL!${NC}"
     echo -e "${GREEN}==============================================================================${NC}"
-    echo -e "File Snapshot : ${CYAN}${SCRIPT_DIR}/${BACKUP_FILE}${NC}"
-    echo -e "Link Latest   : ${CYAN}${SCRIPT_DIR}/${LATEST_FILE}${NC}"
+    echo -e "File Output   : ${CYAN}${SCRIPT_DIR}/${BACKUP_FILE}${NC}"
     echo -e "Ukuran File   : ${BOLD}${GREEN}${FILE_SIZE}${NC}"
     echo -e "${GREEN}==============================================================================${NC}\n"
     exit 0

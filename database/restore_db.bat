@@ -72,9 +72,11 @@ if not "%~1"=="" if not "%~1"=="/y" if not "%~1"=="-y" if not "%~1"=="--force" (
     if exist "%SCRIPT_DIR%%~1" set "RESTORE_FILE=%SCRIPT_DIR%%~1"
 )
 
-:: Jika belum ditentukan, cari backup_latest.sql, backup.sql, atau backup_*.sql terbaru
+:: Jika belum ditentukan, cari backupdatabase.sql, backup_latest.sql, backup.sql, atau backup_*.sql terbaru
 if "%RESTORE_FILE%"=="" (
-    if exist "backup_latest.sql" (
+    if exist "backupdatabase.sql" (
+        set "RESTORE_FILE=backupdatabase.sql"
+    ) else if exist "backup_latest.sql" (
         set "RESTORE_FILE=backup_latest.sql"
     ) else if exist "backup.sql" (
         set "RESTORE_FILE=backup.sql"
@@ -145,7 +147,7 @@ goto :end
 :no_file_found
 echo [ERROR] Tidak ditemukan file backup .sql untuk di-restore!
 echo Pastikan file backup berada di folder yang sama dengan script ini.
-echo Contoh file: backup_latest.sql atau backup_dtc_v1_YYYYMMDD_HHMMSS.sql
+echo Contoh file: backupdatabase.sql
 echo.
 echo Anda juga bisa men-drag and drop file .sql langsung ke script ini.
 goto :end

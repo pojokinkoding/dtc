@@ -92,6 +92,10 @@ if [ -n "$INPUT_FILE" ] && [ -f "$INPUT_FILE" ]; then
     RESTORE_FILE="$INPUT_FILE"
 elif [ -n "$INPUT_FILE" ] && [ -f "$SCRIPT_DIR/$INPUT_FILE" ]; then
     RESTORE_FILE="$SCRIPT_DIR/$INPUT_FILE"
+elif [ -f "backupdatabase.sql" ]; then
+    RESTORE_FILE="backupdatabase.sql"
+elif [ -f "$SCRIPT_DIR/backupdatabase.sql" ]; then
+    RESTORE_FILE="$SCRIPT_DIR/backupdatabase.sql"
 elif [ -f "backup_latest.sql" ]; then
     RESTORE_FILE="backup_latest.sql"
 elif [ -f "backup.sql" ]; then

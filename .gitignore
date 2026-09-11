@@ -1,6 +1,8 @@
 # Database local dumps and backups
 database/backup_*.sql
 !database/backup_db.*
+!database/backupdatabase.sql
+!backupdatabase.sql
 database/*.tmp
 *.tmp
 .DS_Store

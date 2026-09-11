@@ -77,22 +77,22 @@ if not "%DATETIME%"=="" (
     set "TIMESTAMP=!TIMESTAMP: =0!"
 )
 
-set "BACKUP_FILE=backup_%DB_NAME%_%TIMESTAMP%.sql"
-set "LATEST_FILE=backup_latest.sql"
+set "BACKUP_FILE=backupdatabase.sql"
+if not "%~6"=="" set "BACKUP_FILE=%~6"
 
 echo [*] Target Host     : %DB_HOST%:%DB_PORT%
 echo [*] Database Target : %DB_NAME%
 echo [*] User Database   : %DB_USER%
-echo [*] Output File     : %BACKUP_FILE%
+echo [*] File Output     : %BACKUP_FILE%
 echo [*] Executable      : %DUMP_CMD%
 echo ------------------------------------------------------------------------------
-echo [*] Sedang membuat snapshot backup database...
+echo [*] Sedang membuat backup database...
 
 :: Parameter password jika diisi
 set "PASS_PARAM="
 if not "%DB_PASS%"=="" set "PASS_PARAM=-p%DB_PASS%"
 
-:: Eksekusi mysqldump
+:: Eksekusi mysqldump langsung ke backupdatabase.sql
 "%DUMP_CMD%" -h %DB_HOST% -P %DB_PORT% -u %DB_USER% %PASS_PARAM% --default-character-set=utf8mb4 --single-transaction --quick --routines --triggers --hex-blob --databases %DB_NAME% > "%BACKUP_FILE%" 2>backup_err.tmp
 set "DUMP_EXIT=%ERRORLEVEL%"
 
@@ -103,17 +103,13 @@ if not exist "%BACKUP_FILE%" goto :failed
 for %%F in ("%BACKUP_FILE%") do set "FILE_SIZE=%%~zF"
 if "%FILE_SIZE%"=="0" goto :failed
 
-:: Salin ke backup_latest.sql dan backup.sql
-copy /y "%BACKUP_FILE%" "%LATEST_FILE%" >nul 2>&1
-copy /y "%BACKUP_FILE%" "backup.sql" >nul 2>&1
 if exist "backup_err.tmp" del "backup_err.tmp" >nul 2>&1
 
 echo.
 echo ==============================================================================
 echo [OK] BACKUP DATABASE BERHASIL!
 echo ==============================================================================
-echo File Snapshot : %SCRIPT_DIR%%BACKUP_FILE%
-echo Link Latest   : %SCRIPT_DIR%%LATEST_FILE%
+echo File Output   : %SCRIPT_DIR%%BACKUP_FILE%
 echo Ukuran File   : %FILE_SIZE% bytes
 echo ==============================================================================
 goto :end

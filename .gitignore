@@ -1,0 +1,7 @@
+# Database local dumps and backups
+database/backup_*.sql
+!database/backup_db.*
+database/*.tmp
+*.tmp
+.DS_Store
+Thumbs.db

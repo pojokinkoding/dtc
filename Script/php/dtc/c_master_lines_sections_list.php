@@ -2,6 +2,9 @@
 // c_master_lines_sections_list.php
 require_once __DIR__ . '/../../../config/config.php';
 header('Content-Type: application/json');
+header('Cache-Control: no-cache, no-store, must-revalidate');
+header('Pragma: no-cache');
+header('Expires: 0');
 
 try {
     $conn = getDBConnection();
@@ -88,13 +91,13 @@ try {
         'status' => 'success',
         'lines' => $lines,
         'sections' => $sections
-    ]);
-} catch (Exception $e) {
+    ], JSON_INVALID_UTF8_SUBSTITUTE);
+} catch (Throwable $e) {
     echo json_encode([
         'status' => 'error',
         'message' => $e->getMessage(),
         'lines' => [],
         'sections' => []
-    ]);
+    ], JSON_INVALID_UTF8_SUBSTITUTE);
 }
 ?>

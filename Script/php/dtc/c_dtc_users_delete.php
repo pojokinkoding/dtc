@@ -1,6 +1,5 @@
 <?php
-// c_dtc_users_delete.php
-require_once '../../../config/config.php';
+require_once __DIR__ . '/../../../config/config.php';
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

@@ -7,16 +7,69 @@ if (!isset($_SESSION['logged_in'])) {
 
 require_once 'config/config.php';
 $conn = getDBConnection();
-ensureMasterLinesAndSectionsTables($conn);
+if (function_exists('ensureMasterLinesAndSectionsTables')) {
+    try {
+        ensureMasterLinesAndSectionsTables($conn);
+    } catch (Throwable $t) {}
+}
 
-$db_lines = $conn->query("SELECT DISTINCT line_name FROM dtc_master_lines WHERE line_name IS NOT NULL AND TRIM(line_name) != '' ORDER BY sort_order ASC, line_name ASC")->fetchAll(PDO::FETCH_COLUMN);
-$spec_lines = $conn->query("SELECT DISTINCT line_name FROM dtc_master_dtc_specs WHERE line_name IS NOT NULL AND TRIM(line_name) != ''")->fetchAll(PDO::FETCH_COLUMN);
-$distinct_lines = array_unique(array_merge($db_lines, $spec_lines));
+// Pre-query lines safely with fallback
+$masterLinesMap = [];
+try {
+    $stmtML = $conn->query("SELECT DISTINCT line_name FROM dtc_master_lines WHERE line_name IS NOT NULL AND TRIM(line_name) != '' ORDER BY sort_order ASC, line_name ASC");
+    if ($stmtML) {
+        while ($r = $stmtML->fetch(PDO::FETCH_ASSOC)) {
+            $ln = trim($r['line_name']);
+            if ($ln !== '') $masterLinesMap[$ln] = $ln;
+        }
+    }
+} catch (Throwable $t) {}
+
+try {
+    $stmtSL = $conn->query("SELECT DISTINCT line_name FROM dtc_master_dtc_specs WHERE line_name IS NOT NULL AND TRIM(line_name) != '' ORDER BY line_name ASC");
+    if ($stmtSL) {
+        while ($r = $stmtSL->fetch(PDO::FETCH_ASSOC)) {
+            $ln = trim($r['line_name']);
+            if ($ln !== '' && !isset($masterLinesMap[$ln])) $masterLinesMap[$ln] = $ln;
+        }
+    }
+} catch (Throwable $t) {}
+
+if (empty($masterLinesMap)) {
+    $masterLinesMap = ['REF 01' => 'REF 01', 'REF 02' => 'REF 02'];
+}
+$distinct_lines = array_values($masterLinesMap);
 sort($distinct_lines);
 
-$db_sections = $conn->query("SELECT DISTINCT section_name FROM dtc_master_sections WHERE section_name IS NOT NULL AND TRIM(section_name) != '' ORDER BY sort_order ASC, section_name ASC")->fetchAll(PDO::FETCH_COLUMN);
-$spec_sections = $conn->query("SELECT DISTINCT section_name FROM dtc_master_dtc_specs WHERE section_name IS NOT NULL AND TRIM(section_name) != ''")->fetchAll(PDO::FETCH_COLUMN);
-$distinct_sections = array_unique(array_merge($db_sections, $spec_sections));
+// Pre-query sections safely with fallback
+$masterSectionsMap = [];
+try {
+    $stmtMS = $conn->query("SELECT DISTINCT section_name FROM dtc_master_sections WHERE section_name IS NOT NULL AND TRIM(section_name) != '' ORDER BY sort_order ASC, section_name ASC");
+    if ($stmtMS) {
+        while ($r = $stmtMS->fetch(PDO::FETCH_ASSOC)) {
+            $sn = trim($r['section_name']);
+            if ($sn !== '') $masterSectionsMap[$sn] = $sn;
+        }
+    }
+} catch (Throwable $t) {}
+
+try {
+    $stmtSS = $conn->query("SELECT DISTINCT section_name FROM dtc_master_dtc_specs WHERE section_name IS NOT NULL AND TRIM(section_name) != '' ORDER BY section_name ASC");
+    if ($stmtSS) {
+        while ($r = $stmtSS->fetch(PDO::FETCH_ASSOC)) {
+            $sn = trim($r['section_name']);
+            if ($sn !== '' && !isset($masterSectionsMap[$sn])) $masterSectionsMap[$sn] = $sn;
+        }
+    }
+} catch (Throwable $t) {}
+
+if (empty($masterSectionsMap)) {
+    $defaultSecs = ['Accessories', 'Charging', 'Clamping', 'Cutting Vinyl', 'Cycle', 'H Press Out Door', 'PU Case', 'PU Door', 'Pre Case', 'V Forming Male A', 'V Forming Male B', 'V Forming Male C'];
+    foreach ($defaultSecs as $ds) {
+        $masterSectionsMap[$ds] = $ds;
+    }
+}
+$distinct_sections = array_values($masterSectionsMap);
 sort($distinct_sections);
 ?>
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">

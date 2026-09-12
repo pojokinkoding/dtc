@@ -17,6 +17,12 @@ $summarySpec = $conn->query($sqlSummary)->fetch(PDO::FETCH_ASSOC) ?: [
     'ctq_count' => 0, 'ctp_count' => 0, 'tc_count' => 0, 'fp_count' => 0
 ];
 
+if (function_exists('ensureMasterLinesAndSectionsTables')) {
+    try {
+        ensureMasterLinesAndSectionsTables($conn);
+    } catch (Throwable $t) {}
+}
+
 // Pre-query lines from dtc_master_lines and dtc_master_dtc_specs (merged)
 $masterLinesMap = [];
 try {

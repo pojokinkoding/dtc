@@ -3,6 +3,9 @@
 require_once __DIR__ . '/../../../config/config.php';
 
 header('Content-Type: application/json');
+header('Cache-Control: no-cache, no-store, must-revalidate');
+header('Pragma: no-cache');
+header('Expires: 0');
 
 try {
     $conn = getDBConnection();
@@ -117,16 +120,44 @@ try {
         "sections" => $sections,
         "specs" => $specs,
         "dtc_categories" => $dtc_categories
-    ]);
+    ], JSON_INVALID_UTF8_SUBSTITUTE);
 } catch (Throwable $e) {
+    // Attempt emergency direct query for lines from dtc_master_lines before falling back
+    $emergencyLines = [];
+    try {
+        if (isset($conn) && $conn) {
+            $emStmt = $conn->query("SELECT DISTINCT line_name FROM dtc_master_lines WHERE line_name IS NOT NULL AND TRIM(line_name) != '' ORDER BY sort_order ASC, line_name ASC");
+            if ($emStmt) {
+                while ($emRow = $emStmt->fetch(PDO::FETCH_ASSOC)) {
+                    $emName = trim($emRow['line_name']);
+                    if ($emName !== '') $emergencyLines[] = ['line_name' => $emName];
+                }
+            }
+        }
+    } catch (Throwable $t) {}
+
+    if (empty($emergencyLines)) {
+        try {
+            if (isset($conn) && $conn) {
+                $emStmt2 = $conn->query("SELECT DISTINCT line_name FROM dtc_master_dtc_specs WHERE line_name IS NOT NULL AND TRIM(line_name) != '' ORDER BY line_name ASC");
+                if ($emStmt2) {
+                    while ($emRow = $emStmt2->fetch(PDO::FETCH_ASSOC)) {
+                        $emName = trim($emRow['line_name']);
+                        if ($emName !== '') $emergencyLines[] = ['line_name' => $emName];
+                    }
+                }
+            }
+        } catch (Throwable $t) {}
+    }
+
     echo json_encode([
         "status" => "fallback",
         "error" => $e->getMessage(),
-        "lines" => [
+        "lines" => !empty($emergencyLines) ? $emergencyLines : [
             ['line_name' => 'REF 01'],
             ['line_name' => 'REF 02']
         ],
-        "sections" => [
+        "sections" => !empty($sections) ? $sections : [
             ['section_name' => 'Cycle'],
             ['section_name' => 'PU Door'],
             ['section_name' => 'Pre Case'],
@@ -140,6 +171,6 @@ try {
             ["category_name" => "Time Check"],
             ["category_name" => "F/Proof"]
         ]
-    ]);
+    ], JSON_INVALID_UTF8_SUBSTITUTE);
 }
 ?>

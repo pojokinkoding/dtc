@@ -1,6 +1,5 @@
 <?php
-// c_dtc_users_edit.php
-require_once '../../../config/config.php';
+require_once __DIR__ . '/../../../config/config.php';
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -74,18 +73,34 @@ try {
         }
     }
 
+    // Check if allowed_sections column exists, auto-add if missing
+    $hasAllowedSec = false;
+    try {
+        $chk = $conn->query("SHOW COLUMNS FROM dtc_users LIKE 'allowed_sections'")->fetch();
+        if ($chk) {
+            $hasAllowedSec = true;
+        } else {
+            $conn->exec("ALTER TABLE dtc_users ADD COLUMN allowed_sections TEXT DEFAULT NULL AFTER section_name");
+            $hasAllowedSec = true;
+        }
+    } catch (Throwable $t) {}
+
     $params = [
         ':username' => $username,
         ':full_name' => $full_name,
         ':role' => $role,
         ':user_id' => $user_id,
         ':line_name' => !empty($_POST['line_name']) ? $_POST['line_name'] : null,
-        ':section_name' => !empty($_POST['section_name']) ? $_POST['section_name'] : null,
-        ':allowed_sections' => $allowed_sections
+        ':section_name' => !empty($_POST['section_name']) ? $_POST['section_name'] : null
     ];
     
-    $sqlSets = ["username = :username", "full_name = :full_name", "role = :role", "line_name = :line_name", "section_name = :section_name", "allowed_sections = :allowed_sections", "updated_at = CURRENT_TIMESTAMP"];
+    $sqlSets = ["username = :username", "full_name = :full_name", "role = :role", "line_name = :line_name", "section_name = :section_name", "updated_at = CURRENT_TIMESTAMP"];
     
+    if ($hasAllowedSec) {
+        $params[':allowed_sections'] = $allowed_sections;
+        $sqlSets[] = "allowed_sections = :allowed_sections";
+    }
+
     if (!empty($password)) {
         $params[':hash'] = password_hash($password, PASSWORD_DEFAULT);
         $sqlSets[] = "password_hash = :hash";

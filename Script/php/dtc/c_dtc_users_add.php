@@ -1,6 +1,5 @@
 <?php
-// c_dtc_users_add.php
-require_once '../../../config/config.php';
+require_once __DIR__ . '/../../../config/config.php';
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -68,21 +67,47 @@ try {
         }
     }
     
-    $sql = "INSERT INTO dtc_users (username, password_hash, full_name, role, profile_picture, line_name, section_name, allowed_sections) VALUES (:username, :hash, :full_name, :role, :profile_picture, :line_name, :section_name, :allowed_sections)";
-    $stmt = $conn->prepare($sql);
-    $stmt->execute([
-        ':username' => $username,
-        ':hash' => $hash,
-        ':full_name' => $full_name,
-        ':role' => $role,
-        ':profile_picture' => $profile_picture,
-        ':line_name' => $line_name,
-        ':section_name' => $section_name,
-        ':allowed_sections' => $allowed_sections
-    ]);
+    // Check if allowed_sections column exists, auto-add if missing
+    $hasAllowedSec = false;
+    try {
+        $chk = $conn->query("SHOW COLUMNS FROM dtc_users LIKE 'allowed_sections'")->fetch();
+        if ($chk) {
+            $hasAllowedSec = true;
+        } else {
+            $conn->exec("ALTER TABLE dtc_users ADD COLUMN allowed_sections TEXT DEFAULT NULL AFTER section_name");
+            $hasAllowedSec = true;
+        }
+    } catch (Throwable $t) {}
+
+    if ($hasAllowedSec) {
+        $sql = "INSERT INTO dtc_users (username, password_hash, full_name, role, profile_picture, line_name, section_name, allowed_sections) VALUES (:username, :hash, :full_name, :role, :profile_picture, :line_name, :section_name, :allowed_sections)";
+        $stmt = $conn->prepare($sql);
+        $stmt->execute([
+            ':username' => $username,
+            ':hash' => $hash,
+            ':full_name' => $full_name,
+            ':role' => $role,
+            ':profile_picture' => $profile_picture,
+            ':line_name' => $line_name,
+            ':section_name' => $section_name,
+            ':allowed_sections' => $allowed_sections
+        ]);
+    } else {
+        $sql = "INSERT INTO dtc_users (username, password_hash, full_name, role, profile_picture, line_name, section_name) VALUES (:username, :hash, :full_name, :role, :profile_picture, :line_name, :section_name)";
+        $stmt = $conn->prepare($sql);
+        $stmt->execute([
+            ':username' => $username,
+            ':hash' => $hash,
+            ':full_name' => $full_name,
+            ':role' => $role,
+            ':profile_picture' => $profile_picture,
+            ':line_name' => $line_name,
+            ':section_name' => $section_name
+        ]);
+    }
     
     echo json_encode(["status" => "success", "message" => "User successfully added."]);
-} catch (Exception $e) {
+} catch (Throwable $e) {
     echo json_encode(["status" => "error", "message" => $e->getMessage()]);
 }
 ?>

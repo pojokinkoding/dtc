@@ -9,7 +9,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     try {
         $conn = getDBConnection();
-        $stmt = $conn->prepare("SELECT user_id, username, password_hash, full_name, role, profile_picture, line_name, section_name, allowed_sections FROM dtc_users WHERE username = :username");
+
+        // Check if allowed_sections column exists, auto-add if missing
+        $hasAllowedSec = false;
+        try {
+            $chk = $conn->query("SHOW COLUMNS FROM dtc_users LIKE 'allowed_sections'")->fetch();
+            if ($chk) {
+                $hasAllowedSec = true;
+            } else {
+                $conn->exec("ALTER TABLE dtc_users ADD COLUMN allowed_sections TEXT DEFAULT NULL AFTER section_name");
+                $hasAllowedSec = true;
+            }
+        } catch (Throwable $t) {}
+
+        $colAllowedSec = $hasAllowedSec ? ", allowed_sections" : ", '' AS allowed_sections";
+        $stmt = $conn->prepare("SELECT user_id, username, password_hash, full_name, role, profile_picture, line_name, section_name $colAllowedSec FROM dtc_users WHERE username = :username");
         $stmt->execute([':username' => $username]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 

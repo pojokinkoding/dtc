@@ -134,6 +134,7 @@ $(document).ready(function () {
     });
 
     let masterSpecsList = [];
+    let masterSectionsData = [];
 
     function syncDropdownsFromData(data) {
         if (!Array.isArray(data) || !data.length) return;
@@ -141,18 +142,30 @@ $(document).ready(function () {
             masterSpecsList = data;
         }
 
-        // Auto-populate filter-line if it only has 1 or fewer options
-        let currentOptions = $('#filter-line option').length;
-        if (currentOptions <= 1) {
-            let uniqueLines = [...new Set(data.map(d => d.line_name).filter(Boolean))].sort();
-            if (uniqueLines.length > 0) {
+        // Merge lines from spec transactions into filter-line and line_name without losing master lines
+        let specLines = [...new Set(data.map(d => d.line_name).filter(Boolean))];
+        if (specLines.length > 0) {
+            let existingLines = [];
+            $('#filter-line option').each(function () {
+                let v = ($(this).val() || '').trim();
+                if (v) existingLines.push(v);
+            });
+            let merged = [...new Set([...existingLines, ...specLines])].filter(Boolean);
+            if (merged.length > existingLines.length) {
                 let curLine = $('#filter-line').val();
+                let curModalLine = $('#line_name').val();
+
                 let filterOpts = '<option value="">All Lines</option>';
-                uniqueLines.forEach(l => {
-                    filterOpts += `<option value="${l}">${l}</option>`;
+                let modalOpts = '<option value="">-- Select Line --</option>';
+                merged.forEach(l => {
+                    filterOpts += `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`;
+                    modalOpts += `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`;
                 });
                 $('#filter-line').html(filterOpts);
+                $('#line_name').html(modalOpts);
+
                 if (curLine) $('#filter-line').val(curLine);
+                if (curModalLine) $('#line_name').val(curModalLine);
             }
         }
 
@@ -168,11 +181,25 @@ $(document).ready(function () {
             filteredSpecs = filteredSpecs.filter(s => s.line_name === selectedLine);
         }
 
-        let availableSections = [...new Set(filteredSpecs.map(s => s.section_name).filter(Boolean))].sort();
+        let availableSections = [...new Set(filteredSpecs.map(s => s.section_name).filter(Boolean))];
+
+        // Also incorporate sections from masterSectionsData that belong to selectedLine or general
+        if (masterSectionsData && masterSectionsData.length > 0) {
+            masterSectionsData.forEach(s => {
+                let sLine = (s.line_name || '').trim();
+                let sName = (s.section_name || '').trim();
+                if (sName && (!selectedLine || !sLine || sLine.toUpperCase() === selectedLine.toUpperCase())) {
+                    if (!availableSections.includes(sName)) {
+                        availableSections.push(sName);
+                    }
+                }
+            });
+        }
+        availableSections.sort();
 
         let sectionOpts = '<option value="">All Sections</option>';
         availableSections.forEach(sec => {
-            sectionOpts += `<option value="${sec}">${sec}</option>`;
+            sectionOpts += `<option value="${escapeHtml(sec)}">${escapeHtml(sec)}</option>`;
         });
         $('#filter-section').html(sectionOpts);
 
@@ -382,49 +409,144 @@ $(document).ready(function () {
         syncMasterCheckpointTypeRow($(this).closest('tr'));
     });
 
-    // Load dropdown options from API
+    // Sync Section options in Master Spec modal based on selected Line
+    function syncModalSectionsByLine() {
+        let selectedLine = ($('#line_name').val() || '').trim();
+        let curModalSec = $('#section_name').val();
+
+        let filtered = masterSectionsData;
+        if (selectedLine && masterSectionsData.length > 0) {
+            filtered = masterSectionsData.filter(s => {
+                let sLine = (s.line_name || '').trim().toUpperCase();
+                return !sLine || sLine === selectedLine.toUpperCase();
+            });
+        }
+
+        if (!filtered.length && masterSectionsData.length > 0) {
+            filtered = masterSectionsData;
+        }
+
+        let opts = '<option value="">-- Select Section --</option>';
+        let addedSecs = new Set();
+        filtered.forEach(s => {
+            let sName = (typeof s === 'string' ? s : (s.section_name || '')).trim();
+            if (sName && !addedSecs.has(sName)) {
+                addedSecs.add(sName);
+                opts += `<option value="${escapeHtml(sName)}">${escapeHtml(sName)}</option>`;
+            }
+        });
+
+        if (curModalSec && !addedSecs.has(curModalSec)) {
+            opts += `<option value="${escapeHtml(curModalSec)}">${escapeHtml(curModalSec)}</option>`;
+            addedSecs.add(curModalSec);
+        }
+
+        $('#section_name').html(opts);
+        if (curModalSec && addedSecs.has(curModalSec)) {
+            $('#section_name').val(curModalSec);
+        }
+    }
+
+    $(document).on('change', '#line_name', syncModalSectionsByLine);
+
+    function applyMasterOptions(res, callback = null) {
+        if (!res) {
+            if (callback) callback();
+            return;
+        }
+
+        // 1. Data Type options
+        let curDt = $('#data_type').val();
+        let dtOpts = '<option value="">-- Select Data Type --</option>' +
+                     '<option value="CTQ">CTQ</option>' +
+                     '<option value="CTP">CTP</option>' +
+                     '<option value="Time Check">Time Check</option>' +
+                     '<option value="F/Proof">F/Proof</option>';
+        if ($('#data_type option').length <= 1) {
+            $('#data_type').html(dtOpts);
+            if (curDt) $('#data_type').val(curDt);
+        }
+
+        // 2. Lines (MERGE with existing DOM options so no lines are EVER lost!)
+        let incomingLines = (res.lines || []).map(l => (typeof l === 'string' ? l : (l.line_name || ''))).filter(Boolean);
+        
+        let existingModalLines = [];
+        $('#line_name option').each(function () {
+            let v = ($(this).val() || '').trim();
+            if (v) existingModalLines.push(v);
+        });
+
+        let existingFilterLines = [];
+        $('#filter-line option').each(function () {
+            let v = ($(this).val() || '').trim();
+            if (v) existingFilterLines.push(v);
+        });
+
+        // Combined unique lines preserving order
+        let allLines = [...new Set([...incomingLines, ...existingModalLines, ...existingFilterLines])].filter(Boolean);
+
+        if (allLines.length > 0) {
+            let curLine = $('#filter-line').val();
+            let curModalLine = $('#line_name').val();
+
+            let opts = '<option value="">-- Select Line --</option>';
+            let filterOpts = '<option value="">All Lines</option>';
+            allLines.forEach(ln => {
+                opts += `<option value="${escapeHtml(ln)}">${escapeHtml(ln)}</option>`;
+                filterOpts += `<option value="${escapeHtml(ln)}">${escapeHtml(ln)}</option>`;
+            });
+
+            $('#line_name').html(opts);
+            $('#filter-line').html(filterOpts);
+
+            if (curLine && allLines.includes(curLine)) $('#filter-line').val(curLine);
+            if (curModalLine && allLines.includes(curModalLine)) $('#line_name').val(curModalLine);
+        }
+
+        // 3. Sections
+        if (res.sections && res.sections.length > 0) {
+            masterSectionsData = res.sections;
+        }
+        syncModalSectionsByLine();
+
+        if (res.specs && res.specs.length > 0) {
+            masterSpecsList = res.specs;
+            updateSectionFilterOptions();
+        }
+
+        if (callback) callback();
+    }
+
+    // Load dropdown options from API (primary: c_master_lines_sections_list.php, fallback: c_dtc_master_data.php)
     function loadSelectOptions(callback = null) {
+        $.ajax({
+            url: 'Script/php/dtc/c_master_lines_sections_list.php',
+            type: 'GET',
+            dataType: 'json',
+            cache: false,
+            data: { _: Date.now() },
+            success: function (res) {
+                if (res && res.status === 'success' && res.lines && res.lines.length > 0) {
+                    applyMasterOptions(res, callback);
+                } else {
+                    loadSelectOptionsFallback(callback);
+                }
+            },
+            error: function () {
+                loadSelectOptionsFallback(callback);
+            }
+        });
+    }
+
+    function loadSelectOptionsFallback(callback = null) {
         $.ajax({
             url: 'Script/php/dtc/c_dtc_master_data.php',
             type: 'GET',
             dataType: 'json',
+            cache: false,
+            data: { _: Date.now() },
             success: function (res) {
-                if (res.dtc_categories) {
-                    let opts = '<option value="">-- Select Data Type --</option>';
-                    opts += '<option value="CTQ">CTQ</option>';
-                    opts += '<option value="CTP">CTP</option>';
-                    opts += '<option value="Time Check">Time Check</option>';
-                    opts += '<option value="F/Proof">F/Proof</option>';
-                    $('#data_type').html(opts);
-                }
-                if (res.lines && res.lines.length > 0) {
-                    let curLine = $('#filter-line').val();
-                    let curModalLine = $('#line_name').val();
-                    let opts = '<option value="">-- Select Line --</option>';
-                    let filterOpts = '<option value="">All Lines</option>';
-                    res.lines.forEach(l => {
-                        opts += `<option value="${l.line_name}">${l.line_name}</option>`;
-                        filterOpts += `<option value="${l.line_name}">${l.line_name}</option>`;
-                    });
-                    $('#line_name').html(opts);
-                    $('#filter-line').html(filterOpts);
-                    if (curLine) $('#filter-line').val(curLine);
-                    if (curModalLine) $('#line_name').val(curModalLine);
-                }
-                if (res.sections && res.sections.length > 0) {
-                    let curModalSec = $('#section_name').val();
-                    let opts = '<option value="">-- Select Section --</option>';
-                    res.sections.forEach(s => {
-                        opts += `<option value="${s.section_name}">${s.section_name}</option>`;
-                    });
-                    $('#section_name').html(opts);
-                    if (curModalSec) $('#section_name').val(curModalSec);
-                }
-                if (res.specs && res.specs.length > 0) {
-                    masterSpecsList = res.specs;
-                    updateSectionFilterOptions();
-                }
-                if (callback) callback();
+                applyMasterOptions(res, callback);
             },
             error: function (xhr, status, err) {
                 console.warn("loadSelectOptions fallback active:", err);
@@ -442,7 +564,15 @@ $(document).ready(function () {
         $('#quant_tolerance').val('');
         resetMasterCheckpoints();
         syncSpecFormByType();
-        loadSelectOptions(); // Always refresh latest Line and Section options from server
+
+        let activeFilterLine = $('#filter-line').val();
+        loadSelectOptions(function () {
+            if (activeFilterLine) {
+                $('#line_name').val(activeFilterLine);
+            }
+            syncModalSectionsByLine();
+        });
+
         $('#modal-title').html('<i class="fa-solid fa-plus" style="margin-right:6px; color:var(--primary);"></i> Add Master Spec');
         $('#btn-save-spec').html('<i class="fa-solid fa-floppy-disk"></i> Save Spec');
         modal.style.display = 'flex';
@@ -660,22 +790,43 @@ $(document).ready(function () {
         $('#copy_source_model').html(modelOpts);
 
         // Lines and Sections for Copy Modal
-        let uniqueLines = [...new Set(masterSpecsList.map(s => s.line_name).filter(Boolean))].sort();
+        let specLines = [...new Set(masterSpecsList.map(s => s.line_name).filter(Boolean))];
+        let masterLineOptions = [];
+        $('#line_name option').each(function () {
+            let v = ($(this).val() || '').trim();
+            if (v) masterLineOptions.push(v);
+        });
+        let allUniqueLines = [...new Set([...specLines, ...masterLineOptions])].sort();
+
         let lineFilterOpts = '<option value="">Semua Line</option>';
         let lineTargetOpts = '<option value="">-- Sama Seperti Sumber --</option>';
-        uniqueLines.forEach(l => {
-            lineFilterOpts += `<option value="${l}">${l}</option>`;
-            lineTargetOpts += `<option value="${l}">${l}</option>`;
+        specLines.sort().forEach(l => {
+            lineFilterOpts += `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`;
+        });
+        allUniqueLines.forEach(l => {
+            lineTargetOpts += `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`;
         });
         $('#copy_source_line').html(lineFilterOpts);
         $('#copy_target_line').html(lineTargetOpts);
 
-        let uniqueSections = [...new Set(masterSpecsList.map(s => s.section_name).filter(Boolean))].sort();
+        let specSections = [...new Set(masterSpecsList.map(s => s.section_name).filter(Boolean))];
+        let masterSectionOptions = [];
+        if (typeof masterSectionsData !== 'undefined' && masterSectionsData && masterSectionsData.length > 0) {
+            masterSectionOptions = masterSectionsData.map(s => s.section_name).filter(Boolean);
+        }
+        $('#section_name option').each(function () {
+            let v = ($(this).val() || '').trim();
+            if (v) masterSectionOptions.push(v);
+        });
+        let allUniqueSections = [...new Set([...specSections, ...masterSectionOptions])].sort();
+
         let sectionFilterOpts = '<option value="">Semua Section</option>';
         let sectionTargetOpts = '<option value="">-- Sama Seperti Sumber --</option>';
-        uniqueSections.forEach(s => {
-            sectionFilterOpts += `<option value="${s}">${s}</option>`;
-            sectionTargetOpts += `<option value="${s}">${s}</option>`;
+        specSections.sort().forEach(s => {
+            sectionFilterOpts += `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`;
+        });
+        allUniqueSections.forEach(s => {
+            sectionTargetOpts += `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`;
         });
         $('#copy_source_section').html(sectionFilterOpts);
         $('#copy_target_section').html(sectionTargetOpts);

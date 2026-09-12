@@ -1,4 +1,10 @@
 $(document).ready(function () {
+    // Suppress intrusive browser alert for DataTables Ajax errors
+    $.fn.dataTable.ext.errMode = 'none';
+    $('#dtc-table').on('error.dt', function (e, settings, techNote, message) {
+        console.warn('DataTables Ajax error (table id=dtc-table):', message);
+    });
+
     // Shared state variables
     window.runningModelsList = [];
     var runningModelsList = [];

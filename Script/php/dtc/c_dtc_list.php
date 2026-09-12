@@ -1,12 +1,46 @@
 <?php
 // c_dtc_list.php
-require_once '../../../config/config.php';
+require_once __DIR__ . '/../../../config/config.php';
 
 header('Content-Type: application/json');
 
 try {
     $conn = getDBConnection();
     
+    // Auto-ensure critical columns to prevent Ajax 500/1054 error if migration hasn't been run yet
+    static $columnsEnsured = false;
+    if (!$columnsEnsured) {
+        try {
+            $chkMeasCp = $conn->query("SHOW COLUMNS FROM dtc_measurements LIKE 'checkpoint_id'")->fetch();
+            if (!$chkMeasCp) {
+                $conn->exec("ALTER TABLE dtc_measurements ADD COLUMN checkpoint_id INT DEFAULT NULL AFTER session_id");
+            }
+        } catch (Throwable $t) {}
+
+        try {
+            $chkRmCreated = $conn->query("SHOW COLUMNS FROM dtc_running_models LIKE 'created_at'")->fetch();
+            if (!$chkRmCreated) {
+                $conn->exec("ALTER TABLE dtc_running_models ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP AFTER is_active");
+            }
+        } catch (Throwable $t) {}
+
+        try {
+            $chkRmData = $conn->query("SHOW COLUMNS FROM dtc_running_models LIKE 'data_type'")->fetch();
+            if (!$chkRmData) {
+                $conn->exec("ALTER TABLE dtc_running_models ADD COLUMN data_type VARCHAR(50) NOT NULL DEFAULT 'General' AFTER model_name");
+            }
+        } catch (Throwable $t) {}
+
+        try {
+            $chkCpType = $conn->query("SHOW COLUMNS FROM dtc_checkpoints LIKE 'checkpoint_type'")->fetch();
+            if (!$chkCpType) {
+                $conn->exec("ALTER TABLE dtc_checkpoints ADD COLUMN checkpoint_type VARCHAR(50) DEFAULT 'Qualitative' AFTER checkpoint_name");
+            }
+        } catch (Throwable $t) {}
+
+        $columnsEnsured = true;
+    }
+
     $prodHour = (int)date('H');
     $prodToday = ($prodHour < 7) ? date('Y-m-d', strtotime('-1 day')) : date('Y-m-d');
     $currentMonth = date('Y-m');
@@ -257,73 +291,95 @@ try {
     }
 
     // Load active running models for today's month to get their created_at timestamps
-    $stmtRMList = $conn->prepare("
-        SELECT UPPER(TRIM(model_name)) as mname, UPPER(TRIM(line_name)) as lname, UPPER(TRIM(section_name)) as sname, created_at 
-        FROM dtc_running_models 
-        WHERE is_active = 1 AND target_month = :month
-    ");
-    $stmtRMList->execute([':month' => $currentMonth]);
     $activeRMMap = [];
-    while ($rRM = $stmtRMList->fetch(PDO::FETCH_ASSOC)) {
-        $key = $rRM['mname'] . '|' . $rRM['lname'] . '|' . $rRM['sname'];
-        $activeRMMap[$key] = $rRM['created_at'];
-        if (!isset($activeRMMap[$rRM['mname']])) {
-            $activeRMMap[$rRM['mname']] = $rRM['created_at'];
+    try {
+        $stmtRMList = $conn->prepare("
+            SELECT UPPER(TRIM(model_name)) as mname, UPPER(TRIM(line_name)) as lname, UPPER(TRIM(section_name)) as sname, created_at 
+            FROM dtc_running_models 
+            WHERE is_active = 1 AND target_month = :month
+        ");
+        $stmtRMList->execute([':month' => $currentMonth]);
+        while ($rRM = $stmtRMList->fetch(PDO::FETCH_ASSOC)) {
+            $key = $rRM['mname'] . '|' . $rRM['lname'] . '|' . $rRM['sname'];
+            $activeRMMap[$key] = $rRM['created_at'];
+            if (!isset($activeRMMap[$rRM['mname']])) {
+                $activeRMMap[$rRM['mname']] = $rRM['created_at'];
+            }
         }
+    } catch (Throwable $tRM) {
+        try {
+            $stmtRMList = $conn->prepare("
+                SELECT UPPER(TRIM(model_name)) as mname, UPPER(TRIM(line_name)) as lname, UPPER(TRIM(section_name)) as sname 
+                FROM dtc_running_models 
+                WHERE is_active = 1 AND target_month = :month
+            ");
+            $stmtRMList->execute([':month' => $currentMonth]);
+            while ($rRM = $stmtRMList->fetch(PDO::FETCH_ASSOC)) {
+                $key = $rRM['mname'] . '|' . $rRM['lname'] . '|' . $rRM['sname'];
+                $activeRMMap[$key] = null;
+                if (!isset($activeRMMap[$rRM['mname']])) {
+                    $activeRMMap[$rRM['mname']] = null;
+                }
+            }
+        } catch (Throwable $tRM2) {}
     }
 
     // Batch query Out of Spec (OOS) counts for loaded parameters
     $paramIds = array_column($results, 'parameter_id');
     $oosMap = [];
     if (!empty($paramIds)) {
-        $inClause = implode(',', array_map('intval', $paramIds));
-        $dateCondOOSCount = ($period === 'history')
-            ? " AND DATE_FORMAT(s.inspection_date, '%Y-%m') = p.target_month AND (p.target_month < '$currentMonth' OR s.inspection_date < '$prodToday') "
-            : " AND DATE_FORMAT(s.inspection_date, '%Y-%m') = p.target_month ";
-        $sqlOOS = "
-            SELECT s.parameter_id, COUNT(*) as total_oos
-            FROM dtc_measurements m
-            JOIN dtc_inspection_sessions s ON m.session_id = s.session_id
-            JOIN dtc_master_parameters p ON s.parameter_id = p.parameter_id
-            LEFT JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id
-            LEFT JOIN dtc_checkpoints c ON m.checkpoint_id = c.checkpoint_id
-            WHERE s.parameter_id IN ($inClause)
-              AND s.is_active = 1
-              {$dateCondOOSCount}
-              AND (
-                  CASE 
-                      WHEN c.lsl IS NOT NULL OR c.usl IS NOT NULL THEN (
-                          m.sample_value IS NOT NULL AND TRIM(m.sample_value) != '' AND m.sample_value REGEXP '^[0-9.-]+$'
-                          AND (
-                              (c.lsl IS NOT NULL AND CAST(m.sample_value AS DECIMAL(10,4)) < c.lsl)
-                              OR
-                              (c.usl IS NOT NULL AND CAST(m.sample_value AS DECIMAL(10,4)) > c.usl)
-                          )
-                      )
-                      WHEN (UPPER(TRIM(COALESCE(p.data_type, spec.data_type))) IN ('TIME CHECK', 'F/PROOF')
-                            OR LOWER(TRIM(COALESCE(p.measuring_item, spec.measuring_item))) = 'qualitative') THEN (
-                          UPPER(TRIM(m.sample_value)) = 'NG'
-                      )
-                      ELSE (
-                          (UPPER(TRIM(m.sample_value)) = 'NG')
-                          OR (
+        try {
+            $inClause = implode(',', array_map('intval', $paramIds));
+            $dateCondOOSCount = ($period === 'history')
+                ? " AND DATE_FORMAT(s.inspection_date, '%Y-%m') = p.target_month AND (p.target_month < '$currentMonth' OR s.inspection_date < '$prodToday') "
+                : " AND DATE_FORMAT(s.inspection_date, '%Y-%m') = p.target_month ";
+            $sqlOOS = "
+                SELECT s.parameter_id, COUNT(*) as total_oos
+                FROM dtc_measurements m
+                JOIN dtc_inspection_sessions s ON m.session_id = s.session_id
+                JOIN dtc_master_parameters p ON s.parameter_id = p.parameter_id
+                LEFT JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id
+                LEFT JOIN dtc_checkpoints c ON m.checkpoint_id = c.checkpoint_id
+                WHERE s.parameter_id IN ($inClause)
+                  AND s.is_active = 1
+                  {$dateCondOOSCount}
+                  AND (
+                      CASE 
+                          WHEN c.lsl IS NOT NULL OR c.usl IS NOT NULL THEN (
                               m.sample_value IS NOT NULL AND TRIM(m.sample_value) != '' AND m.sample_value REGEXP '^[0-9.-]+$'
                               AND (
-                                  (COALESCE(p.lsl, spec.lsl) IS NOT NULL AND CAST(m.sample_value AS DECIMAL(10,4)) < COALESCE(p.lsl, spec.lsl))
+                                  (c.lsl IS NOT NULL AND CAST(m.sample_value AS DECIMAL(10,4)) < c.lsl)
                                   OR
-                                  (COALESCE(p.usl, spec.usl) IS NOT NULL AND CAST(m.sample_value AS DECIMAL(10,4)) > COALESCE(p.usl, spec.usl))
+                                  (c.usl IS NOT NULL AND CAST(m.sample_value AS DECIMAL(10,4)) > c.usl)
                               )
                           )
-                      )
-                  END
-              )
-            GROUP BY s.parameter_id
-        ";
-        $stmtOOS = $conn->query($sqlOOS);
-        if ($stmtOOS) {
-            while ($rOOS = $stmtOOS->fetch(PDO::FETCH_ASSOC)) {
-                $oosMap[$rOOS['parameter_id']] = (int)$rOOS['total_oos'];
+                          WHEN (UPPER(TRIM(COALESCE(p.data_type, spec.data_type))) IN ('TIME CHECK', 'F/PROOF')
+                                OR LOWER(TRIM(COALESCE(p.measuring_item, spec.measuring_item))) = 'qualitative') THEN (
+                              UPPER(TRIM(m.sample_value)) = 'NG'
+                          )
+                          ELSE (
+                              (UPPER(TRIM(m.sample_value)) = 'NG')
+                              OR (
+                                  m.sample_value IS NOT NULL AND TRIM(m.sample_value) != '' AND m.sample_value REGEXP '^[0-9.-]+$'
+                                  AND (
+                                      (COALESCE(p.lsl, spec.lsl) IS NOT NULL AND CAST(m.sample_value AS DECIMAL(10,4)) < COALESCE(p.lsl, spec.lsl))
+                                      OR
+                                      (COALESCE(p.usl, spec.usl) IS NOT NULL AND CAST(m.sample_value AS DECIMAL(10,4)) > COALESCE(p.usl, spec.usl))
+                                  )
+                              )
+                          )
+                      END
+                  )
+                GROUP BY s.parameter_id
+            ";
+            $stmtOOS = $conn->query($sqlOOS);
+            if ($stmtOOS) {
+                while ($rOOS = $stmtOOS->fetch(PDO::FETCH_ASSOC)) {
+                    $oosMap[$rOOS['parameter_id']] = (int)$rOOS['total_oos'];
+                }
             }
+        } catch (Throwable $tOOS) {
+            error_log("OOS query in c_dtc_list.php failed: " . $tOOS->getMessage());
         }
     }
 
@@ -436,7 +492,18 @@ try {
         echo json_encode(["data" => $results]);
     }
     
-} catch (Exception $e) {
-    echo json_encode(["data" => [], "error" => $e->getMessage()]);
+} catch (Throwable $e) {
+    error_log("c_dtc_list.php error: " . $e->getMessage());
+    if (isset($is_server_side) && $is_server_side) {
+        echo json_encode([
+            "draw" => isset($_GET['draw']) ? intval($_GET['draw']) : 1,
+            "recordsTotal" => 0,
+            "recordsFiltered" => 0,
+            "data" => [],
+            "error" => $e->getMessage()
+        ], JSON_INVALID_UTF8_SUBSTITUTE);
+    } else {
+        echo json_encode(["data" => [], "error" => $e->getMessage()], JSON_INVALID_UTF8_SUBSTITUTE);
+    }
 }
 ?>

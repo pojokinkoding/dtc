@@ -115,14 +115,6 @@ $(document).ready(function () {
                 }
             },
             {
-                data: null,
-                render: function (data, type, row) {
-                    let lsl = row.lsl !== null ? row.lsl : '-';
-                    let usl = row.usl !== null ? row.usl : '-';
-                    return `<span style="color: #94a3b8; font-size: 12px;">LSL: <span style="color: #f8fafc;">${lsl}</span> &nbsp;|&nbsp; USL: <span style="color: #f8fafc;">${usl}</span></span>`;
-                }
-            },
-            {
                 data: 'oos_count',
                 render: function (data, type, row) {
                     let count = parseInt(data || 0);

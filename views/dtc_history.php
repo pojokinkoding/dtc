@@ -91,7 +91,6 @@
                     <th>Line & Section</th>
                     <th>Model Name</th>
                     <th>Item Check & Process</th>
-                    <th>Specification</th>
                     <th>Out of Spec</th>
                     <th>Operator</th>
                     <th>Action</th>

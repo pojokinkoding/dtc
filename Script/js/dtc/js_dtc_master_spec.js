@@ -575,6 +575,7 @@ $(document).ready(function () {
 
         $('#modal-title').html('<i class="fa-solid fa-plus" style="margin-right:6px; color:var(--primary);"></i> Add Master Spec');
         $('#btn-save-spec').html('<i class="fa-solid fa-floppy-disk"></i> Save Spec');
+        $('#change_reason').val('');
         modal.style.display = 'flex';
     }
 
@@ -619,6 +620,7 @@ $(document).ready(function () {
 
         $('#modal-title').html('<i class="fa-solid fa-pen" style="margin-right:6px; color:var(--primary);"></i> Edit Master Spec');
         $('#btn-save-spec').html('<i class="fa-solid fa-floppy-disk"></i> Save Spec');
+        $('#change_reason').val('');
         modal.style.display = 'flex';
     });
 
@@ -661,6 +663,7 @@ $(document).ready(function () {
 
         $('#modal-title').html('<i class="fa-solid fa-copy" style="margin-right:6px; color:var(--accent);"></i> Copy Master Spec');
         $('#btn-save-spec').html('<i class="fa-solid fa-copy"></i> Save as New Spec');
+        $('#change_reason').val('');
         modal.style.display = 'flex';
     });
 

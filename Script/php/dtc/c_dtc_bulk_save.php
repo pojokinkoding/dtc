@@ -234,7 +234,7 @@ try {
                 }
             }
 
-            $sql_sess = "SELECT session_id, is_closed FROM dtc_inspection_sessions WHERE parameter_id = :pid AND DATE(inspection_date) = :idate AND is_active = 1";
+            $sql_sess = "SELECT session_id, is_closed FROM dtc_inspection_sessions WHERE parameter_id = :pid AND DATE_FORMAT(inspection_date, '%Y-%m-%d') = :idate AND is_active = 1";
             $stmt_sess = $conn->prepare($sql_sess);
             $stmt_sess->execute([':pid' => $param_id, ':idate' => $inspection_date]);
             $session = $stmt_sess->fetch(PDO::FETCH_ASSOC);

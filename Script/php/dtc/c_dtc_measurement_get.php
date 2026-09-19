@@ -40,12 +40,12 @@ try {
         $rm_created_at = $stmtRM->fetchColumn() ?: null;
     }
     
-    // In Oracle, date format comparison TO_CHAR(inspection_date, 'YYYY-MM-DD')
+    // Use DATE_FORMAT for consistent timezone handling
     $sql = "SELECT m.sample_sequence, m.sample_value, m.sample_label, s.remarks, s.is_closed 
             FROM dtc_inspection_sessions s
             JOIN dtc_measurements m ON s.session_id = m.session_id
             WHERE s.parameter_id = :param_id 
-              AND DATE(s.inspection_date) = :idate";
+              AND DATE_FORMAT(s.inspection_date, '%Y-%m-%d') = :idate";
               
     $stmt = $conn->prepare($sql);
     $stmt->execute([':param_id' => $param_id, ':idate' => $date]);

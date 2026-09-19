@@ -89,7 +89,7 @@ try {
                 FROM dtc_inspection_sessions s
                 JOIN dtc_measurements m ON s.session_id = m.session_id
                 WHERE s.parameter_id = :pid
-                  AND DATE(s.inspection_date) = :idate
+                  AND DATE_FORMAT(s.inspection_date, '%Y-%m-%d') = :idate
                   AND s.is_active = 1
             ";
             $stmtMeas = $conn->prepare($sqlMeas);
@@ -379,7 +379,7 @@ try {
                 FROM dtc_inspection_sessions s
                 JOIN dtc_measurements m ON s.session_id = m.session_id
                 WHERE s.parameter_id IN ($inStr)
-                  AND DATE(s.inspection_date) = :idate
+                  AND DATE_FORMAT(s.inspection_date, '%Y-%m-%d') = :idate
                   AND s.is_active = 1
             ";
             $stmtMeas = $conn->prepare($sqlMeas);

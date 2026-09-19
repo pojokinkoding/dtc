@@ -20,12 +20,44 @@ function ensureMasterSpecCheckpointTable(PDO $conn): void {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 }
 
+function ensureSpecChangeLogTable(PDO $conn): void {
+    $conn->exec("CREATE TABLE IF NOT EXISTS dtc_spec_change_log (
+        log_id INT AUTO_INCREMENT PRIMARY KEY,
+        spec_id INT NOT NULL,
+        field_name VARCHAR(100) NOT NULL,
+        old_value TEXT,
+        new_value TEXT,
+        change_reason TEXT,
+        changed_by INT,
+        changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_spec_change_log_spec (spec_id),
+        INDEX idx_spec_change_log_date (changed_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+}
+
+function logSpecChange(PDO $conn, int $specId, string $fieldName, $oldValue, $newValue, string $reason, int $userId): void {
+    if ($oldValue === $newValue || ($oldValue === null && $newValue === null) || ($oldValue === '' && $newValue === '')) {
+        return;
+    }
+    $stmt = $conn->prepare("INSERT INTO dtc_spec_change_log (spec_id, field_name, old_value, new_value, change_reason, changed_by) VALUES (:spec_id, :field, :old, :new, :reason, :user)");
+    $stmt->execute([
+        ':spec_id' => $specId,
+        ':field' => $fieldName,
+        ':old' => $oldValue ?? '',
+        ':new' => $newValue ?? '',
+        ':reason' => $reason,
+        ':user' => $userId
+    ]);
+}
+
 function saveMasterSpecCheckpoints(PDO $conn, int $specId, array $checkpoints, array $files): void {
+    $files += ['name' => [], 'error' => [], 'tmp_name' => []];
     $conn->prepare("DELETE FROM dtc_master_spec_checkpoints WHERE spec_id = :spec_id")->execute([':spec_id' => $specId]);
     $stmt = $conn->prepare("INSERT INTO dtc_master_spec_checkpoints
         (spec_id, checkpoint_name, checkpoint_type, spec_value, lsl, target_value, usl, reference_image, sort_order)
         VALUES (:spec_id, :name, :checkpoint_type, :spec_value, :lsl, :target, :usl, :image, :sort_order)");
 
+    $sortOrder = 0;
     foreach ($checkpoints as $index => $checkpoint) {
         $name = trim($checkpoint['checkpoint_name'] ?? '');
         if ($name === '') continue;
@@ -37,7 +69,7 @@ function saveMasterSpecCheckpoints(PDO $conn, int $specId, array $checkpoints, a
             if (!in_array($ext, ['jpg', 'jpeg', 'png', 'gif'], true)) throw new Exception('Format gambar checkpoint harus JPG, JPEG, PNG, atau GIF.');
             $uploadDir = '../../../uploads/dtc/';
             if (!is_dir($uploadDir) && !mkdir($uploadDir, 0777, true)) throw new Exception('Folder upload checkpoint tidak dapat dibuat.');
-            $filename = 'master_cp_' . $specId . '_' . time() . '_' . $index . '.' . $ext;
+            $filename = 'master_cp_' . $specId . '_' . time() . '_' . $sortOrder . '.' . $ext;
             if (!move_uploaded_file($files['tmp_name'][$imageIndex], $uploadDir . $filename)) throw new Exception('Gagal mengunggah gambar checkpoint.');
             $imagePath = 'uploads/dtc/' . $filename;
         }
@@ -50,8 +82,9 @@ function saveMasterSpecCheckpoints(PDO $conn, int $specId, array $checkpoints, a
             ':target' => ($checkpoint['target_value'] ?? '') !== '' ? (float)$checkpoint['target_value'] : null,
             ':usl' => ($checkpoint['usl'] ?? '') !== '' ? (float)$checkpoint['usl'] : null,
             ':image' => $imagePath ?: null,
-            ':sort_order' => $index
+            ':sort_order' => $sortOrder
         ]);
+        $sortOrder++;
     }
 
     // Auto-sync template checkpoints to current month's parameters with this spec_id
@@ -118,6 +151,17 @@ try {
                 $measuring_item = $existing_measuring_item;
             }
         }
+        
+        // Fetch old values for change logging
+        ensureSpecChangeLogTable($conn);
+        $userId = $_SESSION['user_id'] ?? 0;
+        $stmtOld = $conn->prepare("SELECT * FROM dtc_master_dtc_specs WHERE spec_id = :spec_id");
+        $stmtOld->execute([':spec_id' => $spec_id]);
+        $oldData = $stmtOld->fetch(PDO::FETCH_ASSOC);
+        
+        // Change reason from POST (evident/remark)
+        $changeReason = trim($_POST['change_reason'] ?? '');
+        
         // UPDATE
         $sql = "UPDATE dtc_master_dtc_specs SET 
                     model_name = :model_name,
@@ -154,11 +198,63 @@ try {
             ':target_zlt' => $target_zlt,
             ':spec_id' => $spec_id
         ]);
+        
+        // Log changes
+        if ($oldData) {
+            $fields = [
+                'model_name' => $model_name,
+                'item_check_name' => $item_check_name,
+                'sub_item_check_name' => $sub_item_check_name,
+                'data_type' => $data_type,
+                'line_name' => $line_name,
+                'section_name' => $section_name,
+                'process_name' => $process_name,
+                'measuring_item' => $measuring_item,
+                'lsl' => $lsl,
+                'usl' => $usl,
+                'target_value' => $target_value,
+                'uom' => $uom,
+                'target_zst' => $target_zst,
+                'target_zlt' => $target_zlt,
+            ];
+            foreach ($fields as $field => $newVal) {
+                $oldVal = $oldData[$field] ?? null;
+                if ((string)$oldVal !== (string)$newVal) {
+                    logSpecChange($conn, $spec_id, $field, $oldVal, $newVal, $changeReason, $userId);
+                }
+            }
+        }
+        
         if ($isCheckpointType) {
             saveMasterSpecCheckpoints($conn, $spec_id, $checkpoints, $_FILES['checkpoint_images'] ?? []);
         } else {
             $conn->prepare("DELETE FROM dtc_master_spec_checkpoints WHERE spec_id = :spec_id")->execute([':spec_id' => $spec_id]);
         }
+
+        // Sync spec changes to current month's running model parameters (dtc_master_parameters)
+        $currentMonth = date('Y-m');
+        $stmtSyncParams = $conn->prepare("
+            UPDATE dtc_master_parameters p
+            INNER JOIN dtc_master_dtc_specs s ON s.spec_id = p.spec_id
+            SET p.lsl = s.lsl,
+                p.usl = s.usl,
+                p.target_value = s.target_value,
+                p.uom = s.uom,
+                p.target_zst = s.target_zst,
+                p.target_zlt = s.target_zlt,
+                p.measuring_item = s.measuring_item,
+                p.data_type = s.data_type,
+                p.line_name = s.line_name,
+                p.section_name = s.section_name,
+                p.process_name = s.process_name,
+                p.item_check_name = s.item_check_name,
+                p.sub_item_check_name = s.sub_item_check_name,
+                p.model_name = s.model_name
+            WHERE p.spec_id = :spec_id
+              AND p.target_month = :target_month
+        ");
+        $stmtSyncParams->execute([':spec_id' => $spec_id, ':target_month' => $currentMonth]);
+
         echo json_encode(["status" => "success", "message" => "Master Spec updated successfully"]);
     } else {
         // INSERT

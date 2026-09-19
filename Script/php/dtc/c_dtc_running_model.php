@@ -70,19 +70,21 @@ try {
     if ($action === 'get_available_models') {
         $line = trim($_GET['line'] ?? '');
         $section = trim($_GET['section'] ?? '');
+        $dataType = trim($_GET['data_type'] ?? '');
         $month = trim($_GET['month'] ?? $currentMonth);
 
         $sql = "SELECT DISTINCT model_name FROM (
                     SELECT COALESCE(p.model_name, spec.model_name) AS model_name,
                            COALESCE(p.line_name, spec.line_name) AS line_name,
-                           COALESCE(p.section_name, spec.section_name) AS section_name
+                           COALESCE(p.section_name, spec.section_name) AS section_name,
+                           COALESCE(p.data_type, spec.data_type) AS data_type
                     FROM dtc_master_parameters p
                     LEFT JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id
                     WHERE p.target_month = :month
 
                     UNION
 
-                    SELECT model_name, line_name, section_name
+                    SELECT model_name, line_name, section_name, data_type
                     FROM dtc_master_dtc_specs
                 ) AS all_combined
                 WHERE model_name IS NOT NULL AND TRIM(model_name) != ''";
@@ -96,6 +98,10 @@ try {
         if (!empty($section)) {
             $sql .= " AND UPPER(TRIM(section_name)) = UPPER(TRIM(:section))";
             $params[':section'] = $section;
+        }
+        if (!empty($dataType)) {
+            $sql .= " AND UPPER(TRIM(data_type)) = UPPER(TRIM(:data_type))";
+            $params[':data_type'] = $dataType;
         }
 
         $sql .= " ORDER BY model_name ASC";
@@ -266,6 +272,61 @@ try {
         $stmt->execute([':id' => $id]);
 
         echo json_encode(['status' => 'success', 'message' => 'Running model removed successfully.']);
+        exit;
+    }
+
+    if ($action === 'delete_line') {
+        $month = $_POST['target_month'] ?? $currentMonth;
+        $line = $_POST['line_name'] ?? '';
+        if (empty($month) || empty($line)) {
+            echo json_encode(['status' => 'error', 'message' => 'Missing required fields (month, line)']);
+            exit;
+        }
+
+        $userRole = strtolower(trim($_SESSION['role'] ?? ''));
+        $userSection = strtolower(trim($_SESSION['section_name'] ?? ''));
+
+        if ($userRole !== 'admin') {
+            echo json_encode(['status' => 'error', 'message' => 'Akses ditolak. Penghapusan line hanya dapat dilakukan oleh Admin.']);
+            exit;
+        }
+
+        $stmt = $conn->prepare("UPDATE dtc_running_models SET is_active = 0 WHERE target_month = :m AND UPPER(TRIM(line_name)) = UPPER(TRIM(:line))");
+        $stmt->execute([':m' => $month, ':line' => $line]);
+        $affected = $stmt->rowCount();
+
+        echo json_encode(['status' => 'success', 'message' => "Line '$line' removed successfully ($affected records)."]);
+        exit;
+    }
+
+    if ($action === 'delete_section') {
+        $month = $_POST['target_month'] ?? $currentMonth;
+        $line = $_POST['line_name'] ?? '';
+        $section = $_POST['section_name'] ?? '';
+        if (empty($month) || empty($line) || empty($section)) {
+            echo json_encode(['status' => 'error', 'message' => 'Missing required fields (month, line, section)']);
+            exit;
+        }
+
+        $userRole = strtolower(trim($_SESSION['role'] ?? ''));
+        $userSection = strtolower(trim($_SESSION['section_name'] ?? ''));
+        $rmSection = strtolower(trim($section ?? ''));
+
+        if ($userRole !== 'admin') {
+            if (empty($userSection) || $userSection !== $rmSection) {
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => 'Akses ditolak. Penghapusan section hanya dapat dilakukan oleh user dari section ' . $section . ' atau Admin.'
+                ]);
+                exit;
+            }
+        }
+
+        $stmt = $conn->prepare("UPDATE dtc_running_models SET is_active = 0 WHERE target_month = :m AND UPPER(TRIM(line_name)) = UPPER(TRIM(:line)) AND UPPER(TRIM(section_name)) = UPPER(TRIM(:section))");
+        $stmt->execute([':m' => $month, ':line' => $line, ':section' => $section]);
+        $affected = $stmt->rowCount();
+
+        echo json_encode(['status' => 'success', 'message' => "Section '$section' ($line) removed successfully ($affected records)."]);
         exit;
     }
 

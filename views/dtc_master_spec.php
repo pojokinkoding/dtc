@@ -546,6 +546,10 @@ $masterSections = array_values($masterSectionsMap);
             </div>
             
             <div style="margin-top: 25px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
+                <div style="flex:1; margin-right: 10px;">
+                    <label style="font-size: 11px; margin-bottom: 4px; display:block; color:var(--text-muted);">Change Reason / Evident</label>
+                    <textarea id="change_reason" name="change_reason" class="form-control" style="padding: 8px; font-size: 12px; min-height: 60px;" placeholder="Optional: Enter reason for spec change, evident, remark..."></textarea>
+                </div>
                 <button type="button" id="btn-cancel-modal" class="btn-rich-secondary">Cancel</button>
                 <button type="submit" id="btn-save-spec" class="btn-rich-primary">
                     <i class="fa-solid fa-floppy-disk"></i> Save Spec

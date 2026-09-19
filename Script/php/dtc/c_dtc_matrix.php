@@ -73,7 +73,7 @@ try {
         $zlt_data[] = null;
     }
     
-    // Get line name, LSL, and USL for this parameter
+    // Get line name, LSL, and USL for this parameter - use COALESCE to get LSL/USL from master_parameters first
     $stmtLine = $conn->prepare("SELECT COALESCE(p.line_name, s.line_name) as line_name,
                                        COALESCE(p.lsl, s.lsl) as lsl,
                                        COALESCE(p.usl, s.usl) as usl

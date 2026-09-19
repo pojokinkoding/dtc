@@ -153,7 +153,7 @@ try {
         SELECT s.parameter_id, s.is_closed, s.session_id,
                (SELECT GROUP_CONCAT(m.sample_label) FROM dtc_measurements m WHERE m.session_id = s.session_id AND m.sample_value != '') as filled_sequences
         FROM dtc_inspection_sessions s
-        WHERE DATE(s.inspection_date) = :date_val AND s.is_active = 1
+        WHERE DATE_FORMAT(s.inspection_date, '%Y-%m-%d') = :date_val AND s.is_active = 1
     ";
     $stmtSessions = $conn->prepare($sqlSessions);
     $stmtSessions->execute([':date_val' => $date]);

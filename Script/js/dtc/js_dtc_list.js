@@ -596,6 +596,7 @@ $(document).ready(function () {
                     if (typeof window.reloadDTCSummaryTicker === 'function') {
                         window.reloadDTCSummaryTicker();
                     }
+                    populateDeleteControls();
                 }
             }
         });
@@ -643,6 +644,141 @@ $(document).ready(function () {
 
     // Initial load for running models
     loadRunningModels();
+
+    // Populate delete controls after loadRunningModels completes
+    function populateDeleteControls() {
+        let isAdmin = !!window.currentIsAdmin || ((window.userRole || '').toLowerCase().trim() === 'admin');
+        if (!isAdmin) {
+            $('#rm-delete-controls').hide();
+            return;
+        }
+        if (!window.runningModelsList || window.runningModelsList.length === 0) {
+            $('#rm-delete-controls').hide();
+            return;
+        }
+        let lines = [...new Set(window.runningModelsList.map(r => r.line_name).filter(Boolean))];
+        let lineOpts = '<option value="">-- Select Line to Delete --</option>';
+        lines.forEach(l => { lineOpts += `<option value="${l}">${l}</option>`; });
+        $('#rm_delete_line_select').html(lineOpts);
+
+        let firstLine = lines[0] || '';
+        if (firstLine) {
+            $('#rm_delete_line_select').val(firstLine).trigger('change');
+        }
+        $('#rm-delete-controls').show();
+    }
+
+    function populateSectionDeleteOptions(lineName) {
+        let isAdmin = !!window.currentIsAdmin || ((window.userRole || '').toLowerCase().trim() === 'admin');
+        let sections = [...new Set(window.runningModelsList
+            .filter(r => r.line_name === lineName && r.section_name)
+            .map(r => r.section_name))];
+        let secOpts = '<option value="">-- Select Section to Delete --</option>';
+        sections.forEach(s => { secOpts += `<option value="${s}">${s}</option>`; });
+        $('#rm_delete_section_select').html(secOpts);
+    }
+
+    $(document).on('change', '#rm_delete_line_select', function () {
+        let line = $(this).val();
+        populateSectionDeleteOptions(line);
+    });
+
+    // Delete Line handler
+    $(document).on('click', '#btn-delete-line', function () {
+        let line = $('#rm_delete_line_select').val();
+        if (!line) {
+            Swal.fire({ icon: 'warning', title: 'Pilih Line', text: 'Silakan pilih Line yang akan dihapus.', background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#f59e0b' });
+            return;
+        }
+        let currentMonth = $('#filter-line').data('current-month') || (function () {
+            let d = new Date();
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        })();
+        Swal.fire({
+            title: 'Hapus Line?',
+            html: `Hapus <b>semua running model</b> pada Line <b>${line}</b> untuk bulan <b>${currentMonth}</b>?<br><small style="color:#f87171;">Tindakan ini tidak dapat dibatalkan.</small>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Hapus',
+            cancelButtonText: 'Batal',
+            background: '#1e293b',
+            color: '#f8fafc',
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: 'Script/php/dtc/c_dtc_running_model.php',
+                    type: 'POST',
+                    data: { action: 'delete_line', target_month: currentMonth, line_name: line },
+                    dataType: 'json',
+                    success: function (res) {
+                        if (res.status === 'success') {
+                            Swal.fire({ icon: 'success', title: 'Berhasil', text: res.message || `Line ${line} dihapus (${res.deleted} model)`, background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#10b981' });
+                            loadRunningModels();
+                        } else {
+                            Swal.fire({ icon: 'error', title: 'Gagal', text: res.message, background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#ef4444' });
+                        }
+                    },
+                    error: function () {
+                        Swal.fire({ icon: 'error', title: 'Error', text: 'Koneksi gagal.', background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#ef4444' });
+                    }
+                });
+            }
+        });
+    });
+
+    // Delete Section handler
+    $(document).on('click', '#btn-delete-section', function () {
+        let line = $('#rm_delete_line_select').val();
+        let section = $('#rm_delete_section_select').val();
+        if (!line || !section) {
+            Swal.fire({ icon: 'warning', title: 'Pilih Line & Section', text: 'Silakan pilih Line dan Section yang akan dihapus.', background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#f59e0b' });
+            return;
+        }
+        let currentMonth = (function () {
+            let d = new Date();
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        })();
+        let userSec = (window.userSectionName || '').toLowerCase().trim();
+        let isAdmin = !!window.currentIsAdmin || ((window.userRole || '').toLowerCase().trim() === 'admin');
+        if (!isAdmin && userSec !== section.toLowerCase().trim()) {
+            Swal.fire({ icon: 'error', title: 'Akses Ditolak', text: 'Hapus section hanya dapat dilakukan oleh Admin atau user dari section yang sama.', background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#ef4444' });
+            return;
+        }
+        Swal.fire({
+            title: 'Hapus Section?',
+            html: `Hapus <b>semua running model</b> pada <b>${line} - ${section}</b> untuk bulan <b>${currentMonth}</b>?<br><small style="color:#f87171;">Tindakan ini tidak dapat dibatalkan.</small>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Hapus',
+            cancelButtonText: 'Batal',
+            background: '#1e293b',
+            color: '#f8fafc',
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: 'Script/php/dtc/c_dtc_running_model.php',
+                    type: 'POST',
+                    data: { action: 'delete_section', target_month: currentMonth, line_name: line, section_name: section },
+                    dataType: 'json',
+                    success: function (res) {
+                        if (res.status === 'success') {
+                            Swal.fire({ icon: 'success', title: 'Berhasil', text: res.message || `Section ${section} dihapus (${res.deleted} model)`, background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#10b981' });
+                            loadRunningModels();
+                        } else {
+                            Swal.fire({ icon: 'error', title: 'Gagal', text: res.message, background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#ef4444' });
+                        }
+                    },
+                    error: function () {
+                        Swal.fire({ icon: 'error', title: 'Error', text: 'Koneksi gagal.', background: '#1e293b', color: '#f8fafc', confirmButtonColor: '#ef4444' });
+                    }
+                });
+            }
+        });
+    });
 
     // Reload running models when Line or Section filter changes
     $('#filter-line, #filter-section').on('change', function () {
@@ -759,6 +895,7 @@ $(document).ready(function () {
     function loadAvailableModelsForRM() {
         let line = $('#rm_line_select').val() || '';
         let section = $('#rm_section_select').val() || '';
+        let dataType = $('#rm_data_type_select').val() || '';
         let month = $('#form-add-running-model input[name="target_month"]').val() || '';
 
         $.ajax({
@@ -769,6 +906,7 @@ $(document).ready(function () {
                 action: 'get_available_models',
                 line: line,
                 section: section,
+                data_type: dataType,
                 month: month
             },
             dataType: 'json',
@@ -784,7 +922,7 @@ $(document).ready(function () {
         });
     }
 
-    $(document).on('change', '#rm_line_select, #rm_section_select', function () {
+    $(document).on('change', '#rm_line_select, #rm_section_select, #rm_data_type_select', function () {
         loadAvailableModelsForRM();
     });
 

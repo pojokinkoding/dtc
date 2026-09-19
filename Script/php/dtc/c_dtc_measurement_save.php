@@ -60,7 +60,7 @@ try {
         $time_labels = json_decode($val, true);
     }
     if (empty($time_labels)) {
-        $time_labels = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30'];
+        $time_labels = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30'];
     }
     
     // Check for existing labels across the entire parameter to lock in the pattern
@@ -129,10 +129,10 @@ try {
         throw new Exception("Missing required fields (parameter_id, inspection_date).");
     }
     
-    // Get Specs via parameter_id
-    $sql_spec = "SELECT spec.lsl, spec.usl 
-                 FROM dtc_master_dtc_specs spec
-                 JOIN dtc_master_parameters p ON spec.spec_id = p.spec_id 
+    // Get Specs via parameter_id - use COALESCE to get LSL/USL from master_parameters first (overrides spec)
+    $sql_spec = "SELECT COALESCE(p.lsl, spec.lsl) as lsl, COALESCE(p.usl, spec.usl) as usl 
+                 FROM dtc_master_parameters p
+                 LEFT JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id 
                  WHERE p.parameter_id = :param_id";
     $stmt_spec = $conn->prepare($sql_spec);
     $stmt_spec->execute([':param_id' => $param_id]);
@@ -151,10 +151,10 @@ try {
         }
     }
     
-    // Check if session exists
+    // Check if session exists - use DATE_FORMAT for consistent timezone handling
     $sql_check = "SELECT session_id, is_closed FROM dtc_inspection_sessions 
                   WHERE parameter_id = :param_id 
-                  AND DATE(inspection_date) = :idate";
+                  AND DATE_FORMAT(inspection_date, '%Y-%m-%d') = :idate";
     $stmt_check = $conn->prepare($sql_check);
     $stmt_check->execute([':param_id' => $param_id, ':idate' => $inspection_date]);
     $existing = $stmt_check->fetch(PDO::FETCH_ASSOC);
@@ -266,8 +266,8 @@ try {
                     ':cb' => $operator_id,
                     ':mb' => $operator_id
                 ]);
+                $seq++;
             }
-            $seq++;
         }
         
         $msg = "Data successfully updated for $inspection_date.";
@@ -285,7 +285,7 @@ try {
         ]);
         
         // Fetch new session ID
-        $stmt_get_sid = $conn->prepare("SELECT session_id FROM dtc_inspection_sessions WHERE parameter_id = :param_id AND DATE(inspection_date) = :idate ORDER BY session_id DESC");
+        $stmt_get_sid = $conn->prepare("SELECT session_id FROM dtc_inspection_sessions WHERE parameter_id = :param_id AND DATE_FORMAT(inspection_date, '%Y-%m-%d') = :idate ORDER BY session_id DESC");
         $stmt_get_sid->execute([':param_id' => $param_id, ':idate' => $inspection_date]);
         $session_id = $stmt_get_sid->fetchColumn();
         
@@ -304,8 +304,8 @@ try {
                     ':val' => (string)$raw_val,
                     ':cb' => $operator_id
                 ]);
+                $seq++;
             }
-            $seq++;
         }
         
         $msg = "New data successfully saved for $inspection_date.";

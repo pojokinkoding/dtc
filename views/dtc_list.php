@@ -175,6 +175,21 @@
             <button id="btn-open-ctp-matrix" class="btn-rich-success" style="padding: 4px 10px; font-size: 12px; border-radius: 8px; display: none;" title="Open Check Sheet Matrix">
                 <i class="fa-solid fa-table-cells"></i> CTP Matrix
             </button>
+            <!-- Delete Line/Section Buttons (Admin only) -->
+            <div id="rm-delete-controls" style="display: none; align-items: center; gap: 8px;">
+                <select id="rm_delete_line_select" style="padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(15,23,42,0.8); color: white; font-size: 11px;">
+                    <option value="">-- Select Line to Delete --</option>
+                </select>
+                <button id="btn-delete-line" class="btn-rich-danger" style="padding: 4px 10px; font-size: 11px; border-radius: 4px;" title="Delete all models in selected Line">
+                    <i class="fa-solid fa-trash"></i> Delete Line
+                </button>
+                <select id="rm_delete_section_select" style="padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(15,23,42,0.8); color: white; font-size: 11px;">
+                    <option value="">-- Select Section to Delete --</option>
+                </select>
+                <button id="btn-delete-section" class="btn-rich-danger" style="padding: 4px 10px; font-size: 11px; border-radius: 4px;" title="Delete all models in selected Line/Section">
+                    <i class="fa-solid fa-trash"></i> Delete Section
+                </button>
+            </div>
         </div>
     </div>
 

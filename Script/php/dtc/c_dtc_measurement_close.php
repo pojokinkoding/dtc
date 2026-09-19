@@ -18,10 +18,10 @@ try {
         throw new Exception("Missing required fields (parameter_id, inspection_date).");
     }
     
-    // Check if session exists
+    // Check if session exists - use DATE_FORMAT for consistent timezone handling
     $sql_check = "SELECT session_id, is_closed FROM dtc_inspection_sessions 
                   WHERE parameter_id = :param_id 
-                  AND DATE(inspection_date) = :idate";
+                  AND DATE_FORMAT(inspection_date, '%Y-%m-%d') = :idate";
     $stmt_check = $conn->prepare($sql_check);
     $stmt_check->execute([':param_id' => $param_id, ':idate' => $inspection_date]);
     $existing = $stmt_check->fetch(PDO::FETCH_ASSOC);

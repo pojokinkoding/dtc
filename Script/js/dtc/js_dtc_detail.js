@@ -4,6 +4,17 @@ $(document).ready(function () {
     let LSL = null;
     let USL = null;
 
+    // Helper for safe floating point comparison (avoid precision issues)
+    const EPS = 1e-4;
+    function lt(a, b) { return a < b - EPS; }
+    function gt(a, b) { return a > b + EPS; }
+    function isOOS(val, lsl, usl) {
+        if (val === null || val === undefined || isNaN(val)) return false;
+        if (lsl !== null && lsl !== undefined && !isNaN(lsl) && lt(val, lsl)) return true;
+        if (usl !== null && usl !== undefined && !isNaN(usl) && gt(val, usl)) return true;
+        return false;
+    }
+
     // Helper to safely get LSL / USL specs
     function getSpecLSL() {
         const el = document.getElementById('spec_lsl');
@@ -124,8 +135,7 @@ $(document).ready(function () {
                         if (!isSummary && !isUnmeasured) {
                             let parsedVal = parseFloat(val);
                             if (!isNaN(parsedVal)) {
-                                if ((specLSL !== null && !isNaN(specLSL) && parsedVal < specLSL) ||
-                                    (specUSL !== null && !isNaN(specUSL) && parsedVal > specUSL)) {
+                                if (isOOS(parsedVal, specLSL, specUSL)) {
                                     cellClass = "oos-cell";
                                 }
                             }
@@ -420,7 +430,7 @@ $(document).ready(function () {
                         // Analyze Outliers
                         let oosPoints = [];
                         allSamples.forEach(val => {
-                            if (val < LSL || val > USL) {
+                            if (isOOS(val, LSL, USL)) {
                                 oosPoints.push(val);
                             }
                         });
@@ -522,8 +532,7 @@ $(document).ready(function () {
                         $("#summ-std").text("0.00");
 
                         let isConstOos = false;
-                        if (specLSL !== null && !isNaN(specLSL) && mean < specLSL) isConstOos = true;
-                        if (specUSL !== null && !isNaN(specUSL) && mean > specUSL) isConstOos = true;
+                        if (isOOS(mean, specLSL, specUSL)) isConstOos = true;
 
                         if (isConstOos) {
                             $("#summ-cp").text("0.00").css({ "color": "#f87171", "font-weight": "bold" });
@@ -746,6 +755,13 @@ $(document).ready(function () {
                         color: function (point) {
                             return (point.dataItem && point.dataItem.isForecast) ? "#38bdf8" : "#10b981";
                         },
+                        labels: {
+                            visible: true,
+                            format: "{0:n2}",
+                            font: "bold 10px 'Inter', sans-serif",
+                            color: "white",
+                            position: "outsideEnd"
+                        },
                         tooltip: {
                             visible: true,
                             template: function (e) {
@@ -762,6 +778,13 @@ $(document).ready(function () {
                         data: zltSeriesData,
                         color: function (point) {
                             return (point.dataItem && point.dataItem.isForecast) ? "#c084fc" : "#f59e0b";
+                        },
+                        labels: {
+                            visible: true,
+                            format: "{0:n2}",
+                            font: "bold 10px 'Inter', sans-serif",
+                            color: "white",
+                            position: "outsideEnd"
                         },
                         tooltip: {
                             visible: true,
@@ -997,9 +1020,7 @@ $(document).ready(function () {
 
             let val = parseFloat(valStr);
             if (!isNaN(val)) {
-                let isOos = false;
-                if (LSL !== null && LSL !== undefined && !isNaN(LSL) && val < LSL) isOos = true;
-                if (USL !== null && USL !== undefined && !isNaN(USL) && val > USL) isOos = true;
+                let isOos = isOOS(val, LSL, USL);
 
                 if (isOos) {
                     $input.css({
@@ -1137,7 +1158,7 @@ $(document).ready(function () {
 
                         updateSampleInputValidation($input);
 
-                        if (!isNaN(val) && (val < LSL || val > USL)) {
+                        if (!isNaN(val) && isOOS(val, LSL, USL)) {
                             hasLoadedOOS = true;
                         }
                     } else {
@@ -1370,7 +1391,7 @@ $(document).ready(function () {
         $('.sample-input').each(function () {
             let val = parseFloat($(this).val());
             if (!isNaN(val)) {
-                if (val < LSL || val > USL) {
+                if (isOOS(val, LSL, USL)) {
                     hasOOS = true;
                 }
             }
@@ -1687,7 +1708,7 @@ $(document).ready(function () {
     $('.sample-input').on('input', function () {
         let val = parseFloat($(this).val());
         if (!isNaN(val)) {
-            if (val < LSL || val > USL) {
+            if (isOOS(val, LSL, USL)) {
                 $(this).css({
                     'border-color': '#ef4444',
                     'background-color': 'rgba(239,68,68,0.15)',
@@ -1713,7 +1734,7 @@ $(document).ready(function () {
     $('.sample-input').on('change', function () {
         let val = parseFloat($(this).val());
         if (!isNaN(val)) {
-            if (val < LSL || val > USL) {
+            if (isOOS(val, LSL, USL)) {
                 Swal.fire({
                     toast: true,
                     position: 'top-end',

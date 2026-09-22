@@ -48,6 +48,19 @@ try {
         $linesMap['REF 01'] = ['line_name' => 'REF 01'];
         $linesMap['REF 02'] = ['line_name' => 'REF 02'];
     }
+    // Kunci daftar Line ke scope user (non-admin): operator hanya melihat line-nya sendiri
+    if (function_exists('getUserScope')) {
+        $scopeMD = getUserScope();
+        if (!$scopeMD['is_admin'] && $scopeMD['line'] !== '') {
+            $scoped = [];
+            foreach ($linesMap as $k => $v) {
+                if (strcasecmp(trim($v['line_name']), $scopeMD['line']) === 0) $scoped[$k] = $v;
+            }
+            // Jangan kosongkan bila master belum punya line user (fallback: tampilkan line user)
+            if (!empty($scoped)) $linesMap = $scoped;
+            else $linesMap = [$scopeMD['line'] => ['line_name' => $scopeMD['line']]];
+        }
+    }
     $lines = array_values($linesMap);
 
     // 2. Fetch unique sections from dtc_master_sections AND dtc_master_dtc_specs (MERGE)
@@ -88,6 +101,25 @@ try {
             $sectionsMap[$ds] = ['section_name' => $ds, 'line_name' => null];
         }
     }
+    // Kunci daftar Section ke scope user (non-admin): operator hanya section-nya, supervisor multi-section hanya daftarnya
+    if (function_exists('getUserScope')) {
+        if (!isset($scopeMD)) $scopeMD = getUserScope();
+        if (!$scopeMD['is_admin'] && !empty($scopeMD['sections'])) {
+            $scopedS = [];
+            foreach ($sectionsMap as $k => $v) {
+                foreach ($scopeMD['sections'] as $s) {
+                    if (strcasecmp(trim($v['section_name']), trim($s)) === 0) { $scopedS[$k] = $v; break; }
+                }
+            }
+            if (!empty($scopedS)) $sectionsMap = $scopedS;
+            else {
+                $sectionsMap = [];
+                foreach ($scopeMD['sections'] as $s) {
+                    $sectionsMap[$s] = ['section_name' => $s, 'line_name' => null];
+                }
+            }
+        }
+    }
     $sections = array_values($sectionsMap);
 
     // 3. Fetch specs
@@ -119,7 +151,8 @@ try {
         "lines" => $lines,
         "sections" => $sections,
         "specs" => $specs,
-        "dtc_categories" => $dtc_categories
+        "dtc_categories" => $dtc_categories,
+        "user_scope" => function_exists('getUserScope') ? getUserScope() : null
     ], JSON_INVALID_UTF8_SUBSTITUTE);
 } catch (Throwable $e) {
     // Attempt emergency direct query for lines from dtc_master_lines before falling back

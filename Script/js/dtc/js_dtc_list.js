@@ -21,22 +21,17 @@ $(document).ready(function () {
                 d.line = $('#filter-line').val() || '';
                 d.section = $('#filter-section').val() || '';
                 d.item_check = $('#filter-item-check').val() || '';
-                d.type = $('.filter-tab-btn.active').data('filter') || '';
+                // Scope ke tab DTC List saja agar tidak ketarik tab checkpoint/matrix lain
+                d.type = $('.dtc-filter-tabs .filter-tab-btn.active').data('filter') || '';
+                if (d.type === undefined) d.type = $('.filter-tab-btn.active').data('filter') || '';
                 d.oos_only = $('#filter-oos-only').is(':checked') ? '1' : '0';
+                // JANGAN override line/section dengan badge — biarkan dropdown yang menentukan.
+                // Badge hanya menambah filter model (di-AND dengan line/section di server).
                 if (typeof activeModelFilter !== 'undefined' && activeModelFilter) {
                     d.model = activeModelFilter.model || '';
-                    if (activeModelFilter.line) d.line = activeModelFilter.line;
-                    if (activeModelFilter.section) d.section = activeModelFilter.section;
-                } else if (typeof runningModelsList !== 'undefined' && runningModelsList && runningModelsList.length > 0) {
-                    let rMods = runningModelsList.map(m => ({
-                        line_name: m.line_name || '',
-                        section_name: m.section_name || '',
-                        model_name: m.model_name || ''
-                    })).filter(m => m.model_name);
-                    if (rMods.length > 0) {
-                        d.running_models = JSON.stringify(rMods);
-                    }
                 }
+                // running_models tidak perlu dikirim: server sudah filter via EXISTS ke dtc_running_models.
+                // Mengirimnya hanya bikin bingung karena backend mengabaikannya.
             }
         },
         columns: [
@@ -160,11 +155,15 @@ $(document).ready(function () {
         lengthChange: false,
         language: {
             search: "_INPUT_",
-            searchPlaceholder: "Search records..."
+            searchPlaceholder: "Search records...",
+            emptyTable: "Tidak ada data untuk kombinasi filter ini. Klik Reset untuk kembali ke All."
         },
         initComplete: function () {
             if (typeof loadRunningModels === 'function') {
                 loadRunningModels();
+            }
+            if (typeof loadDtcFilterOptions === 'function') {
+                loadDtcFilterOptions();
             }
             loadMissingCounts();
             loadDTCSummaryTicker();
@@ -264,8 +263,7 @@ $(document).ready(function () {
 
         if (typeof activeModelFilter !== 'undefined' && activeModelFilter) {
             reqData.model = activeModelFilter.model || '';
-            if (activeModelFilter.line) reqData.line = activeModelFilter.line;
-            if (activeModelFilter.section) reqData.section = activeModelFilter.section;
+            // Jangan override line/section dengan badge — samakan dengan tabel (AND di server)
         } else if (typeof runningModelsList !== 'undefined' && runningModelsList && runningModelsList.length > 0) {
             let rMods = runningModelsList.map(m => m.model_name).filter(Boolean);
             if (rMods.length > 0) {
@@ -317,73 +315,106 @@ $(document).ready(function () {
         });
     }
 
-    // 1.5 Filter Tabs Logic
-    $('.dtc-filter-tabs .filter-tab-btn, .filter-tab-btn[data-filter]').on('click', function () {
-        $('.dtc-filter-tabs .filter-tab-btn, .filter-tab-btn[data-filter]').removeClass('active');
+    // 1.5 Filter Tabs Logic — server-side: reload + reset ke page 1 agar tidak stuck di page kosong
+    $(document).off('click.dtcListFilter').on('click.dtcListFilter', '.dtc-filter-tabs .filter-tab-btn', function () {
+        $('.dtc-filter-tabs .filter-tab-btn').removeClass('active');
         $(this).addClass('active');
 
         if (typeof table !== 'undefined' && table) {
-            table.draw();
+            table.ajax.reload();
         }
     });
 
     // --- Running Model Management & Rendering ---
 
-    // Custom filtering for Line, Section, Item Check, and Running Model
-    $.fn.dataTable.ext.search.push(
-        function (settings, data, dataIndex, rowData) {
-            if (settings.nTable.id !== 'dtc-table') return true;
-
-            let filterLine = $('#filter-line').val();
-            let filterSection = $('#filter-section').val();
-            let filterItemCheck = $('#filter-item-check').val();
-
-            // Extract line_name, section_name, item_check_name, model_name safely from original row object
-            let rawRow = (settings.aoData && settings.aoData[dataIndex] && settings.aoData[dataIndex]._aData) ? settings.aoData[dataIndex]._aData : (rowData || {});
-            let lineName = (rawRow.line_name || '').trim();
-            let sectionName = (rawRow.section_name || '').trim();
-            let itemCheckName = (rawRow.item_check_name || '').trim();
-            let rowModel = (rawRow.model_name || '').trim();
-
-            if (filterLine && lineName.toLowerCase() !== filterLine.trim().toLowerCase()) return false;
-            if (filterSection && sectionName.toLowerCase() !== filterSection.trim().toLowerCase()) return false;
-            if (filterItemCheck && itemCheckName.toLowerCase() !== filterItemCheck.trim().toLowerCase()) return false;
-
-            // Running Model filter logic:
-            if (activeModelFilter) {
-                // Single model badge selected by user
-                if (rowModel.toLowerCase() !== activeModelFilter.model.toLowerCase() ||
-                    lineName.toLowerCase() !== activeModelFilter.line.toLowerCase() ||
-                    sectionName.toLowerCase() !== activeModelFilter.section.toLowerCase()) {
-                    return false;
-                }
-            } else if (runningModelsList && runningModelsList.length > 0) {
-                // If running models exist, filter table to show ONLY rows belonging to active running models
-                let isRunning = runningModelsList.some(m =>
-                    m.model_name.trim().toLowerCase() === rowModel.toLowerCase() &&
-                    m.line_name.trim().toLowerCase() === lineName.toLowerCase() &&
-                    m.section_name.trim().toLowerCase() === sectionName.toLowerCase()
-                );
-                if (!isRunning) return false;
-            }
-
-            return true;
-        }
-    );
+    // NOTE: tidak pakai $.fn.dataTable.ext.search di sini karena tabel serverSide:true.
+    // ext.search hanya memfilter 10 baris di halaman aktif → pagination kacau & filter terlihat "tidak jalan".
+    // Semua filter (line/section/item_check/type/oos/model) sudah di-handle server di c_dtc_list.php.
 
     let masterSpecsListDtc = [];
 
+    // Opsi filter bulan berjalan dari server (hanya kombinasi yang ADA datanya).
+    // Mencegah dropdown menawarkan kombinasi yang pasti kosong.
+    var dtcFilterOptions = { lines: [], sections: [], items: [] };
+
+    function loadDtcFilterOptions() {
+        let today = new Date();
+        let curMonth = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
+        $.ajax({
+            url: 'Script/php/dtc/c_dtc_list.php',
+            type: 'GET',
+            data: { action: 'get_filter_options', period: 'current', month: curMonth },
+            dataType: 'json',
+            cache: false,
+            success: function (res) {
+                if (res.status !== 'success') return;
+                dtcFilterOptions.lines = res.lines || [];
+                dtcFilterOptions.sections = res.sections || [];
+                dtcFilterOptions.items = res.items || [];
+                // Render ulang dropdown dengan data aktual, pertahankan pilihan bila masih valid
+                let curLine = $('#filter-line').val() || '';
+                let lineOpts = '<option value="">All Lines</option>';
+                dtcFilterOptions.lines.forEach(l => { lineOpts += `<option value="${l}">${l}</option>`; });
+                $('#filter-line').html(lineOpts);
+                let lineReset = false;
+                if (curLine && dtcFilterOptions.lines.includes(curLine)) {
+                    $('#filter-line').val(curLine);
+                } else {
+                    if (curLine) lineReset = true;
+                    $('#filter-line').val('');
+                }
+                updateListSectionFilterOptions();
+                // Bila pilihan lama ternyata tidak ada datanya di bulan ini, reset + reload agar tabel tidak stuck kosong
+                if (lineReset && typeof table !== 'undefined' && table) {
+                    clearBadgeIfMismatch();
+                    loadMissingCounts();
+                    table.ajax.reload();
+                }
+            }
+        });
+    }
+    window.loadDtcFilterOptions = loadDtcFilterOptions;
+
+    function resetDtcFilters() {
+        activeModelFilter = null;
+        window.activeModelFilter = null;
+        $('.running-model-badge').removeClass('active-filter');
+        $('#btn-open-ctp-matrix').hide();
+        $('.dtc-filter-tabs .filter-tab-btn').removeClass('active');
+        $('.dtc-filter-tabs .filter-tab-btn[data-filter=""]').addClass('active');
+        $('#filter-line').val('');
+        $('#filter-section').val('');
+        $('#filter-item-check').val('');
+        $('#filter-oos-only').prop('checked', false);
+        var searchInput = $('#dtc-table_filter input');
+        if (searchInput.length) { searchInput.val(''); table.search(''); }
+        updateListSectionFilterOptions();
+        loadMissingCounts();
+        table.ajax.reload();
+    }
+    window.resetDtcFilters = resetDtcFilters;
+    $(document).off('click.dtcListReset').on('click.dtcListReset', '#btn-reset-dtc-filter', function () {
+        resetDtcFilters();
+    });
+
     function updateListSectionFilterOptions() {
-        if (!masterSpecsListDtc || masterSpecsListDtc.length === 0) return;
         let selectedLine = $('#filter-line').val();
         let selectedSection = $('#filter-section').val();
+        let availableSections;
 
-        let filteredSpecs = masterSpecsListDtc;
-        if (selectedLine) {
-            filteredSpecs = filteredSpecs.filter(s => s.line_name === selectedLine);
+        if (dtcFilterOptions.sections && dtcFilterOptions.sections.length > 0) {
+            // Pakai data bulan berjalan (akurat)
+            let rows = dtcFilterOptions.sections;
+            if (selectedLine) rows = rows.filter(s => s.line_name === selectedLine);
+            availableSections = [...new Set(rows.map(s => s.section_name).filter(Boolean))].sort();
+        } else {
+            if (!masterSpecsListDtc || masterSpecsListDtc.length === 0) return;
+            let filteredSpecs = masterSpecsListDtc;
+            if (selectedLine) {
+                filteredSpecs = filteredSpecs.filter(s => s.line_name === selectedLine);
+            }
+            availableSections = [...new Set(filteredSpecs.map(s => s.section_name).filter(Boolean))].sort();
         }
-
-        let availableSections = [...new Set(filteredSpecs.map(s => s.section_name).filter(Boolean))].sort();
 
         let sectionOpts = '<option value="">All Sections</option>';
         availableSections.forEach(sec => {
@@ -401,20 +432,27 @@ $(document).ready(function () {
     }
 
     function updateListItemCheckFilterOptions() {
-        if (!masterSpecsListDtc || masterSpecsListDtc.length === 0) return;
         let selectedLine = $('#filter-line').val();
         let selectedSection = $('#filter-section').val();
         let selectedItemCheck = $('#filter-item-check').val();
+        let availableItemChecks;
 
-        let filteredSpecs = masterSpecsListDtc;
-        if (selectedLine) {
-            filteredSpecs = filteredSpecs.filter(s => s.line_name === selectedLine);
+        if (dtcFilterOptions.items && dtcFilterOptions.items.length > 0) {
+            let rows = dtcFilterOptions.items;
+            if (selectedLine) rows = rows.filter(s => s.line_name === selectedLine);
+            if (selectedSection) rows = rows.filter(s => s.section_name === selectedSection);
+            availableItemChecks = [...new Set(rows.map(s => s.item_check_name).filter(Boolean))].sort();
+        } else {
+            if (!masterSpecsListDtc || masterSpecsListDtc.length === 0) return;
+            let filteredSpecs = masterSpecsListDtc;
+            if (selectedLine) {
+                filteredSpecs = filteredSpecs.filter(s => s.line_name === selectedLine);
+            }
+            if (selectedSection) {
+                filteredSpecs = filteredSpecs.filter(s => s.section_name === selectedSection);
+            }
+            availableItemChecks = [...new Set(filteredSpecs.map(s => s.item_check_name).filter(Boolean))].sort();
         }
-        if (selectedSection) {
-            filteredSpecs = filteredSpecs.filter(s => s.section_name === selectedSection);
-        }
-
-        let availableItemChecks = [...new Set(filteredSpecs.map(s => s.item_check_name).filter(Boolean))].sort();
 
         let itemCheckOpts = '<option value="">All Item Checks</option>';
         availableItemChecks.forEach(ic => {
@@ -429,18 +467,40 @@ $(document).ready(function () {
         }
     }
 
-    $('#filter-line').on('change', function () {
+    function clearBadgeIfMismatch() {
+        // Kalau badge model aktif tapi dropdown line/section/item sudah diganti ke nilai lain,
+        // lepas badge agar dropdown kembali "jalan" (sebelumnya line/section di-override badge).
+        if (typeof activeModelFilter !== 'undefined' && activeModelFilter) {
+            let curLine = ($('#filter-line').val() || '').trim().toLowerCase();
+            let curSec = ($('#filter-section').val() || '').trim().toLowerCase();
+            let bLine = (activeModelFilter.line || '').trim().toLowerCase();
+            let bSec = (activeModelFilter.section || '').trim().toLowerCase();
+            if ((bLine && curLine && bLine !== curLine) || (bSec && curSec && bSec !== curSec)) {
+                activeModelFilter = null;
+                window.activeModelFilter = null;
+                $('.running-model-badge').removeClass('active-filter');
+                $('#btn-open-ctp-matrix').hide();
+            }
+        }
+    }
+
+    $('#filter-line').off('change.dtcList').on('change.dtcList', function () {
         updateListSectionFilterOptions();
-        if (table) table.draw();
+        clearBadgeIfMismatch();
+        loadMissingCounts();
+        if (table) table.ajax.reload();
     });
 
-    $('#filter-section').on('change', function () {
+    $('#filter-section').off('change.dtcList').on('change.dtcList', function () {
         updateListItemCheckFilterOptions();
-        if (table) table.draw();
+        clearBadgeIfMismatch();
+        loadMissingCounts();
+        if (table) table.ajax.reload();
     });
 
-    $('#filter-item-check, #filter-oos-only').on('change', function () {
-        if (table) table.draw();
+    $('#filter-item-check, #filter-oos-only').off('change.dtcList').on('change.dtcList', function () {
+        loadMissingCounts();
+        if (table) table.ajax.reload();
     });
 
     function loadRunningModels() {
@@ -580,11 +640,13 @@ $(document).ready(function () {
                         $('#running-model-tabs-container').html('<div style="padding: 12px; text-align: center; color: #64748b; font-style: italic;">(No models running)</div>');
                     }
 
-                    // Redraw table with updated running model filter
-                    if (table) table.draw();
-
-                    // Refresh missing counts & summary ticker with new running models
+                    // Server sudah filter via EXISTS ke dtc_running_models, jadi tidak perlu reload tabel di sini.
+                    // Reload di sini justru menimpa paging/filter user & bikin double request (race dengan handler filter).
+                    // Refresh missing counts, opsi filter (line/section/item bulan berjalan) & summary ticker
                     loadMissingCounts();
+                    if (typeof loadDtcFilterOptions === 'function') {
+                        loadDtcFilterOptions();
+                    }
                     if (typeof window.reloadDTCSummaryTicker === 'function') {
                         window.reloadDTCSummaryTicker();
                     }
@@ -772,10 +834,9 @@ $(document).ready(function () {
         });
     });
 
-    // Reload running models when Line or Section filter changes
-    $('#filter-line, #filter-section').on('change', function () {
-        loadRunningModels();
-    });
+    // Running model list bersifat global per-bulan (server abaikan line/section untuk list ini),
+    // jadi JANGAN reload running models setiap ganti filter — cukup sekali saat init & setelah add/delete.
+    // Handler lama di sini menyebabkan double AJAX + race dengan handler filter di atas.
 
     // Quick filter by clicking Running Model badge
     $(document).on('click', '.running-model-badge', function (e) {
@@ -788,15 +849,17 @@ $(document).ready(function () {
 
         if (activeModelFilter && activeModelFilter.id === runningId) {
             activeModelFilter = null;
+            window.activeModelFilter = null;
             $('.running-model-badge').removeClass('active-filter');
             $('#btn-open-ctp-matrix').hide();
         } else {
             activeModelFilter = { id: runningId, model: modelName, line: lineName, section: sectionName };
+            window.activeModelFilter = activeModelFilter;
             $('.running-model-badge').removeClass('active-filter');
             $(this).addClass('active-filter');
             $('#btn-open-ctp-matrix').show();
         }
-        if (table) table.draw();
+        if (table) table.ajax.reload();
         loadMissingCounts();
     });
 
@@ -874,6 +937,11 @@ $(document).ready(function () {
         let currentSection = $('#filter-section').val();
         if (currentLine) $('#rm_line_select').val(currentLine);
         if (currentSection) $('#rm_section_select').val(currentSection);
+
+        // Kunci ke area user (non-admin): preset + disable sudah diurus helper global
+        if (typeof window.applyUserScopeToFilters === 'function') {
+            window.applyUserScopeToFilters();
+        }
 
         loadAvailableModelsForRM();
 
@@ -986,26 +1054,40 @@ $(document).ready(function () {
                 if (res.sections) {
                     window.dtcSections = res.sections;
                     let opts = '<option value="">-- Select Section --</option>';
-                    let filterOpts = '<option value="">All Sections</option>';
                     res.sections.forEach(s => {
                         opts += `<option value="${s.section_name}">${s.section_name}</option>`;
-                        filterOpts += `<option value="${s.section_name}">${s.section_name}</option>`;
                     });
                     $('#cs_section').html(opts);
                     $('#add_dtc_section').html(opts);
-                    $('#filter-section').html(filterOpts);
+                    // Dropdown FILTER jangan ditimpa master di sini — pakai loadDtcFilterOptions() (data bulan berjalan).
+                    // Fallback master hanya bila opsi bulan berjalan belum termuat.
+                    if (!dtcFilterOptions.sections || dtcFilterOptions.sections.length === 0) {
+                        let filterOpts = '<option value="">All Sections</option>';
+                        res.sections.forEach(s => {
+                            filterOpts += `<option value="${s.section_name}">${s.section_name}</option>`;
+                        });
+                        let curSec = $('#filter-section').val();
+                        $('#filter-section').html(filterOpts);
+                        if (curSec) $('#filter-section').val(curSec);
+                    }
                 }
                 if (res.lines) {
                     window.dtcLines = res.lines;
                     let opts = '<option value="">-- Select Line --</option>';
-                    let filterOpts = '<option value="">All Lines</option>';
                     res.lines.forEach(l => {
                         opts += `<option value="${l.line_name}">${l.line_name}</option>`;
-                        filterOpts += `<option value="${l.line_name}">${l.line_name}</option>`;
                     });
                     $('#cs_line').html(opts);
                     $('#add_dtc_line').html(opts);
-                    $('#filter-line').html(filterOpts);
+                    if (!dtcFilterOptions.lines || dtcFilterOptions.lines.length === 0) {
+                        let filterOpts = '<option value="">All Lines</option>';
+                        res.lines.forEach(l => {
+                            filterOpts += `<option value="${l.line_name}">${l.line_name}</option>`;
+                        });
+                        let curLine = $('#filter-line').val();
+                        $('#filter-line').html(filterOpts);
+                        if (curLine) $('#filter-line').val(curLine);
+                    }
                 }
 
                 if (res.specs) {
@@ -1044,15 +1126,16 @@ $(document).ready(function () {
         }
 
         if (modelParam) {
-            window.activeModelFilter = { model: modelParam };
-            if (lineParam) window.activeModelFilter.line = lineParam;
-            if (sectionParam) window.activeModelFilter.section = sectionParam;
+            activeModelFilter = { model: modelParam };
+            window.activeModelFilter = activeModelFilter;
+            if (lineParam) activeModelFilter.line = lineParam;
+            if (sectionParam) activeModelFilter.section = sectionParam;
             filterChanged = true;
         }
 
         if (typeParam) {
-            $('.filter-tab-btn').removeClass('active');
-            $(`.filter-tab-btn[data-filter="${typeParam}"]`).addClass('active');
+            $('.dtc-filter-tabs .filter-tab-btn').removeClass('active');
+            $(`.dtc-filter-tabs .filter-tab-btn[data-filter="${typeParam}"]`).addClass('active');
             filterChanged = true;
         }
 

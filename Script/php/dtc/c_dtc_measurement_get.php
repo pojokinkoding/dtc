@@ -28,6 +28,12 @@ try {
     $stmtP->execute([':pid' => $param_id]);
     $pRow = $stmtP->fetch(PDO::FETCH_ASSOC);
 
+    // Kunci scope: non-admin hanya boleh buka parameter di line/section-nya
+    if ($pRow && function_exists('isLineSectionAllowed') && !isLineSectionAllowed($pRow['line_name'] ?? '', $pRow['section_name'] ?? '')) {
+        echo json_encode(["status" => "error", "message" => "Akses ditolak. Anda hanya dapat membuka data untuk area Anda."]);
+        exit;
+    }
+
     if ($pRow && !empty($pRow['model_name'])) {
         $stmtRM = $conn->prepare("
             SELECT created_at FROM dtc_running_models 

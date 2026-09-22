@@ -73,6 +73,15 @@ try {
         $dataType = trim($_GET['data_type'] ?? '');
         $month = trim($_GET['month'] ?? $currentMonth);
 
+        // Kunci ke scope user: non-admin tidak bisa mengintip model line/section lain
+        if (function_exists('getUserScope')) {
+            $scopeAM = getUserScope();
+            if (!$scopeAM['is_admin']) {
+                if ($scopeAM['line'] !== '') $line = $scopeAM['line'];
+                if (count($scopeAM['sections']) === 1) $section = $scopeAM['sections'][0];
+            }
+        }
+
         $sql = "SELECT DISTINCT model_name FROM (
                     SELECT COALESCE(p.model_name, spec.model_name) AS model_name,
                            COALESCE(p.line_name, spec.line_name) AS line_name,
@@ -81,11 +90,16 @@ try {
                     FROM dtc_master_parameters p
                     LEFT JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id
                     WHERE p.target_month = :month
+                    " . getIPAccessFilterSQL('COALESCE(p.line_name, spec.line_name)', 'COALESCE(p.section_name, spec.section_name)') . "
+                    " . getUserAccessFilterSQL('COALESCE(p.line_name, spec.line_name)', 'COALESCE(p.section_name, spec.section_name)') . "
 
                     UNION
 
                     SELECT model_name, line_name, section_name, data_type
                     FROM dtc_master_dtc_specs
+                    WHERE 1=1
+                    " . getIPAccessFilterSQL('line_name', 'section_name') . "
+                    " . getUserAccessFilterSQL('line_name', 'section_name') . "
                 ) AS all_combined
                 WHERE model_name IS NOT NULL AND TRIM(model_name) != ''";
         
@@ -125,6 +139,12 @@ try {
 
         if (empty($month) || empty($line) || empty($section) || empty($model) || empty($dataType)) {
             echo json_encode(['status' => 'error', 'message' => 'Missing required fields (month, line, section, model, data type)']);
+            exit;
+        }
+
+        // Kunci scope: non-admin hanya boleh menambah running model di line/section-nya sendiri
+        if (function_exists('isLineSectionAllowed') && !isLineSectionAllowed($line, $section)) {
+            echo json_encode(['status' => 'error', 'message' => 'Akses ditolak. Anda hanya dapat menambah running model untuk area Anda.']);
             exit;
         }
 

@@ -122,15 +122,15 @@ $(document).ready(function () {
         }
     });
 
-    // 2. Filter Tabs Logic
+    // 2. Filter Tabs Logic — pakai ajax.reload() agar paging reset ke page 1
     $('.filter-tab-btn').on('click', function () {
         $('.filter-tab-btn').removeClass('active');
         $(this).addClass('active');
-        if (table) table.draw();
+        if (table) table.ajax.reload();
     });
 
     $('#filter-month, #filter-line, #filter-section, #filter-item-check, #filter-oos-only').on('change', function () {
-        if (table) table.draw();
+        if (table) table.ajax.reload();
     });
 
     // 4. Load options for Line, Section, and Item Check filters

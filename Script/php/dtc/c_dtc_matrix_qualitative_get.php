@@ -18,6 +18,12 @@ if (empty($model) || empty($line) || empty($section) || empty($month)) {
     exit;
 }
 
+// Kunci scope: non-admin hanya boleh buka matrix untuk line/section-nya sendiri
+if (function_exists('isLineSectionAllowed') && !isLineSectionAllowed($line, $section)) {
+    echo json_encode(['status' => 'error', 'message' => 'Akses ditolak. Anda hanya dapat membuka data untuk area Anda.']);
+    exit;
+}
+
 try {
     $conn = getDBConnection();
     
@@ -81,6 +87,15 @@ try {
     if (empty($parameters)) {
         echo json_encode(['status' => 'success', 'data' => [], 'time_labels' => [], 'parameters' => []]);
         exit;
+    }
+
+    // Pastikan parameter yang diminta (via param_id) memang dalam scope user
+    if (function_exists('isLineSectionAllowed')) {
+        $p0 = $parameters[0];
+        if (!isLineSectionAllowed($p0['line_name'] ?? '', $p0['section_name'] ?? '')) {
+            echo json_encode(['status' => 'error', 'message' => 'Akses ditolak. Anda hanya dapat membuka data untuk area Anda.']);
+            exit;
+        }
     }
 
     $days_in_month = date('t', strtotime($month . '-01'));

@@ -46,6 +46,14 @@ try {
     $currentMonth = date('Y-m');
     $period = isset($_GET['period']) ? trim($_GET['period']) : 'all';
 
+    // Define all filters UP FRONT (before $wherePeriod logic, karena EXISTS butuh $model_filter/$selected_month)
+    $selected_month = trim($_GET['month'] ?? '');
+    $line_filter = trim($_GET['line'] ?? '');
+    $model_filter = trim($_GET['model'] ?? '');
+    $section_filter = trim($_GET['section'] ?? '');
+    $type_filter = trim($_GET['type'] ?? '');
+    $item_check_filter = trim($_GET['item_check'] ?? '');
+
     // Endpoint to fetch distinct past months for dropdown filter
     // Endpoint to fetch distinct past months for dropdown filter
     if (isset($_GET['action']) && $_GET['action'] === 'get_months') {
@@ -65,6 +73,50 @@ try {
         $stmtMonths->execute([':current_month' => $currentMonth]);
         $months = $stmtMonths->fetchAll(PDO::FETCH_ASSOC);
         echo json_encode(["status" => "success", "months" => $months]);
+        exit;
+    }
+
+    // Endpoint: opsi filter (Line/Section/ItemCheck) khusus bulan berjalan,
+    // hanya yang benar-benar ada datanya + lolos running models + access filter.
+    // Ini mencegah user pilih kombinasi yang pasti kosong (mis. REF 01/Accessories padahal data REF 02/Pre Case).
+    if (isset($_GET['action']) && $_GET['action'] === 'get_filter_options') {
+        $optMonth = trim($_GET['month'] ?? $currentMonth);
+        if ($optMonth === '') $optMonth = $currentMonth;
+        $existsRM = " AND EXISTS (
+            SELECT 1 FROM dtc_running_models rm
+            WHERE rm.target_month = :opt_month
+              AND rm.is_active = 1
+              AND UPPER(TRIM(rm.model_name)) = UPPER(TRIM(COALESCE(p.model_name, spec.model_name)))
+              AND UPPER(TRIM(rm.line_name)) = UPPER(TRIM(COALESCE(p.line_name, spec.line_name)))
+              AND UPPER(TRIM(rm.section_name)) = UPPER(TRIM(COALESCE(p.section_name, spec.section_name)))
+        ) ";
+        $accSQL = getIPAccessFilterSQL('COALESCE(p.line_name, spec.line_name)', 'COALESCE(p.section_name, spec.section_name)')
+                . getUserAccessFilterSQL('COALESCE(p.line_name, spec.line_name)', 'COALESCE(p.section_name, spec.section_name)');
+        $stmtL = $conn->prepare("
+            SELECT DISTINCT COALESCE(p.line_name, spec.line_name) AS line_name
+            FROM dtc_master_parameters p LEFT JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id
+            WHERE p.target_month = :opt_month AND COALESCE(p.line_name, spec.line_name) IS NOT NULL
+              AND TRIM(COALESCE(p.line_name, spec.line_name)) != '' $existsRM $accSQL ORDER BY 1");
+        $stmtL->execute([':opt_month' => $optMonth]);
+        $optLines = $stmtL->fetchAll(PDO::FETCH_COLUMN);
+        $stmtS = $conn->prepare("
+            SELECT DISTINCT COALESCE(p.line_name, spec.line_name) AS line_name,
+                            COALESCE(p.section_name, spec.section_name) AS section_name
+            FROM dtc_master_parameters p LEFT JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id
+            WHERE p.target_month = :opt_month AND COALESCE(p.section_name, spec.section_name) IS NOT NULL
+              AND TRIM(COALESCE(p.section_name, spec.section_name)) != '' $existsRM $accSQL ORDER BY 1, 2");
+        $stmtS->execute([':opt_month' => $optMonth]);
+        $optSections = $stmtS->fetchAll(PDO::FETCH_ASSOC);
+        $stmtI = $conn->prepare("
+            SELECT DISTINCT COALESCE(p.line_name, spec.line_name) AS line_name,
+                            COALESCE(p.section_name, spec.section_name) AS section_name,
+                            COALESCE(p.item_check_name, spec.item_check_name) AS item_check_name
+            FROM dtc_master_parameters p LEFT JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id
+            WHERE p.target_month = :opt_month AND COALESCE(p.item_check_name, spec.item_check_name) IS NOT NULL
+              AND TRIM(COALESCE(p.item_check_name, spec.item_check_name)) != '' $existsRM $accSQL ORDER BY 1, 2, 3");
+        $stmtI->execute([':opt_month' => $optMonth]);
+        $optItems = $stmtI->fetchAll(PDO::FETCH_ASSOC);
+        echo json_encode(["status" => "success", "month" => $optMonth, "lines" => $optLines, "sections" => $optSections, "items" => $optItems]);
         exit;
     }
 
@@ -91,34 +143,34 @@ try {
         $queryParams[':current_month'] = $currentMonth;
     }
 
-    $selected_month = trim($_GET['month'] ?? '');
     if (!empty($selected_month)) {
         $wherePeriod .= " AND p.target_month = :sel_month ";
         $queryParams[':sel_month'] = $selected_month;
     }
 
-    $line_filter = trim($_GET['line'] ?? '');
     if (!empty($line_filter)) {
         $wherePeriod .= " AND (p.line_name = :line OR spec.line_name = :line) ";
         $queryParams[':line'] = $line_filter;
     }
 
-    $model_filter = trim($_GET['model'] ?? '');
     if (!empty($model_filter)) {
         $wherePeriod .= " AND (p.model_name = :model OR spec.model_name = :model) ";
         $queryParams[':model'] = $model_filter;
     }
 
-    $section_filter = trim($_GET['section'] ?? '');
     if (!empty($section_filter)) {
         $wherePeriod .= " AND (p.section_name = :sec OR spec.section_name = :sec) ";
         $queryParams[':sec'] = $section_filter;
     }
 
-    $type_filter = trim($_GET['type'] ?? '');
     if (!empty($type_filter)) {
         $wherePeriod .= " AND (p.data_type = :type OR spec.data_type = :type) ";
         $queryParams[':type'] = $type_filter;
+    }
+
+    if (!empty($item_check_filter)) {
+        $wherePeriod .= " AND (p.item_check_name = :ic OR spec.item_check_name = :ic) ";
+        $queryParams[':ic'] = $item_check_filter;
     }
 
     $oos_only = trim($_GET['oos_only'] ?? '0');

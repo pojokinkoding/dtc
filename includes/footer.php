@@ -13,6 +13,16 @@
     <script src="assets/js/sweetalert2.all.min.js"></script>
     <script src="assets/js/select2.min.js"></script>
     <script src="assets/js/xlsx.full.min.js"></script>
+
+    <!-- Global user scope (Line/Section lock, project-wide). Admin bebas semua. -->
+    <script>
+        window.userSectionName = <?= json_encode($_SESSION['section_name'] ?? '') ?>;
+        window.userLineName = <?= json_encode($_SESSION['line_name'] ?? '') ?>;
+        window.userAllowedSections = <?= json_encode($_SESSION['allowed_sections'] ?? '') ?>;
+        window.userRole = <?= json_encode($_SESSION['role'] ?? '') ?>;
+        window.currentIsAdmin = <?= json_encode(isset($_SESSION['role']) && (strtolower(trim($_SESSION['role'])) === 'admin')) ?>;
+    </script>
+    <script src="Script/js/dtc/js_user_scope.js?v=<?= time() ?>"></script>
     
     <?php if($page == 'dtc_detail'): ?>
         <script src="Script/js/dtc/js_dtc_detail.js?v=<?= time() ?>"></script>

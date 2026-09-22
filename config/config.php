@@ -81,6 +81,95 @@ if (!function_exists('getIPAccessFilterSQL')) {
     }
 }
 
+if (!function_exists('isPrivilegedRole')) {
+    // Admin & Management melihat semua (perilaku lama dipertahankan).
+    function isPrivilegedRole($role = null) {
+        if ($role === null) $role = strtolower(trim($_SESSION['role'] ?? ''));
+        else $role = strtolower(trim($role));
+        return ($role === 'admin' || $role === 'management' || strpos($role, 'management') !== false);
+    }
+}
+
+if (!function_exists('getUserScope')) {
+    // Scope Line/Section user login untuk mengunci dropdown filter project-wide.
+    // Returns: ['is_admin'=>bool, 'line'=>string, 'sections'=>array, 'lock_line'=>bool, 'lock_section'=>bool]
+    // - Admin/Management: is_admin=true (bebas semua).
+    // - Supervisor+allowed_sections: sections = daftar tersebut.
+    // - Operator: line & section dari akun.
+    // - IP station (non-privileged): digabung (AND) dengan scope akun bila IP terdaftar.
+    function getUserScope() {
+        if (isPrivilegedRole()) {
+            return ['is_admin' => true, 'line' => '', 'sections' => [], 'lock_line' => false, 'lock_section' => false];
+        }
+        $line = trim($_SESSION['line_name'] ?? '');
+        $sections = [];
+        $allowedStr = trim($_SESSION['allowed_sections'] ?? '');
+        if ($allowedStr !== '') {
+            foreach (explode(',', $allowedStr) as $s) {
+                $s = trim($s);
+                if ($s !== '') $sections[] = $s;
+            }
+        } elseif (!empty($_SESSION['section_name'])) {
+            $sections[] = trim($_SESSION['section_name']);
+        }
+
+        // IP station scope (mirror map di getIPAccessFilterSQL) — hanya untuk non-privileged
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+        $ipMap = [
+            '10.221.179.149' => ['line' => 'REF 01', 'section' => ['PRE CASE']],
+            '10.221.179.194' => ['line' => 'REF 01', 'section' => ['PU CASE']],
+            '10.221.176.36'  => ['line' => 'REF 01', 'section' => ['PU DOOR']],
+            '10.221.179.30'  => ['line' => 'REF 01', 'section' => ['Accessories']],
+            '10.221.179.234' => ['line' => 'REF 01', 'section' => ['Cycle']],
+            '10.221.179.51'  => ['line' => 'REF 02', 'section' => ['Cycle']],
+            '10.221.179.28'  => ['line' => 'REF 02', 'section' => ['Accessories']],
+            '10.221.179.59'  => ['line' => 'REF 02', 'section' => ['PU DOOR']],
+            '10.221.178.81'  => ['line' => 'REF 02', 'section' => ['Pre case & PU Case', 'Pre Case', 'PU Case']]
+        ];
+        if (isset($ipMap[$ip])) {
+            $rule = $ipMap[$ip];
+            if ($line === '') {
+                $line = $rule['line'];
+            }
+            if (empty($sections)) {
+                $sections = $rule['section'];
+            } else {
+                // AND: iriskan dengan section akun
+                $lower = array_map(function ($s) { return strtolower(trim($s)); }, $sections);
+                $inter = [];
+                foreach ($rule['section'] as $s) {
+                    if (in_array(strtolower(trim($s)), $lower, true)) $inter[] = $s;
+                }
+                if (!empty($inter)) $sections = $inter;
+            }
+        }
+
+        return [
+            'is_admin' => false,
+            'line' => $line,
+            'sections' => array_values($sections),
+            'lock_line' => ($line !== ''),
+            'lock_section' => (count($sections) === 1)
+        ];
+    }
+}
+
+if (!function_exists('isLineSectionAllowed')) {
+    // Cek apakah kombinasi line/section boleh diakses user saat ini (tulis/data).
+    function isLineSectionAllowed($line, $section) {
+        if (isPrivilegedRole()) return true;
+        $scope = getUserScope();
+        if ($scope['line'] !== '' && strcasecmp(trim($line), $scope['line']) !== 0) return false;
+        if (!empty($scope['sections'])) {
+            $ok = false;
+            foreach ($scope['sections'] as $s) {
+                if (strcasecmp(trim($section), trim($s)) === 0) { $ok = true; break; }
+            }
+            if (!$ok) return false;
+        }
+        return true;
+    }
+}
 if (!function_exists('getUserAccessFilterSQL')) {
     function getUserAccessFilterSQL($lineField = 'COALESCE(p.line_name, spec.line_name)', $sectionField = 'COALESCE(p.section_name, spec.section_name)') {
         // Only apply if user is logged in

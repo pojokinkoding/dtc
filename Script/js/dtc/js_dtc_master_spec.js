@@ -37,6 +37,7 @@ $(document).ready(function () {
                     return `
                         <button class="btn-edit" data-id="${row.spec_id}" title="Edit Spec" style="background-color: #3b82f6; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-right: 4px;"><i class="fa-solid fa-pen"></i></button>
                         <button class="btn-copy" data-id="${row.spec_id}" title="Copy Spec" style="background-color: #10b981; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-right: 4px;"><i class="fa-solid fa-copy"></i></button>
+                        <button class="btn-history" data-id="${row.spec_id}" title="Riwayat Perubahan / Evident" style="background-color: #8b5cf6; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-right: 4px;"><i class="fa-solid fa-clock-rotate-left"></i></button>
                         <button class="btn-delete" data-id="${row.spec_id}" title="Delete Spec" style="background-color: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-trash"></i></button>
                     `;
                 }
@@ -621,6 +622,19 @@ $(document).ready(function () {
         $('#modal-title').html('<i class="fa-solid fa-pen" style="margin-right:6px; color:var(--primary);"></i> Edit Master Spec');
         $('#btn-save-spec').html('<i class="fa-solid fa-floppy-disk"></i> Save Spec');
         $('#change_reason').val('');
+        $('#change_reason_hint').remove();
+        // Tampilkan alasan terakhir agar tidak terlihat "hilang" saat dibuka lagi
+        (function (specId) {
+            $.getJSON('Script/php/dtc/c_spec_change_log.php', { spec_id: specId })
+                .done(function (res) {
+                    if (res.status !== 'success' || !res.data) return;
+                    const last = res.data.find(l => l.change_reason && String(l.change_reason).trim() !== '');
+                    if (!last) return;
+                    if ($('#spec_id').val() != String(specId)) return; // user sudah pindah ke spec lain
+                    $('#change_reason').val(last.change_reason);
+                    $('#change_reason').after(`<div id="change_reason_hint" style="font-size:10.5px; color:#94a3b8; margin-top:4px;"><i class="fa-regular fa-clock"></i> Alasan terakhir (${last.changed_at || ''} • ${last.changed_by_name || ''}) — ubah/hapus bila perlu.</div>`);
+                });
+        })(data.spec_id);
         modal.style.display = 'flex';
     });
 
@@ -665,6 +679,63 @@ $(document).ready(function () {
         $('#btn-save-spec').html('<i class="fa-solid fa-copy"></i> Save as New Spec');
         $('#change_reason').val('');
         modal.style.display = 'flex';
+    });
+
+    // History Button Click — Riwayat Perubahan / Evident
+    const modalHistory = document.getElementById('modal-spec-history');
+    function escapeHtmlHist(s) {
+        return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    const specFieldLabels = {
+        model_name: 'Model', item_check_name: 'Item Check', sub_item_check_name: 'Sub Item Check',
+        data_type: 'Data Type', line_name: 'Line', section_name: 'Section', process_name: 'Process',
+        measuring_item: 'Measuring Item', lsl: 'LSL', usl: 'USL', target_value: 'Target',
+        uom: 'UoM', target_zst: 'Target Zst', target_zlt: 'Target Zlt',
+        checkpoints: 'Checkpoints', remark: 'Catatan', created: 'Dibuat'
+    };
+    $('#master-spec-table tbody').on('click', '.btn-history', function () {
+        const specId = $(this).data('id');
+        const rowData = table.row($(this).parents('tr')).data() || {};
+        $('#spec-history-subtitle').html(`<strong style="color:#f8fafc;">${escapeHtmlHist(rowData.model_name || '')}</strong> — ${escapeHtmlHist(rowData.item_check_name || '')} <span style="color:#64748b;">[${escapeHtmlHist(rowData.line_name || '')} • ${escapeHtmlHist(rowData.section_name || '')}]</span>`);
+        $('#spec-history-body').html('<div style="color:#94a3b8; padding:12px; text-align:center;"><i class="fa-solid fa-circle-notch fa-spin"></i> Memuat riwayat...</div>');
+        modalHistory.style.display = 'flex';
+        $.getJSON('Script/php/dtc/c_spec_change_log.php', { spec_id: specId })
+            .done(function (res) {
+                if (res.status !== 'success') {
+                    $('#spec-history-body').html(`<div style="color:#f87171; padding:12px;">${escapeHtmlHist(res.message || 'Gagal memuat riwayat')}</div>`);
+                    return;
+                }
+                if (!res.data || !res.data.length) {
+                    $('#spec-history-body').html('<div style="color:#94a3b8; padding:12px; text-align:center; font-style:italic;">Belum ada riwayat perubahan tercatat untuk spec ini.</div>');
+                    return;
+                }
+                let html = '<div style="display:flex; flex-direction:column; gap:10px;">';
+                res.data.forEach(function (log) {
+                    const field = specFieldLabels[log.field_name] || log.field_name;
+                    let changeHtml = '';
+                    if (log.field_name === 'remark' || log.field_name === 'created') {
+                        changeHtml = `<span style="color:#a78bfa; font-weight:700;">${field}</span>`;
+                    } else {
+                        changeHtml = `<span style="color:#a78bfa; font-weight:700;">${escapeHtmlHist(field)}</span>: <span style="color:#f87171;">${escapeHtmlHist(log.old_value) || '<i>-</i>'}</span> <i class="fa-solid fa-arrow-right" style="color:#64748b; font-size:10px;"></i> <span style="color:#34d399;">${escapeHtmlHist(log.new_value) || '<i>-</i>'}</span>`;
+                    }
+                    html += `<div style="background:rgba(15,23,42,0.5); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:10px 12px;">
+                        <div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:6px; flex-wrap:wrap;">
+                            <span style="color:#94a3b8;"><i class="fa-regular fa-user"></i> ${escapeHtmlHist(log.changed_by_name || '-')}</span>
+                            <span style="color:#64748b; font-size:11px;"><i class="fa-regular fa-clock"></i> ${escapeHtmlHist(log.changed_at || '')}</span>
+                        </div>
+                        <div style="margin-bottom:4px;">${changeHtml}</div>
+                        ${log.change_reason ? `<div style="background:rgba(245,158,11,0.08); border-left:3px solid #f59e0b; padding:6px 10px; border-radius:0 6px 6px 0; color:#fcd34d;"><i class="fa-solid fa-message" style="margin-right:4px;"></i>${escapeHtmlHist(log.change_reason)}</div>` : ''}
+                    </div>`;
+                });
+                html += '</div>';
+                $('#spec-history-body').html(html);
+            })
+            .fail(function () {
+                $('#spec-history-body').html('<div style="color:#f87171; padding:12px;">Gagal terhubung ke server.</div>');
+            });
+    });
+    $('#btn-close-history-modal, #btn-cancel-history-modal').on('click', function () {
+        modalHistory.style.display = 'none';
     });
 
     // Delete Button Click
@@ -733,20 +804,52 @@ $(document).ready(function () {
             }
         } else {
             let checkpoints = [];
-            let invalid = false;
+            let errorMsg = '';
+            let $errorRow = null;
             $('#master-checkpoint-tbody tr').each(function (index) {
-                const name = $(this).find('.master-cp-name').val().trim();
-                if (!name) { invalid = true; return false; }
-                const lsl = $(this).find('.master-cp-lsl').val();
-                const target = $(this).find('.master-cp-target').val();
-                const usl = $(this).find('.master-cp-usl').val();
-                if (lsl !== '' && usl !== '' && Number(lsl) > Number(usl)) { invalid = true; return false; }
-                checkpoints.push({ checkpoint_name: name, checkpoint_type: $(this).find('.master-cp-type').val(), spec_value: $(this).find('.master-cp-spec').val().trim(), lsl, target_value: target, usl, image_index: index, reference_image: $(this).data('existing-image') || '' });
+                const $row = $(this);
+                const name = ($row.find('.master-cp-name').val() || '').trim();
+                const specVal = ($row.find('.master-cp-spec').val() || '').trim();
+                const lsl = ($row.find('.master-cp-lsl').val() || '').trim();
+                const target = ($row.find('.master-cp-target').val() || '').trim();
+                const usl = ($row.find('.master-cp-usl').val() || '').trim();
+                const tol = ($row.find('.master-cp-tol').val() || '').trim();
+                const hasFile = ($row.find('.master-cp-image')[0] && $row.find('.master-cp-image')[0].files.length > 0) || !!($row.data('existing-image'));
+                // Baris template yang masih kosong total dilewati (backend juga skip nama kosong).
+                // image_index tetap pakai posisi DOM agar mapping file upload tidak geser.
+                if (!name && !specVal && !lsl && !target && !usl && !tol && !hasFile) return;
+                if (!name) {
+                    errorMsg = `Nama Checkpoint baris ${index + 1} wajib diisi.`;
+                    $errorRow = $row;
+                    return false;
+                }
+                if (lsl !== '' && usl !== '' && Number(lsl) > Number(usl)) {
+                    errorMsg = `Baris ${index + 1}: LSL (${lsl}) tidak boleh lebih besar dari USL (${usl}).`;
+                    $errorRow = $row;
+                    return false;
+                }
+                checkpoints.push({ checkpoint_name: name, checkpoint_type: $row.find('.master-cp-type').val(), spec_value: specVal, lsl, target_value: target, usl, image_index: index, reference_image: $row.data('existing-image') || '' });
             });
-            if (invalid || !checkpoints.length) {
-                Swal.fire('Error', 'Minimal satu checkpoint wajib diisi dan LSL tidak boleh lebih besar dari USL.', 'error');
+            if (errorMsg) {
+                $('#master-checkpoint-tbody .master-cp-name').css('border-color', '');
+                if ($errorRow) {
+                    $errorRow.find('.master-cp-name').css('border-color', '#ef4444');
+                    $errorRow.find('.master-cp-name').focus();
+                }
+                Swal.fire('Error', errorMsg, 'error');
                 return;
             }
+            if (!checkpoints.length) {
+                Swal.fire('Error', 'Minimal satu checkpoint wajib diisi (kolom Checkpoint Name).', 'error');
+                const $first = $('#master-checkpoint-tbody tr').first().find('.master-cp-name');
+                $first.css('border-color', '#ef4444');
+                $first.focus();
+                return;
+            }
+            $(document).off('input.mcpClear');
+            $(document).on('input.mcpClear', '#master-checkpoint-tbody .master-cp-name', function () {
+                $(this).css('border-color', '');
+            });
             formData.append('checkpoints', JSON.stringify(checkpoints));
         }
 

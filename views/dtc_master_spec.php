@@ -642,6 +642,21 @@ $masterSections = array_values($masterSectionsMap);
     </div>
 </div>
 
+<!-- Modal Riwayat Perubahan Spec -->
+<div id="modal-spec-history" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
+    <div class="modal-content" style="background-color: var(--bg-card); padding: 22px 26px; border-radius: 10px; width: 95%; max-width: 760px; max-height: 90vh; overflow-x: hidden; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px;">
+            <h2 style="margin: 0; font-size: 17px; color: white;"><i class="fa-solid fa-clock-rotate-left" style="color: #a78bfa; margin-right: 8px;"></i>Riwayat Perubahan Spec</h2>
+            <button id="btn-close-history-modal" style="background: none; border: none; color: var(--text-light); font-size: 24px; cursor: pointer; line-height: 1;">&times;</button>
+        </div>
+        <div id="spec-history-subtitle" style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;"></div>
+        <div id="spec-history-body" style="font-size: 12px; color: #e2e8f0;"></div>
+        <div style="margin-top: 16px; display: flex; justify-content: flex-end; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 14px;">
+            <button type="button" id="btn-cancel-history-modal" class="btn-rich-secondary">Tutup</button>
+        </div>
+    </div>
+</div>
+
 <!-- Modal Manage Lines & Sections -->
 <div id="modal-manage-lines-sections" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
     <div class="modal-content" style="background-color: var(--bg-card); padding: 22px 26px; border-radius: 10px; width: 95%; max-width: 900px; max-height: 90vh; overflow-x: hidden; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1);">

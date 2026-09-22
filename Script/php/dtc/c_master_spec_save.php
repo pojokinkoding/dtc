@@ -35,8 +35,8 @@ function ensureSpecChangeLogTable(PDO $conn): void {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 }
 
-function logSpecChange(PDO $conn, int $specId, string $fieldName, $oldValue, $newValue, string $reason, int $userId): void {
-    if ($oldValue === $newValue || ($oldValue === null && $newValue === null) || ($oldValue === '' && $newValue === '')) {
+function logSpecChange(PDO $conn, int $specId, string $fieldName, $oldValue, $newValue, string $reason, int $userId, bool $force = false): void {
+    if (!$force && ($oldValue === $newValue || ($oldValue === null && $newValue === null) || ($oldValue === '' && $newValue === ''))) {
         return;
     }
     $stmt = $conn->prepare("INSERT INTO dtc_spec_change_log (spec_id, field_name, old_value, new_value, change_reason, changed_by) VALUES (:spec_id, :field, :old, :new, :reason, :user)");
@@ -200,6 +200,7 @@ try {
         ]);
         
         // Log changes
+        $loggedCount = 0;
         if ($oldData) {
             $fields = [
                 'model_name' => $model_name,
@@ -221,14 +222,37 @@ try {
                 $oldVal = $oldData[$field] ?? null;
                 if ((string)$oldVal !== (string)$newVal) {
                     logSpecChange($conn, $spec_id, $field, $oldVal, $newVal, $changeReason, $userId);
+                    $loggedCount++;
                 }
             }
         }
         
         if ($isCheckpointType) {
+            // Catat perubahan template checkpoint (kasus utama Time Check / F/Proof)
+            $stmtOldCp = $conn->prepare("SELECT checkpoint_name FROM dtc_master_spec_checkpoints WHERE spec_id = :spec_id ORDER BY sort_order, master_checkpoint_id");
+            $stmtOldCp->execute([':spec_id' => $spec_id]);
+            $oldCpNames = $stmtOldCp->fetchAll(PDO::FETCH_COLUMN);
             saveMasterSpecCheckpoints($conn, $spec_id, $checkpoints, $_FILES['checkpoint_images'] ?? []);
+            $stmtNewCp = $conn->prepare("SELECT checkpoint_name FROM dtc_master_spec_checkpoints WHERE spec_id = :spec_id ORDER BY sort_order, master_checkpoint_id");
+            $stmtNewCp->execute([':spec_id' => $spec_id]);
+            $newCpNames = $stmtNewCp->fetchAll(PDO::FETCH_COLUMN);
+            if ($oldCpNames !== $newCpNames) {
+                logSpecChange($conn, $spec_id, 'checkpoints', implode(', ', $oldCpNames), implode(', ', $newCpNames), $changeReason, $userId);
+                $loggedCount++;
+            }
         } else {
             $conn->prepare("DELETE FROM dtc_master_spec_checkpoints WHERE spec_id = :spec_id")->execute([':spec_id' => $spec_id]);
+        }
+
+        // Alasan tidak boleh hilang: bila diisi tapi tidak ada perubahan terdeteksi, simpan sebagai remark.
+        // Cegah duplikat: jangan catat lagi bila sama persis dengan alasan terakhir yang tersimpan.
+        if ($changeReason !== '' && $loggedCount === 0) {
+            $stmtLast = $conn->prepare("SELECT change_reason FROM dtc_spec_change_log WHERE spec_id = :spec_id ORDER BY log_id DESC LIMIT 1");
+            $stmtLast->execute([':spec_id' => $spec_id]);
+            $lastReason = trim((string)$stmtLast->fetchColumn());
+            if ($lastReason !== $changeReason) {
+                logSpecChange($conn, $spec_id, 'remark', null, null, $changeReason, $userId, true);
+            }
         }
 
         // Sync spec changes to current month's running model parameters (dtc_master_parameters)
@@ -284,6 +308,11 @@ try {
         ]);
         $newSpecId = (int)$conn->lastInsertId();
         if ($isCheckpointType) saveMasterSpecCheckpoints($conn, $newSpecId, $checkpoints, $_FILES['checkpoint_images'] ?? []);
+        $changeReasonIns = trim($_POST['change_reason'] ?? '');
+        if ($changeReasonIns !== '') {
+            ensureSpecChangeLogTable($conn);
+            logSpecChange($conn, $newSpecId, 'created', null, null, $changeReasonIns, (int)($_SESSION['user_id'] ?? 0), true);
+        }
         echo json_encode(["status" => "success", "message" => "Master Spec created successfully"]);
     }
 } catch (Throwable $e) {

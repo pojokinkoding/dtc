@@ -230,6 +230,10 @@ $isSupervisorRole = (strpos($currentUserRole, 'supervisor') !== false);
             <input type="checkbox" id="filter-oos-only" style="cursor: pointer; accent-color: #ef4444; width: 14px; height: 14px;">
             <i class="fa-solid fa-triangle-exclamation" style="color: #ef4444;"></i> Out of Spec Only
         </label>
+        <button id="btn-reset-dtc-filter" title="Kembalikan semua filter ke All" style="margin-left: 4px; padding: 6px 12px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.06); color: #cbd5e1; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-rotate-left"></i> Reset
+        </button>
+        <span id="dtc-filter-hint" style="display: none; font-size: 11px; color: #fbbf24; font-weight: 600;"></span>
     </div>
 
     <div class="header-actions">

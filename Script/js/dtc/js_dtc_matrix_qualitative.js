@@ -828,7 +828,7 @@ function isTimeSlotBeforeModelStart(dateStr, timeLabel, rmCreatedAt) {
     return modelMinsFrom7 >= nextSlotMinsFrom7;
 }
 
-function applySampleInputGlowing($input, val, lsl, usl, isClosed, isFuture, isBeforeModelStart = false) {
+function applySampleInputGlowing($input, val, lsl, usl, isClosed, isFuture, isBeforeModelStart = false, isTyping = false) {
     if (isBeforeModelStart) {
         $input.removeClass('slot-overdue-glowing').prop('readonly', true).prop('disabled', true).css({
             'border': '1px dashed rgba(255,255,255,0.12)',
@@ -909,8 +909,13 @@ function applySampleInputGlowing($input, val, lsl, usl, isClosed, isFuture, isBe
         });
     }
 
-    if (!isAdmin) {
+    if (!isAdmin && !isTyping) {
+        // Kunci data yang sudah terisi saat modal dibuka (bukan saat mengetik:
+        // mengunci saat mengetik membuat input macet setelah 1 digit).
         $input.prop('readonly', true).css({ 'opacity': '0.85', 'cursor': 'not-allowed' });
+    } else if (isTyping) {
+        // Saat mengetik jangan ubah status readonly; hanya pastikan tampil normal bila masih editable
+        if (!$input.prop('readonly')) $input.css({ 'opacity': '1', 'cursor': 'text' });
     } else {
         $input.prop('readonly', false).css({ 'opacity': '1', 'cursor': 'text' }).removeAttr('title');
     }
@@ -982,7 +987,7 @@ $(document).on('input keyup change', '.quant-sample-input', function () {
     let isFuture = isTimeSlotFuture(dateVal, label);
     let isBeforeModelStart = isTimeSlotBeforeModelStart(dateVal, label, runningModelCreatedAt);
 
-    applySampleInputGlowing($(this), val, lsl, usl, isClosed, isFuture, isBeforeModelStart);
+    applySampleInputGlowing($(this), val, lsl, usl, isClosed, isFuture, isBeforeModelStart, true);
 });
 
 // Date change inside Quantitative Modal

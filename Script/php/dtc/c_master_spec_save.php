@@ -244,6 +244,30 @@ try {
             $conn->prepare("DELETE FROM dtc_master_spec_checkpoints WHERE spec_id = :spec_id")->execute([':spec_id' => $spec_id]);
         }
 
+        // Propagasi ke runtime bulan berjalan: baris checkpoint yang SUDAH ADA di dtc_checkpoints
+        // selama ini tidak pernah di-UPDATE (sync hanya INSERT yang belum ada by name), sehingga
+        // modal Input Data menampilkan LSL/USL lama yang beda dengan Master. reference_image runtime
+        // sengaja tidak ikut (bisa berisi foto aktual, bukan template).
+        if ($isCheckpointType) {
+            try {
+                $conn->prepare("
+                    UPDATE dtc_checkpoints c
+                    INNER JOIN dtc_master_parameters p ON p.parameter_id = c.parameter_id
+                    INNER JOIN dtc_master_spec_checkpoints t ON t.spec_id = p.spec_id
+                        AND BINARY t.checkpoint_name = BINARY c.checkpoint_name
+                    SET c.checkpoint_type = t.checkpoint_type,
+                        c.spec_value = t.spec_value,
+                        c.lsl = t.lsl,
+                        c.target_value = t.target_value,
+                        c.usl = t.usl,
+                        c.sort_order = t.sort_order
+                    WHERE p.spec_id = :spec_id AND p.target_month = :month
+                ")->execute([':spec_id' => $spec_id, ':month' => date('Y-m')]);
+            } catch (Throwable $tSync) {
+                error_log('runtime checkpoint sync failed: ' . $tSync->getMessage());
+            }
+        }
+
         // Alasan tidak boleh hilang: bila diisi tapi tidak ada perubahan terdeteksi, simpan sebagai remark.
         // Cegah duplikat: jangan catat lagi bila sama persis dengan alasan terakhir yang tersimpan.
         if ($changeReason !== '' && $loggedCount === 0) {

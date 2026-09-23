@@ -173,6 +173,24 @@ function sortShiftTimeLabels($labels) {
                       WHERE c.parameter_id = p.parameter_id AND BINARY c.checkpoint_name = BINARY t.checkpoint_name
                   )
             ")->execute([':pid' => $param_id]);
+            // Self-heal: selaraskan baris yang sudah ada dengan template Master terbaru
+            // (tanpa ini LSL/USL di modal Input bisa beda dengan Master). reference_image tidak ikut.
+            $conn->prepare("
+                UPDATE dtc_checkpoints c
+                INNER JOIN dtc_master_parameters p ON p.parameter_id = c.parameter_id
+                INNER JOIN dtc_master_spec_checkpoints t ON t.spec_id = p.spec_id
+                    AND BINARY t.checkpoint_name = BINARY c.checkpoint_name
+                SET c.checkpoint_type = t.checkpoint_type,
+                    c.spec_value = t.spec_value,
+                    c.lsl = t.lsl,
+                    c.target_value = t.target_value,
+                    c.usl = t.usl,
+                    c.sort_order = t.sort_order
+                WHERE p.parameter_id = :pid
+                  AND (NOT (c.lsl <=> t.lsl) OR NOT (c.target_value <=> t.target_value)
+                       OR NOT (c.usl <=> t.usl) OR NOT (c.spec_value <=> t.spec_value)
+                       OR NOT (c.checkpoint_type <=> t.checkpoint_type))
+            ")->execute([':pid' => $param_id]);
         } catch (Exception $e) {}
 
         // Get checkpoints for this parameter

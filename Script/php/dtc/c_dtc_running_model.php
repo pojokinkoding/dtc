@@ -72,6 +72,7 @@ try {
         $section = trim($_GET['section'] ?? '');
         $dataType = trim($_GET['data_type'] ?? '');
         $month = trim($_GET['month'] ?? $currentMonth);
+        $isGeneral = strtoupper(trim($dataType)) === 'GENERAL';
 
         // Kunci ke scope user: non-admin tidak bisa mengintip model line/section lain
         if (function_exists('getUserScope')) {
@@ -82,29 +83,12 @@ try {
             }
         }
 
-        $sql = "SELECT DISTINCT model_name FROM (
-                    SELECT COALESCE(p.model_name, spec.model_name) AS model_name,
-                           COALESCE(p.line_name, spec.line_name) AS line_name,
-                           COALESCE(p.section_name, spec.section_name) AS section_name,
-                           COALESCE(p.data_type, spec.data_type) AS data_type
-                    FROM dtc_master_parameters p
-                    LEFT JOIN dtc_master_dtc_specs spec ON p.spec_id = spec.spec_id
-                    WHERE p.target_month = :month
-                    " . getIPAccessFilterSQL('COALESCE(p.line_name, spec.line_name)', 'COALESCE(p.section_name, spec.section_name)') . "
-                    " . getUserAccessFilterSQL('COALESCE(p.line_name, spec.line_name)', 'COALESCE(p.section_name, spec.section_name)') . "
-
-                    UNION
-
-                    SELECT model_name, line_name, section_name, data_type
-                    FROM dtc_master_dtc_specs
-                    WHERE 1=1
-                    " . getIPAccessFilterSQL('line_name', 'section_name') . "
-                    " . getUserAccessFilterSQL('line_name', 'section_name') . "
-                ) AS all_combined
-                WHERE model_name IS NOT NULL AND TRIM(model_name) != ''";
-        
-        $params = [':month' => $month];
-
+        // Hanya ambil model yang punya Master Spec untuk kombinasi Line/Section/DataType yang dipilih
+        // (bukan dari parameter history yang bisa stale)
+        $sql = "SELECT DISTINCT model_name FROM dtc_master_dtc_specs WHERE 1=1
+                " . getIPAccessFilterSQL('line_name', 'section_name') . "
+                " . getUserAccessFilterSQL('line_name', 'section_name') . "";
+        $params = [];
         if (!empty($line)) {
             $sql .= " AND UPPER(TRIM(line_name)) = UPPER(TRIM(:line))";
             $params[':line'] = $line;
@@ -113,15 +97,33 @@ try {
             $sql .= " AND UPPER(TRIM(section_name)) = UPPER(TRIM(:section))";
             $params[':section'] = $section;
         }
-        if (!empty($dataType)) {
+        if (!empty($dataType) && !$isGeneral) {
             $sql .= " AND UPPER(TRIM(data_type)) = UPPER(TRIM(:data_type))";
             $params[':data_type'] = $dataType;
         }
-
-        $sql .= " ORDER BY model_name ASC";
+        $sql .= " AND model_name IS NOT NULL AND TRIM(model_name) != '' ORDER BY model_name ASC";
         $stmt = $conn->prepare($sql);
         $stmt->execute($params);
         $models = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        // Filter out models yang sudah aktif sebagai running model di bulan ini (hindari duplikat & salah pilih)
+        if (!empty($models) && !empty($line) && !empty($section)) {
+            $sqlActive = "SELECT DISTINCT model_name FROM dtc_running_models WHERE target_month = :m AND UPPER(TRIM(line_name)) = UPPER(TRIM(:line)) AND UPPER(TRIM(section_name)) = UPPER(TRIM(:section)) AND is_active = 1";
+            $paramsActive = [':m' => $month, ':line' => $line, ':section' => $section];
+            if (!empty($dataType) && !$isGeneral) {
+                $sqlActive .= " AND UPPER(TRIM(data_type)) = UPPER(TRIM(:dt))";
+                $paramsActive[':dt'] = $dataType;
+            }
+            $stmtA = $conn->prepare($sqlActive);
+            $stmtA->execute($paramsActive);
+            $activeModels = $stmtA->fetchAll(PDO::FETCH_COLUMN);
+            if (!empty($activeModels)) {
+                $activeMap = array_map(function($v){ return strtoupper(trim($v)); }, $activeModels);
+                $models = array_values(array_filter($models, function($m) use ($activeMap){
+                    return !in_array(strtoupper(trim($m)), $activeMap, true);
+                }));
+            }
+        }
 
         echo json_encode(['status' => 'success', 'models' => $models]);
         exit;
@@ -225,6 +227,13 @@ try {
                         ':target_zlt' => $sp['target_zlt']
                     ]);
                 }
+            } else {
+                // Tidak ada Master Spec untuk kombinasi ini -> jangan buat running model kosong
+                // Hapus kembali running model yang baru di-insert (jika ada) agar tidak jadi ghost
+                $conn->prepare("DELETE FROM dtc_running_models WHERE target_month=:m AND line_name=:line AND section_name=:section AND model_name=:model AND data_type=:dt")
+                     ->execute([':m'=>$month, ':line'=>$line, ':section'=>$section, ':model'=>$model, ':dt'=>$dataType]);
+                echo json_encode(['status' => 'error', 'message' => "Gagal: Tidak ada Master Spec untuk Model '$model' di $line - $section ($dataType). Daftar kosong. Hubungi Admin untuk tambah Master Spec."]);
+                exit;
             }
         }
 

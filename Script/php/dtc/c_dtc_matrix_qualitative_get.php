@@ -130,14 +130,14 @@ function sortShiftTimeLabels($labels) {
     while ($rowSetting = $stmtLabel->fetch(PDO::FETCH_ASSOC)) {
         if ($rowSetting && $rowSetting['setting_value']) {
             $val = is_resource($rowSetting['setting_value']) ? stream_get_contents($rowSetting['setting_value']) : $rowSetting['setting_value'];
-            $decoded = json_decode($val, true);
+            $decoded = normalizeTimeLabels(json_decode($val, true));
             if (is_array($decoded) && !empty($decoded)) {
                 $labels_map[$rowSetting['setting_key']] = $decoded;
             }
         }
     }
     
-    $raw_labels = $labels_map[$setting_key] ?? ($labels_map['time_matrix_labels'] ?? ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30']);
+    $raw_labels = $labels_map[$setting_key] ?? ($labels_map['time_matrix_labels'] ?? ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '00:30', '02:30', '04:30']);
     $time_labels = sortShiftTimeLabels($raw_labels);
 
     // 3. For each parameter, get its checkpoints

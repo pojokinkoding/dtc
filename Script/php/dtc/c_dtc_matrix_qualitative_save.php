@@ -62,10 +62,10 @@ try {
         $rawLabels = $stmtLabel->fetchColumn();
         $time_labels = [];
         if ($rawLabels) {
-            $time_labels = json_decode($rawLabels, true);
+            $time_labels = normalizeTimeLabels(json_decode($rawLabels, true));
         }
         if (empty($time_labels) || !is_array($time_labels)) {
-            $time_labels = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30'];
+            $time_labels = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '00:30', '02:30', '04:30'];
         }
 
         $sql_sess = "SELECT session_id, is_closed FROM dtc_inspection_sessions WHERE parameter_id = :pid AND inspection_date = :idate";

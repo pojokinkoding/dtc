@@ -108,13 +108,13 @@ try {
     $line_labels = [];
     while ($rowSetting = $stmtLabel->fetch(PDO::FETCH_ASSOC)) {
         $val = is_resource($rowSetting['setting_value']) ? stream_get_contents($rowSetting['setting_value']) : $rowSetting['setting_value'];
-        $decoded = json_decode($val, true);
+        $decoded = normalizeTimeLabels(json_decode($val, true));
         if ($decoded) {
             $ln = str_replace('time_matrix_labels_', '', $rowSetting['setting_key']);
             $line_labels[$ln] = $decoded;
         }
     }
-    $default_labels = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30'];
+    $default_labels = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '00:30', '02:30', '04:30'];
 
     // Load all inspection sessions for target month
     $sqlSessions = "

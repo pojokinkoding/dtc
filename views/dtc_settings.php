@@ -7,11 +7,11 @@ $stmt = $conn->query("SELECT setting_key, setting_value FROM dtc_app_settings WH
 $settings = [];
 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
     $val = is_resource($row['setting_value']) ? stream_get_contents($row['setting_value']) : $row['setting_value'];
-    $settings[$row['setting_key']] = json_decode($val, true);
+    $settings[$row['setting_key']] = normalizeTimeLabels(json_decode($val, true));
 }
 
-$ref01_labels = $settings['time_matrix_labels_REF 01'] ?? ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30'];
-$ref02_labels = $settings['time_matrix_labels_REF 02'] ?? ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30'];
+$ref01_labels = $settings['time_matrix_labels_REF 01'] ?? ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '00:30', '02:30'];
+$ref02_labels = $settings['time_matrix_labels_REF 02'] ?? ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '00:30', '02:30'];
 ?>
 <div class="content-header">
     <div class="header-title">

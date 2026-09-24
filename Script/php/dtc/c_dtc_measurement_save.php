@@ -58,9 +58,12 @@ try {
     if ($rowSetting && $rowSetting['setting_value']) {
         $val = is_resource($rowSetting['setting_value']) ? stream_get_contents($rowSetting['setting_value']) : $rowSetting['setting_value'];
         $time_labels = json_decode($val, true);
+        if (is_array($time_labels)) {
+            $time_labels = array_map(function($l){ return trim($l)==='24:30' ? '00:30' : (preg_match('/^24:(\d{2})$/', trim($l), $m) ? '00:'.$m[1] : $l); }, $time_labels);
+        }
     }
     if (empty($time_labels)) {
-        $time_labels = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30'];
+        $time_labels = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '00:30', '02:30', '04:30'];
     }
     
     // Check for existing labels across the entire parameter to lock in the pattern
@@ -76,6 +79,8 @@ try {
     while ($r = $stmtExistingLabels->fetch(PDO::FETCH_ASSOC)) {
         $seq = intval($r['sample_sequence']);
         $lbl = trim($r['sample_label'] ?? '');
+        if ($lbl === '24:30') $lbl = '00:30';
+        elseif (preg_match('/^24:(\d{2})$/', $lbl, $m)) $lbl = '00:'.$m[1];
         if ($lbl && strtolower($lbl) !== 'null' && !isset($existing_labels[$seq])) {
             $existing_labels[$seq] = $lbl;
         }
@@ -88,6 +93,8 @@ try {
             $time_labels[$i] = $existing_labels[$i + 1];
         }
     }
+    // Normalize final labels (migrasi 24:30 -> 00:30)
+    $time_labels = array_map(function($l){ return trim($l)==='24:30' ? '00:30' : (preg_match('/^24:(\d{2})$/', trim($l), $m) ? '00:'.$m[1] : $l); }, $time_labels);
     
     for ($i = 1; $i <= $max_slots; $i++) {
         $raw_val = isset($_POST["sample_$i"]) ? trim($_POST["sample_$i"]) : '';

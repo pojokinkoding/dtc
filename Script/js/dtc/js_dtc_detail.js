@@ -940,6 +940,7 @@ $(document).ready(function () {
         let curMins = curH * 60 + curM;
 
         let clean = String(labelText).replace('.', ':');
+        if (clean === '24:30') clean = '00:30'; else if (clean.startsWith('24:')) clean = '00:' + clean.substring(3);
         let m = clean.match(/^(\d{1,2}):(\d{2})/);
         if (!m) return false;
 
@@ -973,8 +974,9 @@ $(document).ready(function () {
 
         let modelMinsFrom7 = (mH - 7) * 60 + mM;
 
-        let defaultLabels = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30'];
+        let defaultLabels = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '00:30', '02:30', '04:30'];
         let clean = String(labelText).replace('.', ':');
+        if (clean === '24:30') clean = '00:30'; else if (clean.startsWith('24:')) clean = '00:' + clean.substring(3);
         let idx = defaultLabels.findIndex(l => l.replace('.', ':').startsWith(clean));
 
         let nextSlotMinsFrom7;

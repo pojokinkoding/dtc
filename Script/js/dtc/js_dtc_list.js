@@ -957,6 +957,12 @@ $(document).ready(function () {
         let section = $('#rm_section_select').val() || '';
         let dataType = $('#rm_data_type_select').val() || '';
         let month = $('#form-add-running-model input[name="target_month"]').val() || '';
+        if (!line || !section || !dataType) {
+            let msg = !line ? 'Pilih Line dulu' : !section ? 'Pilih Section dulu' : 'Pilih Data Type dulu';
+            $('#rm_model_select').html(`<option value="" disabled selected>${msg}</option>`).prop('disabled', true);
+            $('#btn-save-rm').prop('disabled', true);
+            return;
+        }
 
         $.ajax({
             url: 'Script/php/dtc/c_dtc_running_model.php',
@@ -972,12 +978,22 @@ $(document).ready(function () {
             dataType: 'json',
             success: function (res) {
                 let opts = '<option value="">-- Select Model --</option>';
-                if (res.status === 'success' && res.models) {
+                if (res.status === 'success' && res.models && res.models.length > 0) {
                     res.models.forEach(m => {
                         opts += `<option value="${m}">${m}</option>`;
                     });
+                    $('#rm_model_select').prop('disabled', false).removeAttr('title');
+                    $('#btn-save-rm').prop('disabled', false);
+                } else if (res.status === 'success' && (!res.models || res.models.length === 0)) {
+                    opts = '<option value="" disabled selected>Tidak ada Master Spec untuk kombinasi ini</option>';
+                    $('#rm_model_select').html(opts).prop('disabled', true).attr('title', 'Tidak ada Master Spec untuk Line/Section/Data Type ini. Hubungi Admin.');
+                    $('#btn-save-rm').prop('disabled', true);
+                    return;
+                } else {
+                    $('#rm_model_select').prop('disabled', false);
+                    $('#btn-save-rm').prop('disabled', false);
                 }
-                $('#rm_model_select').html(opts);
+                $('#rm_model_select').html(opts).prop('disabled', false);
             }
         });
     }
@@ -1299,7 +1315,7 @@ $(document).ready(function () {
         let headerRow = ["Jam"];
         for (let i = 1; i <= 31; i++) headerRow.push(i.toString());
         let ws_data = [headerRow];
-        let times = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30'];
+        let times = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '00:30', '02:30', '04:30'];
         for (let i = 0; i < times.length; i++) {
             let row = [times[i]];
             for (let d = 1; d <= 31; d++) row.push("");

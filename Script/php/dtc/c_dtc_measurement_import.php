@@ -94,10 +94,10 @@ try {
     $global_time_labels = [];
     if ($rowSetting && $rowSetting['setting_value']) {
         $val = is_resource($rowSetting['setting_value']) ? stream_get_contents($rowSetting['setting_value']) : $rowSetting['setting_value'];
-        $global_time_labels = json_decode($val, true);
+        $global_time_labels = normalizeTimeLabels(json_decode($val, true));
     }
     if (empty($global_time_labels)) {
-        $global_time_labels = ['07:30', '09:40', '12:40', '14:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30'];
+        $global_time_labels = ['07:30', '09:40', '12:40', '14:40', '18:40', '20:05', '22:30', '00:30', '02:30', '04:30'];
     }
 
     // Cache structure: $param_cache[$row_month] = ['param_id' => X, 'time_labels' => [...]];
@@ -154,7 +154,7 @@ try {
             $existing_labels = [];
             while ($r = $stmtExistingLabels->fetch(PDO::FETCH_ASSOC)) {
                 $seq = intval($r['sample_sequence']);
-                $lbl = trim($r['sample_label'] ?? '');
+                $lbl = normalizeTimeLabel(trim($r['sample_label'] ?? ''));
                 if ($lbl && strtolower($lbl) !== 'null' && !isset($existing_labels[$seq])) {
                     $existing_labels[$seq] = $lbl;
                 }
@@ -164,6 +164,7 @@ try {
                     $time_labels[$i] = $existing_labels[$i + 1];
                 }
             }
+            $time_labels = normalizeTimeLabels($time_labels);
 
             $param_cache[$row_month] = [
                 'param_id' => $param_id,

@@ -93,11 +93,11 @@ try {
         $rowSetting = $stmtSetting->fetch(PDO::FETCH_ASSOC);
         if ($rowSetting && $rowSetting['setting_value']) {
             $val = is_resource($rowSetting['setting_value']) ? stream_get_contents($rowSetting['setting_value']) : $rowSetting['setting_value'];
-            $time_labels = json_decode($val, true);
+            $time_labels = normalizeTimeLabels(json_decode($val, true));
         }
     }
     if (empty($time_labels)) {
-        $time_labels = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30'];
+        $time_labels = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '00:30', '02:30', '04:30'];
     }
 
     // Pre-initialize pivot_data to guarantee ordered rows s1 to s10

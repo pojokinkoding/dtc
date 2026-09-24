@@ -15,12 +15,12 @@ try {
     if ($row && $row['setting_value']) {
         // Handle CLOB if necessary
         $val = is_resource($row['setting_value']) ? stream_get_contents($row['setting_value']) : $row['setting_value'];
-        $labels = json_decode($val, true);
+        $labels = normalizeTimeLabels(json_decode($val, true));
     }
     
     if (empty($labels)) {
         // Fallback default
-        $labels = ['07:30', '09:40', '12:40', '14:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30'];
+        $labels = ['07:30', '09:40', '12:40', '14:40', '18:40', '20:05', '22:30', '00:30', '02:30', '04:30'];
     }
     
     echo json_encode([

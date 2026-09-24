@@ -741,7 +741,7 @@ $(document).ready(function () {
 
     function renderDetailMatrixTable(data, daysCount, month) {
         let hasTodaySlots = data.length > 0 && Array.isArray(data[0].slots);
-        let defaultTimeLabels = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30'];
+        let defaultTimeLabels = ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '00:30', '02:30', '04:30'];
 
         let html = `
             <div style="width:100%; overflow-x:auto; padding-bottom:10px;">
@@ -1298,7 +1298,8 @@ $(document).ready(function () {
                         );
 
                         // Time slot rows
-                        (param.time_slots || ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '24:30', '02:30', '04:30']).forEach((tLabel, sIdx) => {
+                        (param.time_slots || ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '00:30', '02:30', '04:30']).forEach((tLabel, sIdx) => {
+                        if (tLabel === '24:30') tLabel = '00:30'; else if (String(tLabel).startsWith('24:')) tLabel = '00:' + String(tLabel).substring(3);
                             let seqNo = sIdx + 1;
                             html += `<tr>`;
                             html += `<td style="background: rgba(30,41,59,0.9); font-weight: 700; color: #94a3b8; border: 1px solid rgba(255,255,255,0.08);">${tLabel}</td>`;

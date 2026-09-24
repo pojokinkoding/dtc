@@ -297,13 +297,13 @@ try {
     $tLineLabels = [];
     while ($rowLbl = $stmtLbl->fetch(PDO::FETCH_ASSOC)) {
         $val = is_resource($rowLbl['setting_value']) ? stream_get_contents($rowLbl['setting_value']) : $rowLbl['setting_value'];
-        $decoded = json_decode($val, true);
+        $decoded = normalizeTimeLabels(json_decode($val, true));
         if ($decoded) {
             $ln = str_replace('time_matrix_labels_', '', $rowLbl['setting_key']);
             $tLineLabels[$ln] = $decoded;
         }
     }
-    $defaultSlots = ['07:30','09:40','12:40','14:40','16:40','18:40','20:05','22:30','24:30','02:30'];
+    $defaultSlots = ['07:30','09:40','12:40','14:40','16:40','18:40','20:05','22:30','00:30','02:30'];
     $nowH = (int)date('H');
     $nowM = (int)date('i');
 

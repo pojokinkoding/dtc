@@ -123,7 +123,7 @@ try {
                         $sHShift = $sH < 7 ? $sH + 24 : $sH;
                         $slotMinsFrom7 = ($sHShift - 7) * 60 + $sM;
 
-                        $defaultTimeLabels = ['07:30','09:40','12:40','14:40','16:40','18:40','20:05','22:30','24:30','02:30','04:30'];
+                        $defaultTimeLabels = ['07:30','09:40','12:40','14:40','16:40','18:40','20:05','22:30','00:30','02:30','04:30'];
                         $idxInLabels = array_search($time_label, $defaultTimeLabels);
                         $nextSlotMinsFrom7 = null;
                         if ($idxInLabels !== false && isset($defaultTimeLabels[$idxInLabels + 1])) {

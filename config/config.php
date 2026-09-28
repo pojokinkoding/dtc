@@ -285,4 +285,22 @@ if (!function_exists('ensureMasterLinesAndSectionsTables')) {
         }
     }
 }
+
+if (!function_exists('normalizeTimeLabels')) {
+    function normalizeTimeLabels($labels) {
+        if (!is_array($labels)) return $labels;
+        return array_map(function($l){
+            $t = trim($l);
+            if ($t === '24:30') return '00:30';
+            if (preg_match('/^24:(\d{2})$/', $t, $m)) return '00:'.$m[1];
+            return $l;
+        }, $labels);
+    }
+    function normalizeTimeLabel($label) {
+        $t = trim($label ?? '');
+        if ($t === '24:30') return '00:30';
+        if (preg_match('/^24:(\d{2})$/', $t, $m)) return '00:'.$m[1];
+        return $label;
+    }
+}
 ?>

@@ -301,16 +301,16 @@ if (empty($model) || empty($line) || empty($section)) {
                 <div id="qual-kpi-cp-name" style="font-size: 14px; font-weight: 700; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 6px;">-</div>
                 
                 <!-- General Header Meta Details Embedded in Checkpoint Header Card -->
-                <div style="display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 10.5px; color: #cbd5e1; margin-bottom: 6px; padding: 5px 8px; background: rgba(15, 23, 42, 0.6); border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
-                    <span><i class="fa-solid fa-bars-staggered" style="color: #38bdf8; font-size: 9px;"></i> <b>Line:</b> <?= htmlspecialchars($line) ?></span>
-                    <span><i class="fa-solid fa-layer-group" style="color: #38bdf8; font-size: 9px;"></i> <b>Section:</b> <?= htmlspecialchars($section) ?></span>
-                    <span><i class="fa-solid fa-cube" style="color: #38bdf8; font-size: 9px;"></i> <b>Model:</b> <?= htmlspecialchars($model) ?></span>
-                    <span><i class="fa-solid fa-gears" style="color: #38bdf8; font-size: 9px;"></i> <b>Process:</b> <span class="hdr-process-name">-</span></span>
-                    <span><i class="fa-solid fa-tag" style="color: #38bdf8; font-size: 9px;"></i> <b>Type:</b> <span class="hdr-data-type">-</span></span>
-                    <span><i class="fa-regular fa-calendar-days" style="color: #38bdf8; font-size: 9px;"></i> <b>Month:</b> <?= htmlspecialchars(date('F Y', strtotime($month . '-01'))) ?></span>
+                <div style="display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: #cbd5e1; margin-bottom: 8px; padding: 6px 10px; background: rgba(15, 23, 42, 0.6); border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);">
+                    <span><i class="fa-solid fa-bars-staggered" style="color: #38bdf8; font-size: 11px;"></i> <b>Line:</b> <?= htmlspecialchars($line) ?></span>
+                    <span><i class="fa-solid fa-layer-group" style="color: #38bdf8; font-size: 11px;"></i> <b>Section:</b> <?= htmlspecialchars($section) ?></span>
+                    <span><i class="fa-solid fa-cube" style="color: #38bdf8; font-size: 11px;"></i> <b>Model:</b> <?= htmlspecialchars($model) ?></span>
+                    <span><i class="fa-solid fa-gears" style="color: #38bdf8; font-size: 11px;"></i> <b>Process:</b> <span class="hdr-process-name">-</span></span>
+                    <span><i class="fa-solid fa-tag" style="color: #38bdf8; font-size: 11px;"></i> <b>Type:</b> <span class="hdr-data-type">-</span></span>
+                    <span><i class="fa-regular fa-calendar-days" style="color: #38bdf8; font-size: 11px;"></i> <b>Month:</b> <?= htmlspecialchars(date('F Y', strtotime($month . '-01'))) ?></span>
                 </div>
 
-                <div style="font-size: 11px; color: #cbd5e1;">Spec: <b id="qual-kpi-spec-val" style="color:#38bdf8;">-</b></div>
+                <div style="font-size: 13px; color: #cbd5e1;">Spec: <b id="qual-kpi-spec-val" style="color:#38bdf8;">-</b></div>
             </div>
 
             <!-- Metric 2: Monthly OK / NG Counts -->
@@ -354,20 +354,20 @@ if (empty($model) || empty($line) || empty($section)) {
                     <div id="kpi-cp-name" style="font-size: 14px; font-weight: 700; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 6px;">-</div>
                     
                     <!-- General Header Meta Details Embedded in Checkpoint Header Card -->
-                    <div style="display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 10.5px; color: #cbd5e1; margin-bottom: 6px; padding: 5px 8px; background: rgba(15, 23, 42, 0.6); border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
-                        <span><i class="fa-solid fa-bars-staggered" style="color: #38bdf8; font-size: 9px;"></i> <b>Line:</b> <?= htmlspecialchars($line) ?></span>
-                        <span><i class="fa-solid fa-layer-group" style="color: #38bdf8; font-size: 9px;"></i> <b>Section:</b> <?= htmlspecialchars($section) ?></span>
-                        <span><i class="fa-solid fa-cube" style="color: #38bdf8; font-size: 9px;"></i> <b>Model:</b> <?= htmlspecialchars($model) ?></span>
-                        <span><i class="fa-solid fa-gears" style="color: #38bdf8; font-size: 9px;"></i> <b>Process:</b> <span class="hdr-process-name">-</span></span>
-                        <span><i class="fa-solid fa-tag" style="color: #38bdf8; font-size: 9px;"></i> <b>Type:</b> <span class="hdr-data-type">-</span></span>
-                        <span><i class="fa-regular fa-calendar-days" style="color: #38bdf8; font-size: 9px;"></i> <b>Month:</b> <?= htmlspecialchars(date('F Y', strtotime($month . '-01'))) ?></span>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: #cbd5e1; margin-bottom: 8px; padding: 6px 10px; background: rgba(15, 23, 42, 0.6); border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);">
+                        <span><i class="fa-solid fa-bars-staggered" style="color: #38bdf8; font-size: 11px;"></i> <b>Line:</b> <?= htmlspecialchars($line) ?></span>
+                        <span><i class="fa-solid fa-layer-group" style="color: #38bdf8; font-size: 11px;"></i> <b>Section:</b> <?= htmlspecialchars($section) ?></span>
+                        <span><i class="fa-solid fa-cube" style="color: #38bdf8; font-size: 11px;"></i> <b>Model:</b> <?= htmlspecialchars($model) ?></span>
+                        <span><i class="fa-solid fa-gears" style="color: #38bdf8; font-size: 11px;"></i> <b>Process:</b> <span class="hdr-process-name">-</span></span>
+                        <span><i class="fa-solid fa-tag" style="color: #38bdf8; font-size: 11px;"></i> <b>Type:</b> <span class="hdr-data-type">-</span></span>
+                        <span><i class="fa-regular fa-calendar-days" style="color: #38bdf8; font-size: 11px;"></i> <b>Month:</b> <?= htmlspecialchars(date('F Y', strtotime($month . '-01'))) ?></span>
                     </div>
                 </div>
                 
-                <div style="display:flex; gap: 6px; font-size: 10.5px; font-weight: 700;">
-                    <span style="padding: 2px 6px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #f87171; border-radius: 4px;">LSL: <span id="kpi-spec-lsl">-</span></span>
-                    <span style="padding: 2px 6px; background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: #34d399; border-radius: 4px;">T: <span id="kpi-spec-target">-</span></span>
-                    <span style="padding: 2px 6px; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); color: #60a5fa; border-radius: 4px;">USL: <span id="kpi-spec-usl">-</span></span>
+                <div style="display:flex; gap: 8px; font-size: 12px; font-weight: 700;">
+                    <span style="padding: 3px 8px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #f87171; border-radius: 4px;">LSL: <span id="kpi-spec-lsl">-</span></span>
+                    <span style="padding: 3px 8px; background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: #34d399; border-radius: 4px;">T: <span id="kpi-spec-target">-</span></span>
+                    <span style="padding: 3px 8px; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); color: #60a5fa; border-radius: 4px;">USL: <span id="kpi-spec-usl">-</span></span>
                 </div>
             </div>
 

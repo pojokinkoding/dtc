@@ -858,7 +858,49 @@ $(document).ready(function () {
     // --- Modal Logic ---
     const modalInput = document.getElementById("modal-input-data");
 
+    function getManufacturingProdDateStr() {
+        let now = new Date();
+        if (now.getHours() < 7) {
+            now.setDate(now.getDate() - 1);
+        }
+        let y = now.getFullYear();
+        let m = String(now.getMonth() + 1).padStart(2, '0');
+        let d = String(now.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    $(document).on('input change', '#input_inspection_date', function (e) {
+        if (e.originalEvent) {
+            window.detailUserManuallyChangedDate = true;
+        }
+    });
+
     $("#btn-input-data").click(function () {
+        let prodDate = getManufacturingProdDateStr();
+        let targetMonth = (typeof currentMonth !== 'undefined' && currentMonth) ? currentMonth : '';
+        if (targetMonth && prodDate.substring(0, 7) !== targetMonth && !window.detailUserManuallyChangedDate) {
+            let url = new URL(window.location.href);
+            url.searchParams.set('month', prodDate.substring(0, 7));
+            window.location.href = url.toString();
+            return;
+        }
+
+        let now = new Date();
+        let calToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+        let $dateInput = $("#input_inspection_date");
+        if ($dateInput.length > 0) {
+            $dateInput.attr('max', calToday);
+            let isReadOnly = $dateInput.prop('readonly') || $dateInput.attr('readonly');
+            let targetMonth = (typeof currentMonth !== 'undefined' && currentMonth) ? currentMonth : '';
+            // If read-only (non-admin) or not manually changed by user, update to current prod date if month matches
+            if (isReadOnly || !window.detailUserManuallyChangedDate) {
+                if (!targetMonth || prodDate.substring(0, 7) === targetMonth) {
+                    $dateInput.val(prodDate);
+                }
+            }
+        }
+
         modalInput.style.display = "flex";
         resetSampleColors();
         hasSpokenForCurrentModal = false;
@@ -874,17 +916,6 @@ $(document).ready(function () {
             $("#input_inspection_date").trigger('change');
         }
     });
-
-    function getManufacturingProdDateStr() {
-        let now = new Date();
-        if (now.getHours() < 7) {
-            now.setDate(now.getDate() - 1);
-        }
-        let y = now.getFullYear();
-        let m = String(now.getMonth() + 1).padStart(2, '0');
-        let d = String(now.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
-    }
 
     // Auto-open pop-up input modal for today's measurement on detail page load (Current Month Only)
     let noPopup = urlParams.get('no_popup');
@@ -904,6 +935,7 @@ $(document).ready(function () {
     }
 
     $("#close-modal-input, #btn-cancel-input").click(function () {
+        window.detailUserManuallyChangedDate = false;
         modalInput.style.display = "none";
         $("#form-input-data")[0].reset();
         resetSampleColors();
@@ -916,6 +948,7 @@ $(document).ready(function () {
     // Close on outside click
     window.onclick = function (event) {
         if (event.target == modalInput) {
+            window.detailUserManuallyChangedDate = false;
             modalInput.style.display = "none";
             $("#form-input-data")[0].reset();
             resetSampleColors();

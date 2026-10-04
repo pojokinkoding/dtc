@@ -2,7 +2,9 @@
 // Fetch Header Data
 require_once 'config/config.php';
 $param_id = isset($_GET['param_id']) ? intval($_GET['param_id']) : 0;
-$month = isset($_GET['month']) ? $_GET['month'] : date('Y-m');
+$prod_hour = (int)date('H');
+$default_prod_month = ($prod_hour < 7) ? date('Y-m', strtotime('-1 day')) : date('Y-m');
+$month = isset($_GET['month']) ? $_GET['month'] : $default_prod_month;
 $headerData = null;
 
 if ($param_id > 0) {

@@ -92,7 +92,7 @@
                 <?php else: ?>
                 <input type="hidden" id="bulk_date_input" value="<?php echo ((int)date('H') < 7) ? date('Y-m-d', strtotime('-1 day')) : date('Y-m-d'); ?>">
                 <span style="color: #60a5fa; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); padding: 1px 8px; border-radius: 10px; font-size: 10px; font-weight: 600;">
-                    <i class="fa-regular fa-calendar-days"></i> <?php echo ((int)date('H') < 7) ? date('d M Y', strtotime('-1 day')) : date('d M Y'); ?>
+                    <i class="fa-regular fa-calendar-days"></i> <span id="bulk_date_label"><?php echo ((int)date('H') < 7) ? date('d M Y', strtotime('-1 day')) : date('d M Y'); ?></span>
                 </span>
                 <?php endif; ?>
                 <span style="color: #94a3b8; font-size: 11px;">

@@ -682,6 +682,17 @@ $(document).on('click', '#btn-open-quant-input', function () {
 
 
 
+function getManufacturingProdDateStr() {
+    let now = new Date();
+    if (now.getHours() < 7) {
+        now.setDate(now.getDate() - 1);
+    }
+    let y = now.getFullYear();
+    let m = String(now.getMonth() + 1).padStart(2, '0');
+    let d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
 function getManufacturingProdDay() {
     let now = new Date();
     if (now.getHours() < 7) {
@@ -696,11 +707,31 @@ function openQuantInputModal(selectedDay) {
     if (!cp) return;
     let paramInfo = parametersList.find(p => p.parameter_id === cp.parameter_id) || {};
 
-    let dayInt = (selectedDay !== undefined && selectedDay !== null && selectedDay !== '')
-        ? parseInt(selectedDay, 10)
-        : getManufacturingProdDay();
+    let formattedDate = '';
+    let dayInt = 1;
+
+    if (selectedDay !== undefined && selectedDay !== null && selectedDay !== '') {
+        dayInt = parseInt(selectedDay, 10);
+        let dayStr = dayInt.toString().padStart(2, '0');
+        formattedDate = `${matrixMonth}-${dayStr}`;
+    } else {
+        let prodDate = getManufacturingProdDateStr();
+        if (prodDate.substring(0, 7) === matrixMonth) {
+            formattedDate = prodDate;
+            dayInt = parseInt(prodDate.split('-')[2], 10);
+        } else {
+            let url = new URL(window.location.href);
+            url.searchParams.set('month', prodDate.substring(0, 7));
+            window.location.href = url.toString();
+            return;
+        }
+    }
+
     let dayStr = dayInt.toString().padStart(2, '0');
-    let formattedDate = `${matrixMonth}-${dayStr}`;
+
+    let now = new Date();
+    let calToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    $('#quant_input_date').attr('max', calToday);
 
     $('#quant_input_param_id').val(cp.parameter_id);
     $('#quant_input_checkpoint_id').val(cp.checkpoint_id);

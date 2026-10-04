@@ -6,7 +6,9 @@ $checkpoint_id = $_GET['checkpoint_id'] ?? $_GET['cp_id'] ?? 0;
 $model = $_GET['model'] ?? '';
 $line = $_GET['line'] ?? '';
 $section = $_GET['section'] ?? '';
-$month = $_GET['month'] ?? date('Y-m');
+$prod_hour = (int)date('H');
+$default_prod_month = ($prod_hour < 7) ? date('Y-m', strtotime('-1 day')) : date('Y-m');
+$month = $_GET['month'] ?? $default_prod_month;
 
 if (empty($model) || empty($line) || empty($section)) {
     echo "<script>alert('Missing required parameters'); window.location.href='index.php?page=dtc';</script>";

@@ -1756,9 +1756,8 @@ window.openBulkInputModal = function (modelName, lineName, sectionName, paramId)
     if ($modal.parent()[0] !== document.body) {
         $modal.appendTo('body');
     }
-    if ($('#bulk_date_input').length > 0) {
-        $('#bulk_date_input').val(getManufacturingProdDateStr());
-    }
+    window.bulkAutoProdDate = getManufacturingProdDateStr();
+    setBulkDate(window.bulkAutoProdDate);
     $modal.css({ 'display': 'flex', 'z-index': '999999' });
     loadBulkFormData();
 
@@ -1767,6 +1766,11 @@ window.openBulkInputModal = function (modelName, lineName, sectionName, paramId)
     // Auto refresh form data every 1 minute (60,000 ms)
     bulkFormRefreshInterval = setInterval(function () {
         if ($('#modal-bulk-input').is(':visible')) {
+            // Production day rolled over (07:00) while modal stayed open -> follow new date
+            if (syncBulkDateWithProdDay()) {
+                loadBulkFormData();
+                return;
+            }
             let isUserTyping = ($(':focus').hasClass('bulk-sample-quant-input') || $(':focus').hasClass('bulk-remarks-input'));
             if (!isUserTyping) {
                 loadBulkFormData();
@@ -1790,6 +1794,52 @@ function getManufacturingProdDateStr() {
     let d = String(now.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
 }
+
+// Keep bulk date in sync with the production day (rollover at 07:00) while the modal stays open.
+// Only follows the rollover if the user has NOT manually picked another (back)date.
+// Returns true if the date input was changed.
+function syncBulkDateWithProdDay() {
+    let $d = $('#bulk_date_input');
+    if ($d.length === 0) return false;
+    let newProd = getManufacturingProdDateStr();
+    let prevAuto = window.bulkAutoProdDate || '';
+    if (newProd === prevAuto) return false;
+
+    let cur = $d.val();
+    window.bulkAutoProdDate = newProd;
+    if (!cur || cur === prevAuto) {
+        setBulkDate(newProd);
+        return true;
+    }
+    return false;
+}
+
+// Set bulk inspection date + refresh header label (non-admin) & max attr (admin).
+// Label/max are rendered by PHP at page load, so they go stale if the page was
+// opened during night shift and not reloaded after the 07:00 shift change.
+function setBulkDate(dateStr) {
+    if (!dateStr) return;
+    let $d = $('#bulk_date_input');
+    if ($d.length === 0) return;
+
+    let now = new Date();
+    let calToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    if ($d.attr('type') === 'date') $d.attr('max', calToday);
+    $d.val(dateStr);
+
+    let p = dateStr.split('-');
+    let months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    if (p.length === 3) {
+        $('#bulk_date_label').text(`${p[2]} ${months[parseInt(p[1], 10) - 1]} ${p[0]}`);
+    }
+}
+
+// PC wake-up / tab re-focus: browsers throttle intervals, so re-check immediately
+$(document).on('visibilitychange', function () {
+    if (document.visibilityState === 'visible' && $('#modal-bulk-input').is(':visible')) {
+        if (syncBulkDateWithProdDay()) loadBulkFormData();
+    }
+});
 
 window.loadBulkFormData = function loadBulkFormData() {
     let dateVal = $('#bulk_date_input').val() || getManufacturingProdDateStr();

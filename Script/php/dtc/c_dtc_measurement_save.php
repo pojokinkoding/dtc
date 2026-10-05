@@ -12,12 +12,16 @@ try {
 
     $conn = getDBConnection();
     
+    // Check Admin status early
+    $isAdmin = (isset($_SESSION['role']) && strtolower(trim($_SESSION['role'])) === 'admin');
+
     // Retrieve inputs
     $param_id = isset($_POST['parameter_id']) ? intval($_POST['parameter_id']) : (isset($_POST['spec_id']) ? intval($_POST['spec_id']) : 0);
     $inspection_date = isset($_POST['inspection_date']) ? $_POST['inspection_date'] : '';
     
+    // Non-admin users cannot edit or fill data for previous months
     $current_month = date('Y-m');
-    if (!empty($inspection_date) && substr($inspection_date, 0, 7) < $current_month) {
+    if (!$isAdmin && !empty($inspection_date) && substr($inspection_date, 0, 7) < $current_month) {
         echo json_encode(['status' => 'error', 'message' => "Data periode bulan lalu terkunci total dan tidak dapat diubah atau diisi."]);
         exit;
     }
@@ -86,8 +90,17 @@ try {
         }
     }
     
+    // Determine max slots dynamically
+    $posted_sample_keys = array_filter(array_keys($_POST), function($k) { return strpos($k, 'sample_') === 0; });
+    $max_posted_idx = 0;
+    foreach ($posted_sample_keys as $k) {
+        $idx = intval(substr($k, 7));
+        if ($idx > $max_posted_idx) $max_posted_idx = $idx;
+    }
+    $max_existing_seq = !empty($existing_labels) ? max(array_keys($existing_labels)) : 0;
+    $max_slots = max(count($time_labels), $max_existing_seq, $max_posted_idx, 11);
+
     // Merge existing labels to ensure newly inserted data uses the locked pattern
-    $max_slots = count($time_labels);
     for ($i = 0; $i < $max_slots; $i++) {
         if (isset($existing_labels[$i + 1])) {
             $time_labels[$i] = $existing_labels[$i + 1];
@@ -100,8 +113,8 @@ try {
         $raw_val = isset($_POST["sample_$i"]) ? trim($_POST["sample_$i"]) : '';
         $sample_inputs["sample_$i"] = $raw_val;
         
-        // Backend validation for future time
-        if ($raw_val !== '') {
+        // Backend validation for future time (admins can bypass)
+        if ($raw_val !== '' && !$isAdmin) {
             $label = isset($time_labels[$i - 1]) ? trim($time_labels[$i - 1]) : '';
             if (preg_match('/^(\d{1,2}):(\d{2})$/', $label, $matches)) {
                 $hours = intval($matches[1]);
@@ -123,7 +136,8 @@ try {
                 }
                 $dateObj->setTime($hours, $minutes, 0);
                 
-                if ($dateObj->getTimestamp() > time()) {
+                // 5-minute grace period
+                if ($dateObj->getTimestamp() > (time() + 300)) {
                     throw new Exception("Waktu Input Belum Masuk! Anda tidak dapat menginput data untuk jadwal $label karena waktu saat ini belum mencapainya.");
                 }
             }
@@ -262,18 +276,18 @@ try {
                       VALUES (:sid, :seq, :lbl, :val, :cb, :mb, CURRENT_TIMESTAMP)";
         $stmt_ins_m = $conn->prepare($sql_ins_m);
         
-        $seq = 1;
-        foreach ($sample_inputs as $key => $raw_val) {
+        for ($slot = 1; $slot <= $max_slots; $slot++) {
+            $raw_val = $sample_inputs["sample_$slot"] ?? '';
             if (!isUnmeasuredValue($raw_val)) {
+                $lbl = isset($time_labels[$slot - 1]) ? $time_labels[$slot - 1] : ($existing_labels[$slot] ?? "Sample $slot");
                 $stmt_ins_m->execute([
                     ':sid' => $session_id,
-                    ':seq' => $seq,
-                    ':lbl' => isset($time_labels[$seq - 1]) ? $time_labels[$seq - 1] : "Sample $seq",
+                    ':seq' => $slot,
+                    ':lbl' => $lbl,
                     ':val' => is_numeric($raw_val) ? (string)round((float)$raw_val, 4) : (string)$raw_val,
                     ':cb' => $operator_id,
                     ':mb' => $operator_id
                 ]);
-                $seq++;
             }
         }
         
@@ -301,17 +315,17 @@ try {
                       VALUES (:sid, :seq, :lbl, :val, :cb)";
         $stmt_ins_m = $conn->prepare($sql_ins_m);
         
-        $seq = 1;
-        foreach ($sample_inputs as $key => $raw_val) {
+        for ($slot = 1; $slot <= $max_slots; $slot++) {
+            $raw_val = $sample_inputs["sample_$slot"] ?? '';
             if (!isUnmeasuredValue($raw_val)) {
+                $lbl = isset($time_labels[$slot - 1]) ? $time_labels[$slot - 1] : ($existing_labels[$slot] ?? "Sample $slot");
                 $stmt_ins_m->execute([
                     ':sid' => $session_id,
-                    ':seq' => $seq,
-                    ':lbl' => isset($time_labels[$seq - 1]) ? $time_labels[$seq - 1] : "Sample $seq",
-                    ':val' => (string)$raw_val,
+                    ':seq' => $slot,
+                    ':lbl' => $lbl,
+                    ':val' => is_numeric($raw_val) ? (string)round((float)$raw_val, 4) : (string)$raw_val,
                     ':cb' => $operator_id
                 ]);
-                $seq++;
             }
         }
         

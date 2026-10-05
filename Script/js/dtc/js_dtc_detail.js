@@ -1370,56 +1370,59 @@ $(document).ready(function () {
         let isFutureTime = false;
         let futureLabel = "";
         let now = new Date();
+        let allowedTime = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutes grace period
 
-        $('.sample-input').each(function (index) {
-            let val = $(this).val().trim();
-            // Only check inputs that have a value AND are not locked
-            if (val !== "" && !$(this).prop("readonly")) {
-                let seq = index + 1;
-                let labelText = $("#label_sample_" + seq).text().trim();
+        if (!isAdmin) {
+            $('.sample-input').each(function (index) {
+                let val = $(this).val().trim();
+                // Only check inputs that have a value AND are not locked
+                if (val !== "" && !$(this).prop("readonly")) {
+                    let seq = index + 1;
+                    let labelText = $("#label_sample_" + seq).text().trim();
 
-                // Construct Date object for this input
-                let timeParts = labelText.match(/^(\d{1,2}):(\d{2})$/);
-                if (timeParts) {
-                    let inputDateStr = $("#input_inspection_date").val();
-                    let dateParts = inputDateStr.split('-');
-                    if (dateParts.length === 3) {
-                        let year = parseInt(dateParts[0], 10);
-                        let month = parseInt(dateParts[1], 10) - 1; // 0-indexed
-                        let day = parseInt(dateParts[2], 10);
-                        let hours = parseInt(timeParts[1], 10);
-                        let minutes = parseInt(timeParts[2], 10);
+                    // Construct Date object for this input
+                    let timeParts = labelText.match(/^(\d{1,2}):(\d{2})$/);
+                    if (timeParts) {
+                        let inputDateStr = $("#input_inspection_date").val();
+                        let dateParts = inputDateStr.split('-');
+                        if (dateParts.length === 3) {
+                            let year = parseInt(dateParts[0], 10);
+                            let month = parseInt(dateParts[1], 10) - 1; // 0-indexed
+                            let day = parseInt(dateParts[2], 10);
+                            let hours = parseInt(timeParts[1], 10);
+                            let minutes = parseInt(timeParts[2], 10);
 
-                        let offsetDay = 0;
-                        if (hours >= 24) {
-                            offsetDay = Math.floor(hours / 24);
-                            hours = hours % 24;
-                        } else if (hours < 7) {
-                            // Assuming shift starts at 07:00. Times between 00:00 and 06:59 belong to the next day.
-                            offsetDay = 1;
-                        }
+                            let offsetDay = 0;
+                            if (hours >= 24) {
+                                offsetDay = Math.floor(hours / 24);
+                                hours = hours % 24;
+                            } else if (hours < 7) {
+                                // Assuming shift starts at 07:00. Times between 00:00 and 06:59 belong to the next day.
+                                offsetDay = 1;
+                            }
 
-                        let inputDateTime = new Date(year, month, day + offsetDay, hours, minutes, 0);
-                        if (inputDateTime > now) {
-                            isFutureTime = true;
-                            futureLabel = labelText;
-                            return false; // break .each loop
+                            let inputDateTime = new Date(year, month, day + offsetDay, hours, minutes, 0);
+                            if (inputDateTime > allowedTime) {
+                                isFutureTime = true;
+                                futureLabel = labelText;
+                                return false; // break .each loop
+                            }
                         }
                     }
                 }
-            }
-        });
-
-        if (isFutureTime) {
-            Swal.fire({
-                title: 'Waktu Input Belum Masuk!',
-                text: `Anda tidak dapat menginput data untuk sampel jam ${futureLabel} karena waktu saat ini belum mencapai jadwal tersebut.`,
-                icon: 'warning',
-                confirmButtonColor: '#3b82f6',
-                background: '#1e293b',
-                color: '#f8fafc'
             });
-            return;
+
+            if (isFutureTime) {
+                Swal.fire({
+                    title: 'Waktu Input Belum Masuk!',
+                    text: `Anda tidak dapat menginput data untuk sampel jam ${futureLabel} karena waktu saat ini belum mencapai jadwal tersebut.`,
+                    icon: 'warning',
+                    confirmButtonColor: '#3b82f6',
+                    background: '#1e293b',
+                    color: '#f8fafc'
+                });
+                return;
+            }
         }
 
         let hasOOS = false;

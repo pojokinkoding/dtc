@@ -665,7 +665,7 @@ if ($param_id > 0) {
                         <button type="button" id="btn-close-data" class="btn-rich-danger" style="display: none;"><i class="fa-solid fa-lock"></i> Close Measurement</button>
                         <div style="flex-grow: 1;"></div>
                         <button type="button" id="btn-cancel-input" class="btn-rich-secondary">Cancel</button>
-                        <button type="submit" id="btn-save-input" class="btn-rich-primary"><i class="fa-solid fa-floppy-disk"></i> Save Data</button>
+                        <button type="submit" id="btn-save-input" class="btn-rich-primary" style="background: #2563eb; color: #ffffff; border: 1px solid #3b82f6; font-weight: 600;"><i class="fa-solid fa-floppy-disk"></i> Save Data</button>
                     </div>
                 </form>
             </div>

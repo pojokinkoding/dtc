@@ -114,7 +114,7 @@ $(document).ready(function () {
                 render: function (data, type, row) {
                     let count = parseInt(data || 0);
                     if (count > 0) {
-                        return `<span class="btn-open-oos-modal" data-param="${row.parameter_id}" data-date="${row.prod_today || ''}" data-month="${row.raw_month || ''}" style="background: rgba(239, 68, 68, 0.18); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.45); padding: 3px 10px; border-radius: 12px; font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: transform 0.15s;" title="Klik untuk meng-update nilai Out of Spec Hari Ini (${count} OOS)">
+                        return `<span class="btn-open-oos-modal" data-param="${row.parameter_id}" data-date="${row.prod_today || ''}" data-month="${row.raw_month || ''}" style="background: rgba(239, 68, 68, 0.18); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.45); padding: 3px 10px; border-radius: 12px; font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: transform 0.15s;" title="Klik untuk melihat & meng-update nilai Out of Spec (${count} OOS)">
                                     <i class="fa-solid fa-triangle-exclamation" style="color: #f87171;"></i> ${count} OOS
                                 </span>`;
                     }
@@ -1763,25 +1763,34 @@ window.openBulkInputModal = function (modelName, lineName, sectionName, paramId)
 
     if (bulkFormRefreshInterval) clearInterval(bulkFormRefreshInterval);
 
-    // Auto refresh form data every 1 minute (60,000 ms)
-    bulkFormRefreshInterval = setInterval(function () {
-        if ($('#modal-bulk-input').is(':visible')) {
-            // Production day rolled over (07:00) while modal stayed open -> follow new date
-            if (syncBulkDateWithProdDay()) {
-                loadBulkFormData();
-                return;
-            }
-            let isUserTyping = ($(':focus').hasClass('bulk-sample-quant-input') || $(':focus').hasClass('bulk-remarks-input'));
-            if (!isUserTyping) {
-                loadBulkFormData();
+    function startBulkRefreshTimer() {
+        if (bulkFormRefreshInterval) clearInterval(bulkFormRefreshInterval);
+
+        let refreshMs = window.bulkAutoRefreshMs || 60000;
+        if (refreshMs < 10000) refreshMs = 10000; // minimal safety 10 seconds
+
+        // Auto refresh form data using configured interval
+        bulkFormRefreshInterval = setInterval(function () {
+            if ($('#modal-bulk-input').is(':visible')) {
+                // Production day rolled over (07:00) while modal stayed open -> follow new date
+                if (syncBulkDateWithProdDay()) {
+                    loadBulkFormData();
+                    return;
+                }
+                let isUserTyping = ($(':focus').hasClass('bulk-sample-quant-input') || $(':focus').hasClass('bulk-remarks-input'));
+                if (!isUserTyping) {
+                    loadBulkFormData();
+                } else {
+                    highlightUnfilledCellsAndAlarm();
+                }
             } else {
-                highlightUnfilledCellsAndAlarm();
+                clearInterval(bulkFormRefreshInterval);
+                bulkFormRefreshInterval = null;
             }
-        } else {
-            clearInterval(bulkFormRefreshInterval);
-            bulkFormRefreshInterval = null;
-        }
-    }, 60000);
+        }, refreshMs);
+    }
+    window.startBulkRefreshTimer = startBulkRefreshTimer;
+    startBulkRefreshTimer();
 }
 
 function getManufacturingProdDateStr() {
@@ -1886,6 +1895,20 @@ window.loadBulkFormData = function loadBulkFormData() {
             window.currentBulkModels = res.models || [];
             window.currentBulkTimeLabels = res.time_labels || [];
             window.currentIsAdmin = !!res.is_admin;
+
+            if (res.auto_refresh_minutes) {
+                let m = parseFloat(res.auto_refresh_minutes);
+                let prevMs = window.bulkAutoRefreshMs;
+                window.bulkAutoRefreshMinutes = m;
+                window.bulkAutoRefreshMs = Math.max(10000, Math.round(m * 60 * 1000));
+                let lbl = (m < 1) ? `${Math.round(m * 60)}s` : `${(m === Math.floor(m) ? Math.floor(m) : m)}m`;
+                $('#bulk-refresh-text').text(lbl);
+                $('#badge-bulk-auto-refresh').attr('title', `Form diperbarui otomatis setiap ${lbl} (Klik untuk ubah cepat atau atur di menu Setting)`);
+
+                if (prevMs !== window.bulkAutoRefreshMs && typeof window.startBulkRefreshTimer === 'function') {
+                    window.startBulkRefreshTimer();
+                }
+            }
 
             renderBulkAllModelsForm(res.models, res.time_labels);
             $('#form-bulk-save').show();
@@ -2083,6 +2106,12 @@ function renderBulkAllModelsForm(models, timeLabels) {
                         let isOpen = isSlotOpenForInput(lbl, timeLabels, slotIdx, m.created_at, dateVal);
                         let isLockedForUser = isFilled && !isAdminUser;
 
+                        if (isFilled || isAdminUser) {
+                            isBeforeCreation = false;
+                        }
+                        if (isFilled) {
+                            isOpen = true;
+                        }
                         if (isAdminUser && dateVal < todayStr) {
                             isBeforeCreation = false;
                             isLockedForUser = false;
@@ -2092,6 +2121,12 @@ function renderBulkAllModelsForm(models, timeLabels) {
                         html += `<td style="padding: 6px 3px; text-align: center; vertical-align: middle; border-left: 1px solid rgba(255,255,255,0.03);">`;
 
                         if (isQuant) {
+                            let numVal = isFilled ? parseFloat(slotVal) : NaN;
+                            let isQuantOos = isFilled && !isNaN(numVal) && (
+                                (lslAttr !== '' && lslAttr !== null && lslAttr !== undefined && numVal < parseFloat(lslAttr)) ||
+                                (uslAttr !== '' && uslAttr !== null && uslAttr !== undefined && numVal > parseFloat(uslAttr))
+                            );
+
                             if (isBeforeCreation) {
                                 let createdTimeDisplay = m.created_at ? m.created_at.substring(11, 16) : '';
                                 html += `
@@ -2101,12 +2136,15 @@ function renderBulkAllModelsForm(models, timeLabels) {
                                            style="width: 100%; max-width: 75px; padding: 5px 3px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.05); background: rgba(15,23,42,0.6); color: #64748b; font-size: 11px; font-weight: 600; text-align: center; cursor: not-allowed; opacity: 0.5;">
                                 `;
                             } else if (isLockedForUser) {
+                                let lockedBorder = isQuantOos ? '1.5px solid #ef4444' : '1px solid rgba(16,185,129,0.4)';
+                                let lockedBg = isQuantOos ? 'rgba(239,68,68,0.32)' : 'rgba(16,185,129,0.18)';
+                                let lockedColor = isQuantOos ? '#fca5a5' : '#34d399';
                                 html += `
                                     <input type="number" step="any" class="bulk-sample-quant-input slot-filled-locked" disabled 
                                            data-model="${m.model_name}" data-line="${m.line_name}" data-section="${m.section_name}" data-param="${p.parameter_id}" data-cp="${cp.checkpoint_id}" data-slot="${lbl}" 
                                            data-lsl="${lslAttr}" data-usl="${uslAttr}" data-target="${targetAttr}" 
-                                           value="${slotVal}" title="Sudah terisi (${slotVal}). Hanya Admin yang dapat mengubah data." 
-                                           style="width: 100%; max-width: 75px; padding: 5px 3px; border-radius: 5px; border: 1px solid rgba(16,185,129,0.4); background: rgba(16,185,129,0.18); color: #34d399; font-size: 11px; font-weight: 800; text-align: center; cursor: not-allowed;">
+                                           value="${slotVal}" title="Sudah terisi (${slotVal})${isQuantOos ? ' [OUT OF SPEC]' : ''}. Hanya Admin yang dapat mengubah data." 
+                                           style="width: 100%; max-width: 75px; padding: 5px 3px; border-radius: 5px; border: ${lockedBorder}; background: ${lockedBg}; color: ${lockedColor}; font-size: 11px; font-weight: 800; text-align: center; cursor: not-allowed;">
                                 `;
                             } else if (!isOpen) {
                                 html += `
@@ -2117,16 +2155,17 @@ function renderBulkAllModelsForm(models, timeLabels) {
                                            style="width: 100%; max-width: 75px; padding: 5px 3px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.08); background: rgba(15,23,42,0.4); color: #475569; font-size: 11px; font-weight: 600; text-align: center; cursor: not-allowed; opacity: 0.45;">
                                 `;
                             } else {
-                                let inputBg = isFilled ? 'rgba(16,185,129,0.2)' : 'rgba(15,23,42,0.8)';
-                                let inputColor = isFilled ? '#34d399' : 'white';
-                                let inputBorder = isFilled ? '1px solid rgba(16,185,129,0.5)' : '1px solid rgba(255,255,255,0.15)';
+                                let inputBg = isFilled ? (isQuantOos ? 'rgba(239,68,68,0.32)' : 'rgba(16,185,129,0.2)') : 'rgba(15,23,42,0.8)';
+                                let inputColor = isFilled ? (isQuantOos ? '#fca5a5' : '#34d399') : 'white';
+                                let inputBorder = isFilled ? (isQuantOos ? '1.5px solid #ef4444' : '1px solid rgba(16,185,129,0.5)') : '1px solid rgba(255,255,255,0.15)';
+                                let inputShadow = (isFilled && isQuantOos) ? 'box-shadow: 0 0 8px rgba(239,68,68,0.35);' : '';
                                 html += `
                                     <div style="display: inline-flex; align-items: center; gap: 2px; justify-content: center;">
                                         <input type="number" step="any" class="bulk-sample-quant-input" 
                                                data-model="${m.model_name}" data-line="${m.line_name}" data-section="${m.section_name}" data-param="${p.parameter_id}" data-cp="${cp.checkpoint_id}" data-slot="${lbl}" 
                                                data-lsl="${lslAttr}" data-usl="${uslAttr}" data-target="${targetAttr}" data-orig="${slotVal}" 
-                                               value="${slotVal}" placeholder="-" 
-                                               style="width: 100%; max-width: 70px; padding: 5px 3px; border-radius: 5px; border: ${inputBorder}; background: ${inputBg}; color: ${inputColor}; font-size: 11px; font-weight: 700; text-align: center;">
+                                               value="${slotVal}" placeholder="-" ${isQuantOos ? 'title="OUT OF SPEC (Di luar batas LSL/USL)"' : ''}
+                                               style="width: 100%; max-width: 70px; padding: 5px 3px; border-radius: 5px; border: ${inputBorder}; background: ${inputBg}; color: ${inputColor}; ${inputShadow} font-size: 11px; font-weight: 700; text-align: center;">
                                         <button type="button" class="btn-quant-sample-reset" title="Reset sample jam ${lbl} ke NULL" style="padding: 3px 4px; font-size: 9px; font-weight: 700; border-radius: 4px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05); color: #f87171; cursor: pointer; display: ${isFilled ? 'inline-flex' : 'none'}; align-items: center; justify-content: center;">
                                             <i class="fa-solid fa-xmark" style="font-size: 8px;"></i>
                                         </button>
@@ -2673,6 +2712,101 @@ $(document).on('click', '#btn-reload-bulk-data', function () {
     loadBulkFormData();
 });
 
+$(document).on('click', '#badge-bulk-auto-refresh', function (e) {
+    e.stopPropagation();
+    let curMinutes = window.bulkAutoRefreshMinutes || 1;
+    let curLbl = (curMinutes < 1) ? `${Math.round(curMinutes * 60)}s` : `${(curMinutes === Math.floor(curMinutes) ? Math.floor(curMinutes) : curMinutes)}m`;
+
+    let isAdminUser = !!window.currentIsAdmin || !!window.isAdmin || ((window.userRole || '').toLowerCase().trim() === 'admin');
+    if (!isAdminUser) {
+        Swal.fire({
+            icon: 'info',
+            title: 'Auto Refresh Form',
+            text: `Form diperbarui otomatis setiap ${curLbl}. Pengaturan durasi auto refresh dapat diubah oleh Admin di menu Setting.`,
+            background: '#1e293b',
+            color: '#f8fafc',
+            confirmButtonColor: '#3b82f6',
+            didOpen: () => { $('.swal2-container').css('z-index', '9999999'); }
+        });
+        return;
+    }
+
+    Swal.fire({
+        title: 'Set Auto Refresh Interval',
+        html: `
+            <div style="text-align: left; font-size: 13px; color: #cbd5e1; margin-bottom: 12px;">
+                Tentukan angka durasi refresh otomatis form Bulk Input (dalam menit atau desimal menit, misal 0.5 = 30 detik):
+            </div>
+            <div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; flex-wrap: wrap;">
+                <button type="button" class="swal-preset-btn" data-val="0.5" style="padding: 4px 10px; font-size: 11px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); background: rgba(15,23,42,0.6); color: #cbd5e1; cursor: pointer;">30s</button>
+                <button type="button" class="swal-preset-btn" data-val="1" style="padding: 4px 10px; font-size: 11px; border-radius: 4px; border: 1px solid rgba(59,130,246,0.5); background: rgba(59,130,246,0.2); color: #60a5fa; cursor: pointer; font-weight: 700;">1m</button>
+                <button type="button" class="swal-preset-btn" data-val="2" style="padding: 4px 10px; font-size: 11px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); background: rgba(15,23,42,0.6); color: #cbd5e1; cursor: pointer;">2m</button>
+                <button type="button" class="swal-preset-btn" data-val="3" style="padding: 4px 10px; font-size: 11px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); background: rgba(15,23,42,0.6); color: #cbd5e1; cursor: pointer;">3m</button>
+                <button type="button" class="swal-preset-btn" data-val="5" style="padding: 4px 10px; font-size: 11px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); background: rgba(15,23,42,0.6); color: #cbd5e1; cursor: pointer;">5m</button>
+            </div>
+        `,
+        input: 'number',
+        inputValue: curMinutes,
+        inputAttributes: {
+            min: 0.2,
+            max: 60,
+            step: 0.5,
+            placeholder: 'Menit (contoh: 1, 2, 0.5)'
+        },
+        showCancelButton: true,
+        confirmButtonText: 'Simpan Interval',
+        cancelButtonText: 'Batal',
+        confirmButtonColor: '#3b82f6',
+        background: '#1e293b',
+        color: '#f8fafc',
+        didOpen: () => {
+            $('.swal2-container').css('z-index', '9999999');
+            $('.swal-preset-btn').on('click', function () {
+                let v = $(this).data('val');
+                $('.swal2-input').val(v);
+                $('.swal-preset-btn').css({ 'border-color': 'rgba(255,255,255,0.15)', 'background': 'rgba(15,23,42,0.6)', 'color': '#cbd5e1', 'font-weight': 'normal' });
+                $(this).css({ 'border-color': 'rgba(59,130,246,0.6)', 'background': 'rgba(59,130,246,0.25)', 'color': '#60a5fa', 'font-weight': '700' });
+            });
+        }
+    }).then((result) => {
+        if (result.isConfirmed && result.value) {
+            let newVal = parseFloat(result.value);
+            if (!isNaN(newVal) && newVal > 0) {
+                $.ajax({
+                    url: 'Script/php/dtc/c_settings_save.php',
+                    type: 'POST',
+                    data: { action: 'set_refresh_interval', bulk_auto_refresh_minutes: newVal },
+                    dataType: 'json',
+                    success: function (r) {
+                        if (r.status === 'success') {
+                            window.bulkAutoRefreshMinutes = newVal;
+                            window.bulkAutoRefreshMs = Math.max(10000, Math.round(newVal * 60 * 1000));
+                            let newLbl = (newVal < 1) ? `${Math.round(newVal * 60)}s` : `${(newVal === Math.floor(newVal) ? Math.floor(newVal) : newVal)}m`;
+                            $('#bulk-refresh-text').text(newLbl);
+                            $('#badge-bulk-auto-refresh').attr('title', `Form diperbarui otomatis setiap ${newLbl} (Klik untuk ubah cepat atau atur di menu Setting)`);
+
+                            if (typeof window.startBulkRefreshTimer === 'function') {
+                                window.startBulkRefreshTimer();
+                            }
+
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Berhasil Disimpan',
+                                text: `Interval auto refresh diubah menjadi Auto ${newLbl}.`,
+                                timer: 1500,
+                                showConfirmButton: false,
+                                background: '#1e293b',
+                                color: '#f8fafc',
+                                didOpen: () => { $('.swal2-container').css('z-index', '9999999'); }
+                            });
+                        }
+                    }
+                });
+            }
+        }
+    });
+});
+
 $(document).on('click', '#btn-toggle-bulk-mute', function () {
     isBulkAlarmMuted = !isBulkAlarmMuted;
     if (isBulkAlarmMuted) {
@@ -2759,16 +2893,16 @@ $(document).on('input', '.bulk-sample-quant-input', function () {
     }
 
     let isOos = false;
-    if (lsl !== null && lsl !== '' && val < parseFloat(lsl)) {
+    if (lsl !== null && lsl !== undefined && lsl !== '' && val < parseFloat(lsl)) {
         isOos = true;
-    } else if (usl !== null && usl !== '' && val > parseFloat(usl)) {
+    } else if (usl !== null && usl !== undefined && usl !== '' && val > parseFloat(usl)) {
         isOos = true;
     }
 
     if (isOos) {
-        $(this).css({ 'border-color': '#ef4444', 'background': 'rgba(239,68,68,0.3)', 'color': '#ffffff' });
+        $(this).css({ 'border': '1.5px solid #ef4444', 'background': 'rgba(239,68,68,0.32)', 'color': '#fca5a5', 'box-shadow': '0 0 8px rgba(239,68,68,0.35)' });
     } else {
-        $(this).css({ 'border-color': '#10b981', 'background': 'rgba(16,185,129,0.15)', 'color': '#ffffff' });
+        $(this).css({ 'border': '1px solid rgba(16,185,129,0.5)', 'background': 'rgba(16,185,129,0.18)', 'color': '#34d399', 'box-shadow': 'none' });
     }
     updateBulkSummaryCount();
 });

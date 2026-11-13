@@ -241,8 +241,8 @@
                         <div><span style="color: #94a3b8;">Model:</span> <strong id="oos-info-model" style="color: #f8fafc;">-</strong></div>
                         <div><span style="color: #94a3b8;">Tanggal:</span> <strong id="oos-info-date" style="color: #38bdf8;">-</strong></div>
                         <div><span style="color: #94a3b8;">Line & Section:</span> <strong id="oos-info-linesec" style="color: #f8fafc;">-</strong></div>
-                        <div><span style="color: #94a3b8;">Spesifikasi:</span> <strong id="oos-info-spec" style="color: #fbbf24;">-</strong></div>
-                        <div style="grid-column: span 2;"><span style="color: #94a3b8;">Item Check:</span> <strong id="oos-info-item" style="color: #60a5fa;">-</strong></div>
+                        <div id="oos-info-spec-wrapper"><span style="color: #94a3b8;">Spesifikasi:</span> <strong id="oos-info-spec" style="color: #fbbf24;">-</strong></div>
+                        <div id="oos-info-item-wrapper" style="grid-column: span 2;"><span style="color: #94a3b8;">Item Check:</span> <strong id="oos-info-item" style="color: #60a5fa;">-</strong></div>
                     </div>
                 </div>
 

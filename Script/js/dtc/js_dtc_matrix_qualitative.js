@@ -11,10 +11,48 @@ let runningModelCreatedAt = null; // Created_at timestamp of active running mode
 $(document).ready(function () {
     loadMatrixData();
 
-    // === CELL CLICK → Matrix Table is Read-Only Information Dashboard ===
+    // === CELL CLICK → Matrix Table (Admin can click to edit any date/slot; Read-Only for others) ===
     $(document).on('click', '.cell-data', function (e) {
         e.preventDefault();
         e.stopPropagation();
+
+        let day = parseInt($(this).data('date'), 10);
+        let cpId = parseInt($(this).data('checkpoint-id'), 10) || currentActiveCpId;
+        let label = $(this).data('label') || '';
+        let val = $(this).data('val') !== undefined && $(this).data('val') !== null ? String($(this).data('val')).trim() : '';
+        let cp = matrixData.find(c => parseInt(c.checkpoint_id, 10) === cpId);
+
+        if (typeof isAdmin !== 'undefined' && isAdmin && cp && day > 0) {
+            currentActiveCpId = cp.checkpoint_id;
+            if (cp.checkpoint_type === 'Quantitative') {
+                openQuantInputModal(day);
+                return;
+            } else {
+                let dayStr = String(day).padStart(2, '0');
+                let formattedDate = `${matrixMonth}-${dayStr}`;
+                $('#input_param_id').val(cp.parameter_id);
+                $('#input_checkpoint_id').val(cp.checkpoint_id);
+                $('#input_date').val(formattedDate);
+                $('#input_time').val(label);
+                $('#input_result').val(val);
+                $('#modal-info-text').html(`<b>${cp.checkpoint_name}</b> &bull; Tanggal: <b>${formattedDate}</b> &bull; Jam: <b>${label}</b>`);
+                if (cp.spec_value) {
+                    $('#input-spec-badge').text(`Spec: ${cp.spec_value}`).show();
+                } else {
+                    $('#input-spec-badge').hide();
+                }
+                $('#container-input-qualitative').show();
+                $('#container-input-quantitative').hide();
+                $('#result-warning-msg').hide();
+                $('.btn-result').css({ 'opacity': '0.4', 'transform': 'scale(1)' });
+                if (val === 'OK' || val === 'NG') {
+                    $(`.btn-result[data-val="${val}"]`).css({ 'opacity': '1', 'transform': 'scale(1.05)' });
+                }
+                $('#modal-input-matrix').addClass('active');
+                return;
+            }
+        }
+
         if (typeof Swal !== 'undefined') {
             Swal.fire({
                 icon: 'info',
@@ -602,9 +640,14 @@ function loadMatrixData(showLoading = true) {
                 }
 
                 if (matrixData.length > 0) {
-                    // Check if current active CP ID is still valid, else pick the first one
+                    // Check if current active CP ID is still valid, else pick URL initialCpId or first CP with OOS
                     if (!currentActiveCpId || !matrixData.find(cp => cp.checkpoint_id === currentActiveCpId)) {
-                        currentActiveCpId = matrixData[0].checkpoint_id;
+                        if (typeof initialCpId !== 'undefined' && initialCpId > 0 && matrixData.find(cp => parseInt(cp.checkpoint_id, 10) === parseInt(initialCpId, 10))) {
+                            currentActiveCpId = matrixData.find(cp => parseInt(cp.checkpoint_id, 10) === parseInt(initialCpId, 10)).checkpoint_id;
+                        } else {
+                            let firstOosCp = matrixData.find(cp => getCheckpointOosSummary(cp).totalOos > 0);
+                            currentActiveCpId = firstOosCp ? firstOosCp.checkpoint_id : matrixData[0].checkpoint_id;
+                        }
                     }
                 } else {
                     currentActiveCpId = null;
@@ -622,14 +665,68 @@ function loadMatrixData(showLoading = true) {
     });
 }
 
+// Helper to compute Out of Spec (OOS) summary across all days of the month for a checkpoint
+function getCheckpointOosSummary(cp) {
+    let summary = { totalOos: 0, oosByDay: {}, oosDays: [] };
+    if (!cp || !cp.matrix) return summary;
+
+    let paramInfo = parametersList.find(p => p.parameter_id === cp.parameter_id) || {};
+    let isQuant = (cp.checkpoint_type === 'Quantitative');
+    let rawLsl = (cp.lsl !== null && cp.lsl !== undefined && cp.lsl !== '') ? cp.lsl : (paramInfo.lsl !== null && paramInfo.lsl !== undefined && paramInfo.lsl !== '' ? paramInfo.lsl : (cp.chart_data ? cp.chart_data.lsl : null));
+    let rawUsl = (cp.usl !== null && cp.usl !== undefined && cp.usl !== '') ? cp.usl : (paramInfo.usl !== null && paramInfo.usl !== undefined && paramInfo.usl !== '' ? paramInfo.usl : (cp.chart_data ? cp.chart_data.usl : null));
+    let lsl = (rawLsl !== null && rawLsl !== undefined && rawLsl !== '' && !isNaN(parseFloat(rawLsl))) ? parseFloat(rawLsl) : null;
+    let usl = (rawUsl !== null && rawUsl !== undefined && rawUsl !== '' && !isNaN(parseFloat(rawUsl))) ? parseFloat(rawUsl) : null;
+
+    let labels = (typeof timeLabels !== 'undefined' && timeLabels && timeLabels.length > 0) ? timeLabels : Object.keys(cp.matrix);
+    let maxDay = (typeof daysInMonth !== 'undefined' && daysInMonth > 0) ? daysInMonth : 31;
+
+    for (let d = 1; d <= maxDay; d++) {
+        labels.forEach(label => {
+            let rowData = cp.matrix[label] || {};
+            let val = rowData[d];
+            if (val === undefined || val === null || String(val).trim() === '') return;
+            let valStr = String(val).trim();
+            let isOos = false;
+
+            if (isQuant || (lsl !== null || usl !== null)) {
+                if (is_numeric_val(valStr)) {
+                    let numVal = parseFloat(valStr);
+                    if ((lsl !== null && numVal < lsl) || (usl !== null && numVal > usl)) {
+                        isOos = true;
+                    }
+                }
+            }
+            if (!isOos && valStr.toUpperCase() === 'NG') {
+                isOos = true;
+            }
+
+            if (isOos) {
+                summary.totalOos++;
+                if (!summary.oosByDay[d]) {
+                    summary.oosByDay[d] = [];
+                    summary.oosDays.push(d);
+                }
+                summary.oosByDay[d].push({ label: label, val: valStr, lsl: lsl, usl: usl });
+            }
+        });
+    }
+    return summary;
+}
+
 // === RENDER TABS ===
 function renderTabs() {
     let html = '';
     if (matrixData.length > 0) {
         matrixData.forEach(cp => {
             let activeClass = cp.checkpoint_id === currentActiveCpId ? 'active' : '';
-            html += `<button class="filter-tab-btn ${activeClass}" data-checkpoint-id="${cp.checkpoint_id}" style="border-radius: 8px; padding: 7px 16px; font-weight: 700; font-size: 12px; transition: all 0.2s;">
-                        <i class="fa-solid fa-layer-group" style="margin-right: 6px; opacity: 0.8;"></i> ${cp.checkpoint_name}
+            let oosInfo = getCheckpointOosSummary(cp);
+            let oosBadgeHtml = '';
+            if (oosInfo.totalOos > 0) {
+                let daysTip = oosInfo.oosDays.map(d => `${matrixMonth}-${String(d).padStart(2, '0')}`).join(', ');
+                oosBadgeHtml = ` <span style="margin-left: 6px; background: rgba(239, 68, 68, 0.25); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.55); padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;" title="Out of Spec pada tanggal: ${daysTip}"><i class="fa-solid fa-triangle-exclamation" style="color: #f87171;"></i> ${oosInfo.totalOos} OOS</span>`;
+            }
+            html += `<button class="filter-tab-btn ${activeClass}" data-checkpoint-id="${cp.checkpoint_id}" style="border-radius: 8px; padding: 7px 16px; font-weight: 700; font-size: 12px; transition: all 0.2s; display: inline-flex; align-items: center;">
+                        <i class="fa-solid fa-layer-group" style="margin-right: 6px; opacity: 0.8;"></i> ${cp.checkpoint_name}${oosBadgeHtml}
                      </button>`;
         });
     }
@@ -706,19 +803,30 @@ function openQuantInputModal(selectedDay) {
     let cp = matrixData.find(c => c.checkpoint_id === currentActiveCpId);
     if (!cp) return;
     let paramInfo = parametersList.find(p => p.parameter_id === cp.parameter_id) || {};
+    let oosInfo = getCheckpointOosSummary(cp);
 
     let formattedDate = '';
     let dayInt = 1;
+    let prodDate = getManufacturingProdDateStr();
 
     if (selectedDay !== undefined && selectedDay !== null && selectedDay !== '') {
         dayInt = parseInt(selectedDay, 10);
         let dayStr = dayInt.toString().padStart(2, '0');
         formattedDate = `${matrixMonth}-${dayStr}`;
     } else {
-        let prodDate = getManufacturingProdDateStr();
         if (prodDate.substring(0, 7) === matrixMonth) {
-            formattedDate = prodDate;
             dayInt = parseInt(prodDate.split('-')[2], 10);
+            // In Admin mode, if today has no OOS on this checkpoint but a past day in this month has OOS,
+            // automatically jump to the latest OOS day so past-day OOS is immediately detected & editable
+            if (typeof isAdmin !== 'undefined' && isAdmin && !oosInfo.oosByDay[dayInt] && oosInfo.oosDays.length > 0) {
+                dayInt = oosInfo.oosDays[oosInfo.oosDays.length - 1];
+            }
+            let dayStr = dayInt.toString().padStart(2, '0');
+            formattedDate = `${matrixMonth}-${dayStr}`;
+        } else if (typeof isAdmin !== 'undefined' && isAdmin) {
+            dayInt = oosInfo.oosDays.length > 0 ? oosInfo.oosDays[oosInfo.oosDays.length - 1] : 1;
+            let dayStr = dayInt.toString().padStart(2, '0');
+            formattedDate = `${matrixMonth}-${dayStr}`;
         } else {
             let url = new URL(window.location.href);
             url.searchParams.set('month', prodDate.substring(0, 7));
@@ -785,7 +893,7 @@ function openQuantInputModal(selectedDay) {
 function isTimeSlotFuture(dateStr, label) {
     if (!dateStr || !label) return false;
 
-    let todayStr = new Date().toISOString().slice(0, 10);
+    let todayStr = typeof getManufacturingProdDateStr === 'function' ? getManufacturingProdDateStr() : new Date().toISOString().slice(0, 10);
     if (dateStr > todayStr) return true;
     if (dateStr < todayStr) return false;
 
@@ -811,6 +919,11 @@ function isTimeSlotFuture(dateStr, label) {
 function isTimeSlotBeforeModelStart(dateStr, timeLabel, rmCreatedAt) {
     let createdAt = rmCreatedAt || runningModelCreatedAt;
     if (!createdAt || !dateStr || !timeLabel) return false;
+
+    let todayStr = typeof getManufacturingProdDateStr === 'function' ? getManufacturingProdDateStr() : new Date().toISOString().slice(0, 10);
+    if (typeof isAdmin !== 'undefined' && isAdmin && dateStr < todayStr) {
+        return false;
+    }
 
     let parts = String(createdAt).trim().split(' ');
     if (parts.length < 2) return false;
@@ -860,7 +973,8 @@ function isTimeSlotBeforeModelStart(dateStr, timeLabel, rmCreatedAt) {
 }
 
 function applySampleInputGlowing($input, val, lsl, usl, isClosed, isFuture, isBeforeModelStart = false, isTyping = false) {
-    if (isBeforeModelStart) {
+    let hasVal = (val !== '' && val !== null && val !== undefined && String(val).trim() !== '');
+    if (isBeforeModelStart && !hasVal && !(typeof isAdmin !== 'undefined' && isAdmin)) {
         $input.removeClass('slot-overdue-glowing').prop('readonly', true).prop('disabled', true).css({
             'border': '1px dashed rgba(255,255,255,0.12)',
             'box-shadow': 'none',
@@ -873,7 +987,7 @@ function applySampleInputGlowing($input, val, lsl, usl, isClosed, isFuture, isBe
         return;
     }
 
-    if (isFuture) {
+    if (isFuture && !hasVal) {
         $input.removeClass('slot-overdue-glowing').prop('readonly', true).prop('disabled', true).css({
             'border': '1px dashed rgba(255,255,255,0.15)',
             'box-shadow': 'none',
@@ -918,7 +1032,9 @@ function applySampleInputGlowing($input, val, lsl, usl, isClosed, isFuture, isBe
 
     $input.removeClass('slot-overdue-glowing');
     let numVal = parseFloat(val);
-    let isOos = (lsl !== null && numVal < lsl) || (usl !== null && numVal > usl);
+    let parsedLsl = (lsl !== null && lsl !== undefined && lsl !== '' && !isNaN(parseFloat(lsl))) ? parseFloat(lsl) : null;
+    let parsedUsl = (usl !== null && usl !== undefined && usl !== '' && !isNaN(parseFloat(usl))) ? parseFloat(usl) : null;
+    let isOos = (parsedLsl !== null && numVal < parsedLsl) || (parsedUsl !== null && numVal > parsedUsl);
 
     if (isOos) {
         // Glowing Red OOS Style (Batas Atas / Batas Bawah Terlewati)
@@ -952,11 +1068,22 @@ function applySampleInputGlowing($input, val, lsl, usl, isClosed, isFuture, isBe
     }
 }
 
+$(document).on('click', '.btn-jump-quant-oos-day', function (e) {
+    e.preventDefault();
+    let d = parseInt($(this).data('day'), 10);
+    if (!d) return;
+    let dayStr = String(d).padStart(2, '0');
+    let dateStr = `${matrixMonth}-${dayStr}`;
+    $('#quant_input_date').val(dateStr).trigger('change');
+});
+
 function populateQuantSamplesForDate(cp, day) {
     let isClosed = (closedDaysMap[cp.parameter_id] && closedDaysMap[cp.parameter_id][day] == 1);
     let paramInfo = parametersList.find(p => p.parameter_id === cp.parameter_id) || {};
-    let lsl = cp.lsl !== null && cp.lsl !== undefined ? cp.lsl : (paramInfo.lsl !== null ? paramInfo.lsl : null);
-    let usl = cp.usl !== null && cp.usl !== undefined ? cp.usl : (paramInfo.usl !== null ? paramInfo.usl : null);
+    let rawLsl = (cp.lsl !== null && cp.lsl !== undefined && cp.lsl !== '') ? cp.lsl : (paramInfo.lsl !== null && paramInfo.lsl !== undefined && paramInfo.lsl !== '' ? paramInfo.lsl : (cp.chart_data ? cp.chart_data.lsl : null));
+    let rawUsl = (cp.usl !== null && cp.usl !== undefined && cp.usl !== '') ? cp.usl : (paramInfo.usl !== null && paramInfo.usl !== undefined && paramInfo.usl !== '' ? paramInfo.usl : (cp.chart_data ? cp.chart_data.usl : null));
+    let lsl = (rawLsl !== null && rawLsl !== undefined && rawLsl !== '' && !isNaN(parseFloat(rawLsl))) ? parseFloat(rawLsl) : null;
+    let usl = (rawUsl !== null && rawUsl !== undefined && rawUsl !== '' && !isNaN(parseFloat(rawUsl))) ? parseFloat(rawUsl) : null;
     let selectedDateStr = $('#quant_input_date').val();
 
     if (isClosed) {
@@ -984,17 +1111,63 @@ function populateQuantSamplesForDate(cp, day) {
         $('#btn-save-quant-input').prop('disabled', false).css('opacity', '1');
     }
 
+    let loadedOosList = [];
     timeLabels.forEach((label, idx) => {
         let seq = idx + 1;
         let rowData = cp.matrix[label] || {};
-        let val = rowData[day] || '';
+        let val = rowData[day] !== undefined && rowData[day] !== null ? rowData[day] : '';
         let $input = $(`#quant_sample_val_${seq}`);
+        let hasVal = (val !== '' && is_numeric_val(val));
 
         let isFuture = isTimeSlotFuture(selectedDateStr, label);
-        let isBeforeModelStart = isTimeSlotBeforeModelStart(selectedDateStr, label, runningModelCreatedAt);
-        $input.val(val !== '' && is_numeric_val(val) ? parseFloat(val) : '');
+        let isBeforeModelStart = (hasVal || (typeof isAdmin !== 'undefined' && isAdmin)) ? false : isTimeSlotBeforeModelStart(selectedDateStr, label, runningModelCreatedAt);
+        $input.val(hasVal ? parseFloat(val) : '');
         applySampleInputGlowing($input, val, lsl, usl, isClosed, isFuture, isBeforeModelStart);
+
+        if (hasVal) {
+            let numVal = parseFloat(val);
+            if ((lsl !== null && numVal < lsl) || (usl !== null && numVal > usl)) {
+                loadedOosList.push(`${label}: <b>${numVal}</b>`);
+            }
+        }
     });
+
+    // Render / update OOS Detection Banner inside Quantitative Modal
+    $('#quant-oos-detection-banner').remove();
+    let oosInfo = getCheckpointOosSummary(cp);
+    if (oosInfo.totalOos > 0 || loadedOosList.length > 0) {
+        let prodDate = getManufacturingProdDateStr();
+        let prodDay = (prodDate.substring(0, 7) === matrixMonth) ? parseInt(prodDate.split('-')[2], 10) : null;
+        let dayButtonsHtml = oosInfo.oosDays.map(d => {
+            let dStr = `${matrixMonth}-${String(d).padStart(2, '0')}`;
+            let isCur = (d === day);
+            let cnt = (oosInfo.oosByDay[d] || []).length;
+            return `<button type="button" class="btn-jump-quant-oos-day" data-day="${d}" style="padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 800; cursor: pointer; border: 1px solid ${isCur ? '#f87171' : 'rgba(239,68,68,0.45)'}; background: ${isCur ? '#ef4444' : 'rgba(239,68,68,0.18)'}; color: ${isCur ? '#ffffff' : '#fca5a5'};">${dStr} (${cnt} OOS)</button>`;
+        }).join(' ');
+
+        if (prodDay && !oosInfo.oosByDay[prodDay]) {
+            let isTodayCur = (prodDay === day);
+            dayButtonsHtml += ` <button type="button" class="btn-jump-quant-oos-day" data-day="${prodDay}" style="padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; border: 1px solid ${isTodayCur ? '#60a5fa' : 'rgba(59,130,246,0.4)'}; background: ${isTodayCur ? '#2563eb' : 'rgba(59,130,246,0.15)'}; color: ${isTodayCur ? '#ffffff' : '#93c5fd'};">Hari Ini (${prodDate})</button>`;
+        }
+
+        let currentDayMsg = loadedOosList.length > 0
+            ? `<div style="margin-top: 6px; color: #fecaca; font-size: 11.5px;"><i class="fa-solid fa-circle-exclamation"></i> Sampel OOS pada tanggal <b>${selectedDateStr}</b>: ${loadedOosList.join(', ')}</div>`
+            : `<div style="margin-top: 6px; color: #cbd5e1; font-size: 11px;">Tanggal yang dipilih (${selectedDateStr}) tidak memiliki OOS. Klik tombol tanggal merah di atas untuk melihat/mengubah data OOS.</div>`;
+
+        let bannerHtml = `
+            <div id="quant-oos-detection-banner" style="background: rgba(239, 68, 68, 0.14); border: 1px solid rgba(239, 68, 68, 0.45); border-left: 4px solid #ef4444; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                    <div style="font-size: 12px; font-weight: 800; color: #fca5a5; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-triangle-exclamation" style="color: #ef4444;"></i>
+                        <span>Terdeteksi ${oosInfo.totalOos} Data Out of Spec (OOS) pada Checkpoint Ini:</span>
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 5px;">${dayButtonsHtml}</div>
+                </div>
+                ${currentDayMsg}
+            </div>
+        `;
+        $('#quant-samples-grid').before(bannerHtml);
+    }
 }
 
 // Live typing glowing feedback for quantitative sample inputs
@@ -1006,8 +1179,10 @@ $(document).on('input keyup change', '.quant-sample-input', function () {
     let cp = matrixData.find(c => c.checkpoint_id === currentActiveCpId);
     if (!cp) return;
     let paramInfo = parametersList.find(p => p.parameter_id === cp.parameter_id) || {};
-    let lsl = cp.lsl !== null && cp.lsl !== undefined ? cp.lsl : (paramInfo.lsl !== null ? paramInfo.lsl : null);
-    let usl = cp.usl !== null && cp.usl !== undefined ? cp.usl : (paramInfo.usl !== null ? paramInfo.usl : null);
+    let rawLsl = (cp.lsl !== null && cp.lsl !== undefined && cp.lsl !== '') ? cp.lsl : (paramInfo.lsl !== null && paramInfo.lsl !== undefined && paramInfo.lsl !== '' ? paramInfo.lsl : (cp.chart_data ? cp.chart_data.lsl : null));
+    let rawUsl = (cp.usl !== null && cp.usl !== undefined && cp.usl !== '') ? cp.usl : (paramInfo.usl !== null && paramInfo.usl !== undefined && paramInfo.usl !== '' ? paramInfo.usl : (cp.chart_data ? cp.chart_data.usl : null));
+    let lsl = (rawLsl !== null && rawLsl !== undefined && rawLsl !== '' && !isNaN(parseFloat(rawLsl))) ? parseFloat(rawLsl) : null;
+    let usl = (rawUsl !== null && rawUsl !== undefined && rawUsl !== '' && !isNaN(parseFloat(rawUsl))) ? parseFloat(rawUsl) : null;
 
     let dateVal = $('#quant_input_date').val();
     let day = dateVal ? parseInt(dateVal.split('-')[2], 10) : 1;
@@ -1016,7 +1191,7 @@ $(document).on('input keyup change', '.quant-sample-input', function () {
     let seq = $(this).attr('id') ? $(this).attr('id').replace('quant_sample_val_', '') : '';
     let label = $(`input[name="sample_label_${seq}"]`).val();
     let isFuture = isTimeSlotFuture(dateVal, label);
-    let isBeforeModelStart = isTimeSlotBeforeModelStart(dateVal, label, runningModelCreatedAt);
+    let isBeforeModelStart = (typeof isAdmin !== 'undefined' && isAdmin) ? false : isTimeSlotBeforeModelStart(dateVal, label, runningModelCreatedAt);
 
     applySampleInputGlowing($(this), val, lsl, usl, isClosed, isFuture, isBeforeModelStart, true);
 });

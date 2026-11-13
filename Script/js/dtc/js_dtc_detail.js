@@ -113,6 +113,10 @@ $(document).ready(function () {
                 }
 
                 // Build data rows
+                window.detailOosByDay = {};
+                window.detailOosDays = [];
+                window.detailDisplayMonth = displayMonth;
+
                 data.forEach(function (row) {
                     let isSummary = (row.jam === "Max Data" || row.jam === "Min Data" || row.jam === "Zst" || row.jam === "Zlt");
                     let trClass = isSummary ? "summary-row" : "";
@@ -131,21 +135,43 @@ $(document).ready(function () {
 
                         let cellClass = "";
                         let bgStyle = isWeekend ? 'background-color: rgba(100,100,100,0.15); color: #555;' : '';
+                        let extraAttrs = `data-day="${i}"`;
 
                         if (!isSummary && !isUnmeasured) {
                             let parsedVal = parseFloat(val);
                             if (!isNaN(parsedVal)) {
                                 if (isOOS(parsedVal, specLSL, specUSL)) {
                                     cellClass = "oos-cell";
+                                    if (!window.detailOosByDay[i]) window.detailOosByDay[i] = [];
+                                    window.detailOosByDay[i].push({ jam: row.jam, val: displayVal });
+                                    if (typeof isAdmin !== 'undefined' && isAdmin) {
+                                        bgStyle += ' cursor: pointer;';
+                                        extraAttrs += ` title="Klik untuk inspeksi / update OOS tanggal ${i} (Mode Admin)"`;
+                                    }
                                 }
                             }
                         }
 
-                        tr += `<td class="${cellClass}" style="${bgStyle}">${displayVal}</td>`;
+                        tr += `<td class="${cellClass}" style="${bgStyle}" ${extraAttrs}>${displayVal}</td>`;
                     }
                     tr += `</tr>`;
                     tbody.append(tr);
                 });
+
+                window.detailOosDays = Object.keys(window.detailOosByDay).map(d => parseInt(d, 10)).sort((a, b) => a - b);
+
+                if (typeof isAdmin !== 'undefined' && isAdmin && typeof modalInput !== 'undefined' && modalInput && modalInput.style.display === "flex") {
+                    let curInputDate = $("#input_inspection_date").val() || "";
+                    let prodDateNow = typeof getManufacturingProdDateStr === 'function' ? getManufacturingProdDateStr() : '';
+                    let curDayNum = curInputDate.length >= 10 ? parseInt(curInputDate.slice(8, 10), 10) : 0;
+                    if (!window.detailUserManuallyChangedDate && window.detailOosDays.length > 0 && (!curDayNum || !window.detailOosByDay[curDayNum]) && curInputDate === prodDateNow) {
+                        let latestOosDay = window.detailOosDays[window.detailOosDays.length - 1];
+                        let oosDateStr = `${displayMonth}-${String(latestOosDay).padStart(2, '0')}`;
+                        $("#input_inspection_date").val(oosDateStr).trigger('change');
+                    } else if (typeof renderDetailOosBanner === 'function') {
+                        renderDetailOosBanner(curInputDate);
+                    }
+                }
 
                 // Generate Categories for Charts
                 let dayCategories = [];
@@ -875,10 +901,68 @@ $(document).ready(function () {
         }
     });
 
+    $(document).on('click', '#matrix-body td.oos-cell', function () {
+        if (typeof isAdmin === 'undefined' || !isAdmin) return;
+        let dayNum = parseInt($(this).attr('data-day'), 10);
+        if (!dayNum || isNaN(dayNum)) return;
+        let mBase = window.detailDisplayMonth || ((typeof currentMonth !== 'undefined' && currentMonth) ? currentMonth : getManufacturingProdDateStr().substring(0, 7));
+        let targetDateStr = `${mBase}-${String(dayNum).padStart(2, '0')}`;
+        window.detailUserManuallyChangedDate = true;
+        $("#input_inspection_date").val(targetDateStr);
+        $("#btn-input-data").click();
+    });
+
+    function renderDetailOosBanner(selectedDate) {
+        $('#detail-oos-detection-banner').remove();
+        if (typeof isAdmin === 'undefined' || !isAdmin) return;
+        if (!window.detailOosDays || window.detailOosDays.length === 0) return;
+
+        let mBase = window.detailDisplayMonth || ((typeof currentMonth !== 'undefined' && currentMonth) ? currentMonth : getManufacturingProdDateStr().substring(0, 7));
+        let prodDate = getManufacturingProdDateStr();
+        let $dateInput = $('#input_inspection_date');
+        if ($dateInput.length === 0) return;
+
+        let dayButtonsHtml = window.detailOosDays.map(dNum => {
+            let dStr = `${mBase}-${String(dNum).padStart(2, '0')}`;
+            let count = (window.detailOosByDay && window.detailOosByDay[dNum]) ? window.detailOosByDay[dNum].length : 1;
+            let isSelected = (dStr === selectedDate);
+            return `<button type="button" class="btn-jump-detail-oos-date" data-date="${dStr}" style="padding: 3px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; border: 1px solid ${isSelected ? '#f87171' : 'rgba(239,68,68,0.4)'}; background: ${isSelected ? 'rgba(239,68,68,0.35)' : 'rgba(15,23,42,0.6)'}; color: ${isSelected ? '#ffffff' : '#fca5a5'}; transition: all 0.2s;">
+                📅 ${dStr} (${count} OOS)
+            </button>`;
+        }).join('');
+
+        let isTodaySelected = (selectedDate === prodDate);
+        let todayBtnHtml = `<button type="button" class="btn-jump-detail-oos-date" data-date="${prodDate}" style="padding: 3px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; border: 1px solid ${isTodaySelected ? '#38bdf8' : 'rgba(148,163,184,0.3)'}; background: ${isTodaySelected ? 'rgba(14,165,233,0.25)' : 'rgba(15,23,42,0.5)'}; color: ${isTodaySelected ? '#e0f2fe' : '#94a3b8'}; transition: all 0.2s;">
+            Hari Ini (${prodDate})
+        </button>`;
+
+        let bannerHtml = `
+            <div id="detail-oos-detection-banner" style="margin-top: 8px; padding: 10px 12px; border-radius: 8px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); display: flex; flex-direction: column; gap: 6px;">
+                <div style="font-size: 0.78rem; color: #fca5a5; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
+                    <span>Terdeteksi data Out of Spec (OOS) pada parameter ini (klik tanggal untuk inspeksi/update):</span>
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+                    ${dayButtonsHtml}
+                    ${todayBtnHtml}
+                </div>
+            </div>
+        `;
+        $dateInput.closest('.form-group').append(bannerHtml);
+    }
+
+    $(document).on('click', '.btn-jump-detail-oos-date', function (e) {
+        e.preventDefault();
+        let targetDate = $(this).attr('data-date');
+        if (!targetDate) return;
+        window.detailUserManuallyChangedDate = true;
+        $('#input_inspection_date').val(targetDate).trigger('change');
+    });
+
     $("#btn-input-data").click(function () {
         let prodDate = getManufacturingProdDateStr();
         let targetMonth = (typeof currentMonth !== 'undefined' && currentMonth) ? currentMonth : '';
-        if (targetMonth && prodDate.substring(0, 7) !== targetMonth && !window.detailUserManuallyChangedDate) {
+        if (targetMonth && prodDate.substring(0, 7) !== targetMonth && !window.detailUserManuallyChangedDate && (typeof isAdmin === 'undefined' || !isAdmin)) {
             let url = new URL(window.location.href);
             url.searchParams.set('month', prodDate.substring(0, 7));
             window.location.href = url.toString();
@@ -895,8 +979,21 @@ $(document).ready(function () {
             let targetMonth = (typeof currentMonth !== 'undefined' && currentMonth) ? currentMonth : '';
             // If read-only (non-admin) or not manually changed by user, update to current prod date if month matches
             if (isReadOnly || !window.detailUserManuallyChangedDate) {
-                if (!targetMonth || prodDate.substring(0, 7) === targetMonth) {
-                    $dateInput.val(prodDate);
+                let defaultDateToUse = prodDate;
+                let urlDateParam = urlParams.get('auto_add') || urlParams.get('date');
+                if (urlDateParam) {
+                    defaultDateToUse = urlDateParam;
+                } else if (typeof isAdmin !== 'undefined' && isAdmin && window.detailOosDays && window.detailOosDays.length > 0) {
+                    let mBase = window.detailDisplayMonth || targetMonth || prodDate.substring(0, 7);
+                    let todayDayNum = (prodDate.substring(0, 7) === mBase) ? parseInt(prodDate.slice(8, 10), 10) : -1;
+                    let todayHasOos = (todayDayNum > 0 && window.detailOosByDay && window.detailOosByDay[todayDayNum]);
+                    if (!todayHasOos) {
+                        let latestOosDay = window.detailOosDays[window.detailOosDays.length - 1];
+                        defaultDateToUse = `${mBase}-${String(latestOosDay).padStart(2, '0')}`;
+                    }
+                }
+                if (!targetMonth || defaultDateToUse.substring(0, 7) === targetMonth || (typeof isAdmin !== 'undefined' && isAdmin)) {
+                    $dateInput.val(defaultDateToUse);
                 }
             }
         }
@@ -987,6 +1084,7 @@ $(document).ready(function () {
     }
 
     function isTimeSlotBeforeModelStartDetail(dateStr, labelText, rmCreatedAt) {
+        if (typeof isAdmin !== 'undefined' && isAdmin) return false;
         if (!rmCreatedAt || !dateStr || !labelText) return false;
 
         let parts = String(rmCreatedAt).trim().split(' ');
@@ -1118,11 +1216,12 @@ $(document).ready(function () {
         }
 
         // Clear previous sample values before loading
-        $("input[name^='sample_']").val("").prop("readonly", false).css({ 'opacity': '1', 'cursor': 'text' }).removeAttr('title').removeClass('slot-overdue-glowing');
+        $("input[name^='sample_']").val("").prop("readonly", false).prop("disabled", false).css({ 'opacity': '1', 'cursor': 'text', 'pointer-events': 'auto' }).removeAttr('title').removeClass('slot-overdue-glowing');
         $('.btn-clear-sample').hide();
         $("input[name='remarks']").val("").prop("readonly", false);
         $("#btn-save-input").show();
         $("#btn-close-data").hide();
+        renderDetailOosBanner(selectedDate);
 
         $.ajax({
             url: `Script/php/dtc/c_dtc_measurement_get.php?parameter_id=${paramId}&date=${selectedDate}`,
@@ -1140,14 +1239,15 @@ $(document).ready(function () {
 
                 for (let i = 1; i <= totalSlotsCount; i++) {
                     let sampleVal = d["sample_" + i];
+                    let hasVal = (sampleVal !== null && sampleVal !== undefined && sampleVal !== "" && String(sampleVal).trim() !== "");
                     let $input = $("input[name='sample_" + i + "']");
                     let $clearBtn = $input.siblings('.btn-clear-sample');
                     if ($input.length === 0) continue;
 
                     $input.removeClass('slot-overdue-glowing');
                     let labelText = $("#label_sample_" + i).text().trim();
-                    let isFuture = isTimeSlotFutureDetail(selectedDate, labelText);
-                    let isBeforeModelStart = isTimeSlotBeforeModelStartDetail(selectedDate, labelText, rmCreatedAt);
+                    let isFuture = hasVal ? false : isTimeSlotFutureDetail(selectedDate, labelText);
+                    let isBeforeModelStart = (hasVal || (typeof isAdmin !== 'undefined' && isAdmin)) ? false : isTimeSlotBeforeModelStartDetail(selectedDate, labelText, rmCreatedAt);
 
                     if (isBeforeModelStart) {
                         $input.val(sampleVal !== null && sampleVal !== undefined ? sampleVal : "").prop("readonly", true).prop("disabled", true).css({
@@ -1171,7 +1271,7 @@ $(document).ready(function () {
                             'pointer-events': 'none'
                         }).attr('title', 'Belum masuk waktu pengisian (slot jam di masa depan)');
                         $clearBtn.hide();
-                    } else if (sampleVal !== null && sampleVal !== undefined && sampleVal !== "" && String(sampleVal).trim() !== "") {
+                    } else if (hasVal) {
                         $input.prop("disabled", false).css('pointer-events', 'auto');
                         let val = parseFloat(sampleVal);
                         $input.val(val).removeAttr('title');
@@ -1200,9 +1300,10 @@ $(document).ready(function () {
                         $input.val("").removeAttr('title');
                         $clearBtn.hide();
                         // KEEP EMPTY SLOTS EDITABLE IF NOT CLOSED
-                        $input.prop("readonly", false).css({
+                        $input.prop("readonly", false).prop("disabled", false).css({
                             'opacity': '1',
-                            'cursor': 'text'
+                            'cursor': 'text',
+                            'pointer-events': 'auto'
                         });
 
                         // Glowing Yellow effect for overdue unfilled slots if not closed

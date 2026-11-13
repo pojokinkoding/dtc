@@ -219,10 +219,16 @@ try {
             $user_role = strtolower(trim($_SESSION['role'] ?? ''));
             $is_admin = ($user_role === 'admin');
 
+            $stmtRefreshSetting = $conn->prepare("SELECT setting_value FROM dtc_app_settings WHERE setting_key = 'bulk_auto_refresh_minutes'");
+            $stmtRefreshSetting->execute();
+            $autoRefreshMinutes = (float)($stmtRefreshSetting->fetchColumn() ?: 1);
+            if ($autoRefreshMinutes <= 0) $autoRefreshMinutes = 1;
+
             echo json_encode([
                 'status' => 'success',
                 'inspection_date' => $inspection_date,
                 'is_admin' => $is_admin,
+                'auto_refresh_minutes' => $autoRefreshMinutes,
                 'time_labels' => $time_labels,
                 'models' => [$modelNode]
             ]);
@@ -264,6 +270,48 @@ try {
         $stmtRM2 = $conn->prepare($sqlRM2);
         $stmtRM2->execute([':month' => $month]);
         $runningModels = $stmtRM2->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // Also include any models that already have recorded inspection sessions on $inspection_date (e.g., past-day data in Admin mode where model was later deactivated)
+    $sqlHistRM = "
+        SELECT DISTINCT 0 AS running_id, p.model_name, p.line_name, p.section_name, p.target_month, NULL AS created_at
+        FROM dtc_master_parameters p
+        INNER JOIN dtc_inspection_sessions s ON s.parameter_id = p.parameter_id
+        WHERE p.is_active = 1 AND s.is_active = 1 AND s.inspection_date = :idate
+    ";
+    $paramsHistRM = [':idate' => $inspection_date];
+    if (!empty($line_filter)) {
+        $sqlHistRM .= " AND p.line_name = :line ";
+        $paramsHistRM[':line'] = $line_filter;
+    }
+    if (!empty($section_filter)) {
+        $sqlHistRM .= " AND p.section_name = :section ";
+        $paramsHistRM[':section'] = $section_filter;
+    }
+    if (!empty($model_filter)) {
+        $sqlHistRM .= " AND p.model_name = :model ";
+        $paramsHistRM[':model'] = $model_filter;
+    }
+    $sqlHistRM .= getIPAccessFilterSQL('p.line_name', 'p.section_name');
+    $sqlHistRM .= getUserAccessFilterSQL('p.line_name', 'p.section_name');
+    $sqlHistRM .= " ORDER BY p.line_name ASC, p.section_name ASC, p.model_name ASC ";
+    $stmtHistRM = $conn->prepare($sqlHistRM);
+    $stmtHistRM->execute($paramsHistRM);
+    $histModels = $stmtHistRM->fetchAll(PDO::FETCH_ASSOC);
+
+    if (!empty($histModels)) {
+        $existingKeys = [];
+        foreach ($runningModels as $rm) {
+            $k = strtoupper(trim($rm['model_name']) . '|' . trim($rm['line_name']) . '|' . trim($rm['section_name']));
+            $existingKeys[$k] = true;
+        }
+        foreach ($histModels as $hm) {
+            $k = strtoupper(trim($hm['model_name']) . '|' . trim($hm['line_name']) . '|' . trim($hm['section_name']));
+            if (!isset($existingKeys[$k])) {
+                $runningModels[] = $hm;
+                $existingKeys[$k] = true;
+            }
+        }
     }
 
     if (empty($runningModels)) {
@@ -501,9 +549,15 @@ try {
     $user_role = strtolower(trim($_SESSION['role'] ?? ''));
     $is_admin = ($user_role === 'admin');
 
+    $stmtRefreshSetting = $conn->prepare("SELECT setting_value FROM dtc_app_settings WHERE setting_key = 'bulk_auto_refresh_minutes'");
+    $stmtRefreshSetting->execute();
+    $autoRefreshMinutes = (float)($stmtRefreshSetting->fetchColumn() ?: 1);
+    if ($autoRefreshMinutes <= 0) $autoRefreshMinutes = 1;
+
     echo json_encode([
         'status' => 'success',
         'is_admin' => $is_admin,
+        'auto_refresh_minutes' => $autoRefreshMinutes,
         'inspection_date' => $inspection_date,
         'time_labels' => $time_labels,
         'models' => $modelTrees

@@ -105,8 +105,13 @@ $(document).ready(function () {
                     let isPastMonth = (row.raw_month && row.raw_month < currentMonthStr);
                     let deleteBtnHtml = isPastMonth ? '' : '<button onclick="deleteDTC(' + row.parameter_id + ')" style="background-color: var(--danger); border: none; color: #fff; padding: 4px 10px; cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;" title="Delete Parameter"><i class="fa-solid fa-trash"></i></button>';
 
+                    let isQualitative = (row.data_type === 'Time Check' || row.data_type === 'F/Proof');
+                    let viewUrl = isQualitative
+                        ? `index.php?page=dtc_matrix_qualitative&param_id=${row.parameter_id}&model=${encodeURIComponent(row.model_name || '')}&line=${encodeURIComponent(row.line_name || '')}&section=${encodeURIComponent(row.section_name || '')}&month=${encodeURIComponent(row.raw_month || '')}`
+                        : `index.php?page=dtc_detail&param_id=${row.parameter_id}&month=${row.raw_month}`;
+
                     return '<div class="btn-group-action">' +
-                        '<a href="index.php?page=dtc_detail&param_id=' + row.parameter_id + '&month=' + row.raw_month + '" class="btn-detail" style="background-color: var(--accent); color: #fff; padding: 4px 10px; text-decoration: none; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-eye"></i> View</a>' +
+                        '<a href="' + viewUrl + '" class="btn-detail" style="background-color: var(--accent); color: #fff; padding: 4px 10px; text-decoration: none; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-eye"></i> View</a>' +
                         deleteBtnHtml +
                         '</div>';
                 }

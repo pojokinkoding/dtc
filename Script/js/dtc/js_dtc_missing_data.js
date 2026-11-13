@@ -970,6 +970,9 @@ $(document).ready(function () {
     // Event Listeners
     $('#filter_line_name, #filter_section_name').on('change', function () {
         applyFilters();
+        if (typeof loadOverdueTrending === 'function') {
+            loadOverdueTrending();
+        }
     });
 
     $(document).on('click', '.filter-tab-btn', function () {
@@ -1415,6 +1418,254 @@ $(document).ready(function () {
 
     $(document).on('click', '#btn-close-perf-modal, #btn-cancel-perf-modal', function () {
         $('#modal-monthly-performance').css('display', 'none');
+    });
+
+    // =========================================================================
+    // MONTHLY DAILY INSPECTION ACTIVITIES TRENDING PER SECTION (FULL-VIEW MODAL)
+    // =========================================================================
+    let lastTrendingResponse = null;
+
+    function destroyTrendingCharts() {
+        $('#trending-section-charts-grid .trending-sec-kendo-chart').each(function () {
+            let c = $(this).data('kendoChart');
+            if (c) c.destroy();
+        });
+    }
+
+    function loadOverdueTrending(forceLoad) {
+        if ($('#modal-trending-inspection').length === 0) return;
+        if (!forceLoad && !$('#modal-trending-inspection').is(':visible')) return;
+
+        let month = $('#trend_month').val() || $('#report_month').val() || new Date().toISOString().slice(0, 7);
+        let lineFilter = $('#filter_line_name').val() || '';
+        let sectionFilter = $('#filter_section_name').val() || '';
+
+        destroyTrendingCharts();
+        $('#trending-section-charts-grid').html('<div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-muted);"><i class="fa-solid fa-circle-notch fa-spin fa-2x"></i><p style="margin-top: 10px;">Menghitung diagram Inspection Activities per section...</p></div>');
+
+        $.ajax({
+            url: 'Script/php/dtc/c_missing_data_trending.php',
+            type: 'GET',
+            cache: false,
+            data: {
+                month: month,
+                line_name: lineFilter,
+                section_name: sectionFilter
+            },
+            dataType: 'json',
+            success: function (res) {
+                if (res.status === 'success') {
+                    lastTrendingResponse = res;
+                    renderTrendingViews();
+                } else {
+                    $('#trending-section-charts-grid').html(`<div style="grid-column: 1 / -1; color: #f87171; text-align: center; padding: 24px;">${res.message || 'Gagal memuat tren Inspection Activities.'}</div>`);
+                }
+            },
+            error: function () {
+                $('#trending-section-charts-grid').html('<div style="grid-column: 1 / -1; color: #f87171; text-align: center; padding: 24px;">Gagal terhubung ke server untuk memuat tren Inspection Activities.</div>');
+            }
+        });
+    }
+
+    function renderTrendingViews() {
+        if (!lastTrendingResponse) return;
+        let allSections = lastTrendingResponse.sections || [];
+        let limit = parseInt($('#trend_top_limit').val() || '0', 10);
+        let displaySections = (limit > 0) ? allSections.slice(0, limit) : allSections;
+        let container = $('#trending-section-charts-grid');
+
+        destroyTrendingCharts();
+
+        if (!displaySections || displaySections.length === 0) {
+            container.html('<div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #94a3b8;">Belum ada data Inspection Activities pada bulan ini.</div>');
+            return;
+        }
+
+        let html = '';
+        displaySections.forEach((sec, idx) => {
+            let pct = parseFloat(sec.monthly_overdue_pct || 0);
+            let isAllOff = (parseInt(sec.total_expected || 0, 10) === 0);
+            let color = '#34d399';
+            let borderCol = 'rgba(16,185,129,0.35)';
+            let badgeBg = 'rgba(16,185,129,0.16)';
+            if (isAllOff) {
+                color = '#94a3b8';
+                borderCol = 'rgba(148,163,184,0.3)';
+                badgeBg = 'rgba(148,163,184,0.14)';
+            } else if (pct > 30) {
+                color = '#f87171';
+                borderCol = 'rgba(239,68,68,0.45)';
+                badgeBg = 'rgba(239,68,68,0.2)';
+            } else if (pct > 10) {
+                color = '#fb923c';
+                borderCol = 'rgba(249,115,22,0.45)';
+                badgeBg = 'rgba(249,115,22,0.18)';
+            } else if (pct > 0) {
+                color = '#fbbf24';
+                borderCol = 'rgba(245,158,11,0.4)';
+                badgeBg = 'rgba(245,158,11,0.16)';
+            }
+
+            let pctDisplay = isAllOff ? 'LIBUR' : `${pct}%`;
+            let worstDayText = isAllOff ? 'LIBUR' : (sec.worst_day ? `Tgl ${sec.worst_day} (${sec.worst_day_pct}%)` : 'DONE (0%)');
+
+            html += `
+                <div style="background: rgba(15,23,42,0.9); border: 1px solid ${borderCol}; border-top: 3px solid ${color}; border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 6px 20px rgba(0,0,0,0.35);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+                        <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                            <span style="font-size: 12px; font-weight: 900; color: #f8fafc; background: rgba(99,102,241,0.28); border: 1px solid rgba(129,140,248,0.45); padding: 3px 9px; border-radius: 6px;">#${idx + 1}</span>
+                            <span style="font-size: 11px; font-weight: 800; color: #60a5fa; background: rgba(59,130,246,0.16); border: 1px solid rgba(59,130,246,0.3); padding: 3px 8px; border-radius: 5px;">${sec.line_name}</span>
+                            <span style="font-size: 15px; font-weight: 800; color: #f8fafc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${sec.section_name}</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">${Number(sec.total_overdue || 0).toLocaleString()} / ${Number(sec.total_expected || 0).toLocaleString()} slot</span>
+                            <span style="font-size: 11px; color: ${pct > 0 ? '#fca5a5' : '#94a3b8'}; background: ${badgeBg}; padding: 3px 8px; border-radius: 5px; font-weight: 700;">Paling parah: ${worstDayText}</span>
+                            <span style="font-size: 17px; font-weight: 900; color: ${color}; min-width: 54px; text-align: right;">${pctDisplay}</span>
+                        </div>
+                    </div>
+                    <div id="trend-sec-chart-${idx}" class="trending-sec-kendo-chart" style="height: 255px; width: 100%;"></div>
+                </div>
+            `;
+        });
+
+        container.html(html);
+
+        displaySections.forEach((sec, idx) => {
+            let chartEl = $(`#trend-sec-chart-${idx}`);
+            if (typeof chartEl.kendoChart !== 'function') return;
+
+            let barData = (sec.daily || []).map(dayObj => {
+                let val = dayObj.pct;
+                let barColor = '#10b981';
+                if (val !== null) {
+                    if (val > 30) barColor = '#ef4444';
+                    else if (val > 10) barColor = '#f97316';
+                    else if (val > 0) barColor = '#f59e0b';
+                }
+                return {
+                    day: String(dayObj.day),
+                    value: val,
+                    color: barColor,
+                    expected: dayObj.expected,
+                    overdue: dayObj.overdue,
+                    is_future: dayObj.is_future
+                };
+            });
+
+            chartEl.kendoChart({
+                theme: 'sass',
+                chartArea: { background: 'transparent', margin: { top: 26, right: 8, bottom: 2, left: 0 } },
+                seriesDefaults: {
+                    type: 'column',
+                    gap: 0.35,
+                    spacing: 0.1
+                },
+                series: [{
+                    name: 'Inspection Activities (%)',
+                    data: barData,
+                    field: 'value',
+                    colorField: 'color',
+                    categoryField: 'day',
+                    border: { width: 0 },
+                    labels: {
+                        visible: true,
+                        position: 'outsideEnd',
+                        rotation: -90,
+                        background: 'transparent',
+                        color: '#e2e8f0',
+                        font: "9px 'Inter', sans-serif",
+                        padding: { bottom: 4 },
+                        template: "#= dataItem.value !== null && dataItem.value > 0 ? dataItem.value + '%' : '' #"
+                    }
+                }],
+                categoryAxis: {
+                    labels: { color: '#94a3b8', font: "10px 'Inter', sans-serif" },
+                    majorGridLines: { visible: false },
+                    line: { color: 'rgba(255,255,255,0.12)' }
+                },
+                valueAxis: {
+                    min: 0,
+                    max: 115,
+                    majorUnit: 25,
+                    labels: {
+                        color: '#94a3b8',
+                        font: "10px 'Inter', sans-serif",
+                        template: "#= value <= 100 ? value + '%' : '' #"
+                    },
+                    majorGridLines: { color: 'rgba(255,255,255,0.06)' },
+                    line: { visible: false }
+                },
+                legend: { visible: false },
+                tooltip: {
+                    visible: true,
+                    background: '#0f172a',
+                    border: { color: '#6366f1', width: 1 },
+                    color: '#f8fafc',
+                    template: function (e) {
+                        let d = e.dataItem;
+                        if (d.value === null) {
+                            return `Tgl ${d.day}: <strong>${d.is_future ? 'Belum masuk tanggal' : 'LIBUR'}</strong>`;
+                        }
+                        if (d.value === 0) {
+                            return `Tgl ${d.day}: <strong style="color:#34d399;">0% (DONE)</strong> (${d.overdue}/${d.expected} slot)`;
+                        }
+                        return `Tgl ${d.day}: <strong>${d.value}%</strong> (${d.overdue}/${d.expected} slot)`;
+                    }
+                }
+            });
+        });
+    }
+
+    $(document).on('click', '#btn-open-trending-modal', function () {
+        let rm = $('#report_month').val();
+        if (rm) $('#trend_month').val(rm);
+        $('#modal-trending-inspection').css('display', 'flex');
+        loadOverdueTrending(true);
+    });
+
+    $(document).on('click', '#btn-close-trending-modal', function () {
+        $('#modal-trending-inspection').css('display', 'none');
+    });
+
+    $(document).on('click', '#modal-trending-inspection', function (e) {
+        if (e.target === this) {
+            $('#modal-trending-inspection').css('display', 'none');
+        }
+    });
+
+    $(document).on('keydown', function (e) {
+        if (e.key === 'Escape' && $('#modal-trending-inspection').is(':visible')) {
+            $('#modal-trending-inspection').css('display', 'none');
+        }
+    });
+
+    $(window).on('resize', function () {
+        if ($('#modal-trending-inspection').is(':visible')) {
+            $('#trending-section-charts-grid .trending-sec-kendo-chart').each(function () {
+                let c = $(this).data('kendoChart');
+                if (c) c.resize();
+            });
+        }
+    });
+
+    $(document).on('change', '#trend_month', function () {
+        loadOverdueTrending(true);
+    });
+
+    $(document).on('change', '#report_month', function () {
+        let m = $(this).val();
+        if (m && $('#trend_month').val() !== m) {
+            $('#trend_month').val(m);
+            loadOverdueTrending(false);
+        }
+    });
+
+    $(document).on('change', '#trend_top_limit', function () {
+        renderTrendingViews();
+    });
+
+    $(document).on('click', '#btn-reload-trending', function () {
+        loadOverdueTrending(true);
     });
 
     // Initial Data Load

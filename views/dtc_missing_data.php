@@ -206,6 +206,11 @@ if ($currentUserRole !== 'admin' && strpos($currentUserRole, 'supervisor') === f
         <i class="fa-solid fa-expand"></i> Full Mode
     </button>
 
+    <!-- Trending Inspection Activities Full-View Modal Button -->
+    <button id="btn-open-trending-modal" type="button" title="Buka Trending Inspection Activities Bulanan per Section (Full View)" style="background: linear-gradient(135deg, #6366f1, #4f46e5); color: #ffffff; border: 1px solid rgba(129, 140, 248, 0.55); padding: 5px 14px; border-radius: 6px; font-size: 12px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 0 12px rgba(99, 102, 241, 0.35); transition: all 0.2s ease;">
+        <i class="fa-solid fa-chart-column"></i> Trending Bulanan
+    </button>
+
 
 </div>
 
@@ -265,6 +270,52 @@ if ($currentUserRole !== 'admin' && strpos($currentUserRole, 'supervisor') === f
                 <button id="btn-cancel-perf-modal" style="padding: 8px 16px; font-size: 13px; background: rgba(255,255,255,0.1); color: var(--text-light); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; cursor: pointer;">
                     Close
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- FULL-VIEW MODAL: TRENDING INSPECTION ACTIVITIES PER SECTION (DIAGRAM BALOK) -->
+<div id="modal-trending-inspection" style="display: none; position: fixed; z-index: 9999; inset: 0; background-color: rgba(2, 6, 23, 0.88); backdrop-filter: blur(8px); padding: 14px; align-items: center; justify-content: center;">
+    <div style="width: 100%; height: 100%; background: #0f172a; border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 60px rgba(0,0,0,0.85);">
+        <div style="padding: 12px 20px; background: linear-gradient(90deg, rgba(99,102,241,0.22) 0%, rgba(15,23,42,0.95) 100%); border-bottom: 1px solid rgba(255,255,255,0.12); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-chart-column" style="color: #818cf8;"></i> Trending Inspection Activities Bulanan per Section (%)
+                </h3>
+                <span style="font-size: 11px; color: #cbd5e1; background: rgba(239,68,68,0.16); border: 1px solid rgba(239,68,68,0.35); padding: 2px 8px; border-radius: 6px; font-weight: 700;">
+                    Diurutkan dari % paling parah
+                </span>
+                <div style="display: flex; gap: 6px; font-size: 10px; font-weight: 700; flex-wrap: wrap;">
+                    <span style="background: rgba(16,185,129,0.2); color: #34d399; padding: 2px 6px; border-radius: 4px;">0% DONE</span>
+                    <span style="background: rgba(245,158,11,0.25); color: #fbbf24; padding: 2px 6px; border-radius: 4px;">1-10%</span>
+                    <span style="background: rgba(249,115,22,0.35); color: #fb923c; padding: 2px 6px; border-radius: 4px;">11-30%</span>
+                    <span style="background: rgba(239,68,68,0.45); color: #fca5a5; padding: 2px 6px; border-radius: 4px;">&gt;30% Parah</span>
+                    <span style="background: rgba(148,163,184,0.2); color: #94a3b8; padding: 2px 6px; border-radius: 4px;">LIBUR (Kosong)</span>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <label style="font-size: 12px; color: #94a3b8; font-weight: 700;">Bulan:</label>
+                <input type="month" id="trend_month" value="<?= date('Y-m') ?>" style="padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(99,102,241,0.45); background: rgba(15,23,42,0.95); color: #ffffff; font-size: 12px; font-weight: 700;">
+                <select id="trend_top_limit" style="padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(15,23,42,0.95); color: #ffffff; font-size: 12px; font-weight: 600;">
+                    <option value="0" selected>Semua Section</option>
+                    <option value="5">Top 5 Paling Parah</option>
+                    <option value="10">Top 10 Paling Parah</option>
+                </select>
+                <button type="button" id="btn-reload-trending" style="padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(59,130,246,0.45); background: rgba(59,130,246,0.22); color: #60a5fa; font-size: 12px; font-weight: 700; cursor: pointer;">
+                    <i class="fa-solid fa-rotate"></i> Refresh
+                </button>
+                <button type="button" id="btn-close-trending-modal" style="padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(239,68,68,0.4); background: rgba(239,68,68,0.18); color: #fca5a5; font-size: 12px; font-weight: 800; cursor: pointer;">
+                    <i class="fa-solid fa-xmark"></i> Tutup
+                </button>
+            </div>
+        </div>
+        <div id="trending-modal-body" style="flex: 1; overflow-y: auto; padding: 18px 20px;">
+            <div id="trending-section-charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(680px, 1fr)); gap: 16px;">
+                <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-muted);">
+                    <i class="fa-solid fa-circle-notch fa-spin fa-2x"></i>
+                    <p style="margin-top: 10px;">Memuat diagram Inspection Activities per section...</p>
+                </div>
             </div>
         </div>
     </div>

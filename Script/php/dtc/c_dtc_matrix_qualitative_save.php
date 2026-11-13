@@ -24,9 +24,9 @@ try {
     $user_role = strtolower(trim($_SESSION['role'] ?? ''));
     $is_admin = ($user_role === 'admin');
 
-    // Past Month Immutability Check
+    // Past Month Immutability Check (Non-Admin Only)
     $date_check = $_POST['inspection_date'] ?? $_POST['input_date'] ?? '';
-    if (!empty($date_check) && substr($date_check, 0, 7) < date('Y-m')) {
+    if (!$is_admin && !empty($date_check) && substr($date_check, 0, 7) < date('Y-m')) {
         echo json_encode(['status' => 'error', 'message' => "Data periode bulan lalu terkunci total dan tidak dapat diubah atau diisi."]);
         exit;
     }
@@ -150,7 +150,13 @@ try {
 
         $seq = 1;
         foreach ($samples_map as $lbl => $val) {
-            if (isUnmeasuredValue($val)) continue;
+            if (isUnmeasuredValue($val)) {
+                if ($is_admin) {
+                    $stmt_del_empty = $conn->prepare("DELETE FROM dtc_measurements WHERE session_id = :sid AND checkpoint_id = :cpid AND sample_label = :lbl");
+                    $stmt_del_empty->execute([':sid' => $session_id, ':cpid' => $checkpoint_id, ':lbl' => $lbl]);
+                }
+                continue;
+            }
 
             // Validasi Slot Sebelum Waktu Naiknya Running Model
             if ($createdMinsFrom7 !== null && preg_match('/^(\d{1,2})[:\.](\d{2})$/', $lbl, $sMatches)) {

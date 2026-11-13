@@ -93,8 +93,8 @@
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">
                         <div><span style="color: #94a3b8;">Model Name:</span> <strong id="oos-banner-model" style="color: #f8fafc;">-</strong></div>
                         <div><span style="color: #94a3b8;">Line & Section:</span> <strong id="oos-banner-linesec" style="color: #38bdf8;">-</strong></div>
-                        <div><span style="color: #94a3b8;">Item Check:</span> <strong id="oos-banner-item" style="color: #60a5fa;">-</strong></div>
-                        <div><span style="color: #94a3b8;">Spesifikasi:</span> <strong id="oos-banner-spec" style="color: #fbbf24;">-</strong></div>
+                        <div id="oos-banner-item-wrapper"><span style="color: #94a3b8;">Item Check:</span> <strong id="oos-banner-item" style="color: #60a5fa;">-</strong></div>
+                        <div id="oos-banner-spec-wrapper"><span style="color: #94a3b8;">Spesifikasi:</span> <strong id="oos-banner-spec" style="color: #fbbf24;">-</strong></div>
                     </div>
                 </div>
 

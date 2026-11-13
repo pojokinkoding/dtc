@@ -183,17 +183,24 @@ $(document).ready(function () {
                 $('#oos-info-linesec').text(`${sess.line_name} • ${sess.section_name}`);
                 $('#oos-info-item').text(`${sess.item_check_name} (${sess.process_name})`);
 
-                let lsl = sess.lsl !== null && sess.lsl !== undefined ? parseFloat(sess.lsl) : null;
-                let usl = sess.usl !== null && sess.usl !== undefined ? parseFloat(sess.usl) : null;
-                let isQualitative = (sess.measuring_item === 'Qualitative' || sess.data_type === 'Qualitative');
+                let isMultiple = (sess.data_type === 'Time Check' || sess.data_type === 'F/Proof' || (meas.length > 0 && meas.some(m => m.checkpoint_id)));
 
-                let specText = '-';
-                if (lsl !== null || usl !== null) {
-                    specText = `LSL: ${lsl ?? '-'} | Target: ${sess.target_value ?? '-'} | USL: ${usl ?? '-'}`;
-                } else if (isQualitative) {
-                    specText = 'Qualitative (OK)';
+                if (isMultiple) {
+                    $('#oos-info-spec-wrapper').hide();
+                } else {
+                    $('#oos-info-spec-wrapper').show();
+                    let lsl = sess.lsl !== null && sess.lsl !== undefined ? parseFloat(sess.lsl) : null;
+                    let usl = sess.usl !== null && sess.usl !== undefined ? parseFloat(sess.usl) : null;
+                    let isQualitative = (sess.measuring_item === 'Qualitative' || sess.data_type === 'Qualitative');
+
+                    let specText = '-';
+                    if (lsl !== null || usl !== null) {
+                        specText = `LSL: ${lsl ?? '-'} | Target: ${sess.target_value ?? '-'} | USL: ${usl ?? '-'}`;
+                    } else if (isQualitative) {
+                        specText = 'Qualitative (OK)';
+                    }
+                    $('#oos-info-spec').text(specText);
                 }
-                $('#oos-info-spec').text(specText);
                 $('#oos_edit_remarks').val(sess.remarks || '');
 
                 let samplesHtml = '';

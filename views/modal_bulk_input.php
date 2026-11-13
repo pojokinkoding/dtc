@@ -1,4 +1,20 @@
 <!-- Modal Bulk Input Pengukuran Running Model (Extra Large Fullscreen) -->
+<?php
+if (!isset($conn)) {
+    require_once __DIR__ . '/../config/config.php';
+    $conn = getDBConnection();
+}
+$stmtRefreshSetting = $conn->prepare("SELECT setting_value FROM dtc_app_settings WHERE setting_key = 'bulk_auto_refresh_minutes'");
+$stmtRefreshSetting->execute();
+$bulk_refresh_min = (float)($stmtRefreshSetting->fetchColumn() ?: 1);
+if ($bulk_refresh_min <= 0) $bulk_refresh_min = 1;
+$bulk_refresh_lbl = ($bulk_refresh_min < 1) ? (round($bulk_refresh_min * 60) . 's') : (($bulk_refresh_min == (int)$bulk_refresh_min ? (int)$bulk_refresh_min : $bulk_refresh_min) . 'm');
+?>
+<script>
+    window.bulkAutoRefreshMinutes = <?= json_encode($bulk_refresh_min) ?>;
+    window.bulkAutoRefreshMs = Math.round(<?= json_encode($bulk_refresh_min) ?> * 60 * 1000);
+    window.bulkAutoRefreshLabel = <?= json_encode($bulk_refresh_lbl) ?>;
+</script>
 <style>
     .swal2-container {
         z-index: 9999999 !important;
@@ -103,8 +119,8 @@
                 </span>
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="font-size: 10px; color: #34d399; background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); padding: 2px 8px; border-radius: 4px; font-weight: 600;" title="Form diperbarui otomatis setiap 1 menit">
-                    <i class="fa-solid fa-arrows-rotate fa-spin"></i> Auto 1m
+                <span id="badge-bulk-auto-refresh" style="font-size: 10px; color: #34d399; background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); padding: 2px 8px; border-radius: 4px; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Form diperbarui otomatis setiap <?= htmlspecialchars($bulk_refresh_lbl) ?> (Klik untuk ubah cepat atau atur di menu Setting)">
+                    <i class="fa-solid fa-arrows-rotate fa-spin"></i> Auto <span id="bulk-refresh-text"><?= htmlspecialchars($bulk_refresh_lbl) ?></span>
                 </span>
                 <button type="button" id="btn-toggle-bulk-mute" class="btn-rich-warning" style="height: 26px; padding: 0 10px; font-size: 10px; border-radius: 4px; background: rgba(239,68,68,0.25); color: #f87171; border: 1px solid rgba(239,68,68,0.4); font-weight: 600; cursor: pointer;" title="Mute / Unmute Suara Alarm">
                     <i class="fa-solid fa-volume-high" id="mute-icon"></i> <span id="mute-btn-text">Mute Alarm</span>

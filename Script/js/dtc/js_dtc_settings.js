@@ -25,6 +25,34 @@ $(document).ready(function() {
         updateSlotNumbers(containerId);
     });
 
+    function updateRefreshPreview(val) {
+        let num = parseFloat(val);
+        if (isNaN(num) || num <= 0) num = 1;
+        let lbl = (num < 1) ? `${Math.round(num * 60)}s` : `${(num === Math.floor(num) ? Math.floor(num) : num)}m`;
+        $('#preview-auto-refresh-badge').html(`<i class="fa-solid fa-arrows-rotate"></i> Preview Badge: Auto ${lbl}`);
+    }
+
+    $(document).on('input change', '#bulk_auto_refresh_minutes', function() {
+        updateRefreshPreview($(this).val());
+    });
+
+    $(document).on('click', '.btn-refresh-preset', function() {
+        let val = $(this).data('val');
+        $('#bulk_auto_refresh_minutes').val(val).trigger('input');
+        $('.btn-refresh-preset').css({
+            'border-color': 'rgba(255,255,255,0.12)',
+            'background': 'rgba(15,23,42,0.5)',
+            'color': '#cbd5e1',
+            'font-weight': 'normal'
+        });
+        $(this).css({
+            'border-color': 'rgba(59,130,246,0.6)',
+            'background': 'rgba(59,130,246,0.2)',
+            'color': '#60a5fa',
+            'font-weight': '700'
+        });
+    });
+
     $('#form-settings-time').on('submit', function(e) {
         e.preventDefault();
         $('#btn-save-settings').html('<i class="fa-solid fa-circle-notch fa-spin"></i> Saving...').prop('disabled', true);

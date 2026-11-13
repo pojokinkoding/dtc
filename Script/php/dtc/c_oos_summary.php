@@ -55,6 +55,10 @@ try {
             exit;
         }
 
+        $stmtCpCount = $conn->prepare("SELECT COUNT(*) FROM dtc_checkpoints WHERE parameter_id = :pid");
+        $stmtCpCount->execute([':pid' => $paramId]);
+        $checkpointCount = (int)$stmtCpCount->fetchColumn();
+
         $date = $_GET['date'] ?? $_POST['date'] ?? '';
 
         // 2. Fetch OOS Sessions for this parameter
@@ -177,6 +181,7 @@ try {
         echo json_encode([
             'status' => 'success',
             'parameter' => $parameter,
+            'checkpoint_count' => $checkpointCount,
             'sessions' => $sessions
         ]);
         exit;
@@ -204,6 +209,17 @@ try {
             WHERE session_id = :sid
         ");
 
+        $stmtMinMax = $conn->prepare("
+            SELECT 
+                MIN(CAST(sample_value AS DECIMAL(10,4))) AS min_v,
+                MAX(CAST(sample_value AS DECIMAL(10,4))) AS max_v
+            FROM dtc_measurements
+            WHERE session_id = :sid
+              AND sample_value IS NOT NULL
+              AND TRIM(sample_value) != ''
+              AND TRIM(sample_value) REGEXP '^-?[0-9]+(\\.[0-9]+)?$'
+        ");
+
         foreach ($sessions as $sess) {
             $sid = (int)($sess['session_id'] ?? 0);
             $remarks = trim($sess['remarks'] ?? '');
@@ -211,7 +227,6 @@ try {
 
             if ($sid <= 0) continue;
 
-            $numericVals = [];
             if (is_array($measList)) {
                 foreach ($measList as $m) {
                     $mid = (int)($m['measurement_id'] ?? 0);
@@ -222,15 +237,14 @@ try {
                             ':mid' => $mid,
                             ':sid' => $sid
                         ]);
-                        if ($val !== '' && is_numeric($val)) {
-                            $numericVals[] = (float)$val;
-                        }
                     }
                 }
             }
 
-            $minVal = !empty($numericVals) ? min($numericVals) : null;
-            $maxVal = !empty($numericVals) ? max($numericVals) : null;
+            $stmtMinMax->execute([':sid' => $sid]);
+            $mmRow = $stmtMinMax->fetch(PDO::FETCH_ASSOC);
+            $minVal = ($mmRow && $mmRow['min_v'] !== null) ? (float)$mmRow['min_v'] : null;
+            $maxVal = ($mmRow && $mmRow['max_v'] !== null) ? (float)$mmRow['max_v'] : null;
 
             $stmtUpdSess->execute([
                 ':min_v' => $minVal,
@@ -326,7 +340,6 @@ try {
 
         $conn->beginTransaction();
 
-        $numericVals = [];
         if (is_array($measurements) && !empty($measurements)) {
             $stmtUpdateMeas = $conn->prepare("
                 UPDATE dtc_measurements 
@@ -342,15 +355,24 @@ try {
                         ':mid' => $mid,
                         ':sid' => $sessionId
                     ]);
-                    if ($val !== '' && is_numeric($val)) {
-                        $numericVals[] = (float)$val;
-                    }
                 }
             }
         }
 
-        $minVal = !empty($numericVals) ? min($numericVals) : null;
-        $maxVal = !empty($numericVals) ? max($numericVals) : null;
+        $stmtMinMax = $conn->prepare("
+            SELECT 
+                MIN(CAST(sample_value AS DECIMAL(10,4))) AS min_v,
+                MAX(CAST(sample_value AS DECIMAL(10,4))) AS max_v
+            FROM dtc_measurements
+            WHERE session_id = :sid
+              AND sample_value IS NOT NULL
+              AND TRIM(sample_value) != ''
+              AND TRIM(sample_value) REGEXP '^-?[0-9]+(\\.[0-9]+)?$'
+        ");
+        $stmtMinMax->execute([':sid' => $sessionId]);
+        $mmRow = $stmtMinMax->fetch(PDO::FETCH_ASSOC);
+        $minVal = ($mmRow && $mmRow['min_v'] !== null) ? (float)$mmRow['min_v'] : null;
+        $maxVal = ($mmRow && $mmRow['max_v'] !== null) ? (float)$mmRow['max_v'] : null;
 
         $stmtUpdSess = $conn->prepare("
             UPDATE dtc_inspection_sessions 
@@ -405,9 +427,20 @@ try {
                     OR (COALESCE(p.usl, spec.usl) IS NOT NULL AND s.max_value > COALESCE(p.usl, spec.usl))))
               OR
               (EXISTS (
-                  SELECT 1 FROM dtc_measurements m2 
+                  SELECT 1 FROM dtc_measurements m2
+                  LEFT JOIN dtc_checkpoints c2 ON m2.checkpoint_id = c2.checkpoint_id
                   WHERE m2.session_id = s.session_id 
-                    AND UPPER(TRIM(m2.sample_value)) = 'NG'
+                    AND (
+                        UPPER(TRIM(m2.sample_value)) = 'NG'
+                        OR (
+                            TRIM(m2.sample_value) REGEXP '^-?[0-9]+(\\.[0-9]+)?$'
+                            AND (
+                                (COALESCE(c2.lsl, p.lsl, spec.lsl) IS NOT NULL AND COALESCE(c2.lsl, p.lsl, spec.lsl) != '' AND CAST(m2.sample_value AS DECIMAL(10,4)) < CAST(COALESCE(c2.lsl, p.lsl, spec.lsl) AS DECIMAL(10,4)))
+                                OR
+                                (COALESCE(c2.usl, p.usl, spec.usl) IS NOT NULL AND COALESCE(c2.usl, p.usl, spec.usl) != '' AND CAST(m2.sample_value AS DECIMAL(10,4)) > CAST(COALESCE(c2.usl, p.usl, spec.usl) AS DECIMAL(10,4)))
+                            )
+                        )
+                    )
               ))
           )
           " . getIPAccessFilterSQL('COALESCE(p.line_name, spec.line_name)', 'COALESCE(p.section_name, spec.section_name)') . "

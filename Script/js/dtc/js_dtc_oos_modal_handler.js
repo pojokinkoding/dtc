@@ -52,6 +52,8 @@ $(document).ready(function () {
         $('#oos-banner-linesec').text('-');
         $('#oos-banner-item').text('-');
         $('#oos-banner-spec').text('-');
+        $('#oos-banner-spec-wrapper').show();
+        $('#oos-banner-item-wrapper').css('grid-column', 'auto');
         $('#oos-param-img-container').hide();
 
         $('#oos-sessions-container').empty();
@@ -99,24 +101,42 @@ $(document).ready(function () {
 
                 let p = res.parameter;
                 let sessions = res.sessions || [];
+                let cpCount = parseInt(res.checkpoint_count || 0, 10);
 
                 $('#oos-banner-model').text(p.model_name || '-');
                 $('#oos-banner-linesec').text(`${p.line_name || '-'} • ${p.section_name || '-'}`);
                 $('#oos-banner-item').text(`${p.item_check_name || '-'} (${p.process_name || '-'})`);
 
+                // Deteksi apakah parameter ini menggunakan multiple checkpoints
+                let cpSet = new Set();
+                sessions.forEach(sess => {
+                    (sess.measurements || []).forEach(m => {
+                        if (m.checkpoint_id) cpSet.add(m.checkpoint_id);
+                    });
+                });
 
+                let isMultiple = (cpCount > 0) || (cpSet.size > 0) || (p.data_type === 'Time Check') || (p.data_type === 'F/Proof');
 
-                let lsl = p.lsl !== null && p.lsl !== undefined ? parseFloat(p.lsl) : null;
-                let usl = p.usl !== null && p.usl !== undefined ? parseFloat(p.usl) : null;
-                let isQualitative = (p.measuring_item === 'Qualitative' || p.data_type === 'Qualitative');
+                if (isMultiple) {
+                    // Pada detail multiple, spesifikasi sudah tertera di masing-masing checkpoint, sehingga informasi spesifikasi di header dihilangkan
+                    $('#oos-banner-spec-wrapper').hide();
+                    $('#oos-banner-item-wrapper').css('grid-column', 'span 2');
+                } else {
+                    $('#oos-banner-spec-wrapper').show();
+                    $('#oos-banner-item-wrapper').css('grid-column', 'auto');
 
-                let specText = '-';
-                if (lsl !== null || usl !== null) {
-                    specText = `LSL: ${lsl ?? '-'} | Target: ${p.target_value ?? '-'} | USL: ${usl ?? '-'}`;
-                } else if (isQualitative) {
-                    specText = 'Qualitative (OK)';
+                    let lsl = p.lsl !== null && p.lsl !== undefined ? parseFloat(p.lsl) : null;
+                    let usl = p.usl !== null && p.usl !== undefined ? parseFloat(p.usl) : null;
+                    let isQualitative = (p.measuring_item === 'Qualitative' || p.data_type === 'Qualitative');
+
+                    let specText = '-';
+                    if (lsl !== null || usl !== null) {
+                        specText = `LSL: ${lsl ?? '-'} | Target: ${p.target_value ?? '-'} | USL: ${usl ?? '-'}`;
+                    } else if (isQualitative) {
+                        specText = 'Qualitative (OK)';
+                    }
+                    $('#oos-banner-spec').text(specText);
                 }
-                $('#oos-banner-spec').text(specText);
 
                 if (sessions.length === 0) {
                     $('#oos-sessions-empty').show();

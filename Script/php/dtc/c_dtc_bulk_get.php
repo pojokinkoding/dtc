@@ -277,7 +277,7 @@ try {
         SELECT DISTINCT 0 AS running_id, p.model_name, p.line_name, p.section_name, p.target_month, NULL AS created_at
         FROM dtc_master_parameters p
         INNER JOIN dtc_inspection_sessions s ON s.parameter_id = p.parameter_id
-        WHERE p.is_active = 1 AND s.is_active = 1 AND s.inspection_date = :idate
+        WHERE s.is_active = 1 AND s.inspection_date = :idate
     ";
     $paramsHistRM = [':idate' => $inspection_date];
     if (!empty($line_filter)) {

@@ -284,14 +284,15 @@ if ($currentUserRole !== 'admin' && strpos($currentUserRole, 'supervisor') === f
                     <i class="fa-solid fa-chart-column" style="color: #818cf8;"></i> Trending Inspection Activities Bulanan per Section (%)
                 </h3>
                 <span style="font-size: 11px; color: #cbd5e1; background: rgba(239,68,68,0.16); border: 1px solid rgba(239,68,68,0.35); padding: 2px 8px; border-radius: 6px; font-weight: 700;">
-                    Diurutkan dari % paling parah
+                    Urutan: Overdue Tertinggi (%)
                 </span>
                 <div style="display: flex; gap: 6px; font-size: 10px; font-weight: 700; flex-wrap: wrap;">
                     <span style="background: rgba(16,185,129,0.2); color: #34d399; padding: 2px 6px; border-radius: 4px;">0% DONE</span>
-                    <span style="background: rgba(245,158,11,0.25); color: #fbbf24; padding: 2px 6px; border-radius: 4px;">1-10%</span>
-                    <span style="background: rgba(249,115,22,0.35); color: #fb923c; padding: 2px 6px; border-radius: 4px;">11-30%</span>
-                    <span style="background: rgba(239,68,68,0.45); color: #fca5a5; padding: 2px 6px; border-radius: 4px;">&gt;30% Parah</span>
-                    <span style="background: rgba(148,163,184,0.2); color: #94a3b8; padding: 2px 6px; border-radius: 4px;">LIBUR (Kosong)</span>
+                    <span style="background: rgba(245,158,11,0.25); color: #fbbf24; padding: 2px 6px; border-radius: 4px;">1-10% Minor</span>
+                    <span style="background: rgba(249,115,22,0.35); color: #fb923c; padding: 2px 6px; border-radius: 4px;">11-30% Warning</span>
+                    <span style="background: rgba(239,68,68,0.45); color: #fca5a5; padding: 2px 6px; border-radius: 4px;">&gt;30% Critical</span>
+                    <span style="background: rgba(56,189,248,0.18); color: #38bdf8; border: 1px solid rgba(56,189,248,0.4); padding: 2px 6px; border-radius: 4px;">&#9473; Garis: Completed Slot</span>
+                    <span style="background: rgba(148,163,184,0.22); color: #cbd5e1; padding: 2px 6px; border-radius: 4px;">Arsir Abu: OFF / Libur</span>
                 </div>
             </div>
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
@@ -299,8 +300,8 @@ if ($currentUserRole !== 'admin' && strpos($currentUserRole, 'supervisor') === f
                 <input type="month" id="trend_month" value="<?= date('Y-m') ?>" style="padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(99,102,241,0.45); background: rgba(15,23,42,0.95); color: #ffffff; font-size: 12px; font-weight: 700;">
                 <select id="trend_top_limit" style="padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(15,23,42,0.95); color: #ffffff; font-size: 12px; font-weight: 600;">
                     <option value="0" selected>Semua Section</option>
-                    <option value="5">Top 5 Paling Parah</option>
-                    <option value="10">Top 10 Paling Parah</option>
+                    <option value="5">Top 5 Overdue Tertinggi</option>
+                    <option value="10">Top 10 Overdue Tertinggi</option>
                 </select>
                 <button type="button" id="btn-reload-trending" style="padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(59,130,246,0.45); background: rgba(59,130,246,0.22); color: #60a5fa; font-size: 12px; font-weight: 700; cursor: pointer;">
                     <i class="fa-solid fa-rotate"></i> Refresh

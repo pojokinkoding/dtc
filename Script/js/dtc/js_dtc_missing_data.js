@@ -783,7 +783,7 @@ $(document).ready(function () {
         data.forEach(row => {
             let subName = row.sub_item_check_name && row.sub_item_check_name !== '-' ? ` - ${row.sub_item_check_name}` : '';
             let cpParam = row.checkpoint_id ? `&checkpoint_id=${row.checkpoint_id}` : (row.parameter_key ? `&param_key=${encodeURIComponent(row.parameter_key)}` : '');
-            
+
             html += `<tr>`;
             html += `
                 <td>
@@ -1131,7 +1131,7 @@ $(document).ready(function () {
                     try {
                         let parsed = JSON.parse(xhr.responseText);
                         if (parsed.message) errMsg = parsed.message;
-                    } catch (e) {}
+                    } catch (e) { }
                 }
                 $('#perf-modal-body').html(`<div style="color: var(--danger); text-align: center; padding: 20px;">${errMsg}</div>`);
             }
@@ -1302,14 +1302,14 @@ $(document).ready(function () {
 
                         // Time slot rows
                         (param.time_slots || ['07:30', '09:40', '12:40', '14:40', '16:40', '18:40', '20:05', '22:30', '00:30', '02:30', '04:30']).forEach((tLabel, sIdx) => {
-                        if (tLabel === '24:30') tLabel = '00:30'; else if (String(tLabel).startsWith('24:')) tLabel = '00:' + String(tLabel).substring(3);
+                            if (tLabel === '24:30') tLabel = '00:30'; else if (String(tLabel).startsWith('24:')) tLabel = '00:' + String(tLabel).substring(3);
                             let seqNo = sIdx + 1;
                             html += `<tr>`;
                             html += `<td style="background: rgba(30,41,59,0.9); font-weight: 700; color: #94a3b8; border: 1px solid rgba(255,255,255,0.08);">${tLabel}</td>`;
                             for (let d = 1; d <= numDays; d++) {
                                 let val = (param.grid_data && param.grid_data[seqNo]) ? param.grid_data[seqNo][d] : null;
                                 let valStr = (val !== null && val !== undefined && val !== '') ? String(val).trim() : '';
-                                
+
                                 let cellContent = '';
                                 if (valStr !== '') {
                                     let upper = valStr.toUpperCase();
@@ -1519,7 +1519,7 @@ $(document).ready(function () {
                         </div>
                         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                             <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">${Number(sec.total_overdue || 0).toLocaleString()} / ${Number(sec.total_expected || 0).toLocaleString()} slot</span>
-                            <span style="font-size: 11px; color: ${pct > 0 ? '#fca5a5' : '#94a3b8'}; background: ${badgeBg}; padding: 3px 8px; border-radius: 5px; font-weight: 700;">Paling parah: ${worstDayText}</span>
+                            <span style="font-size: 11px; color: ${pct > 0 ? '#fca5a5' : '#94a3b8'}; background: ${badgeBg}; padding: 3px 8px; border-radius: 5px; font-weight: 700;">Peak Overdue: ${worstDayText}</span>
                             <span style="font-size: 17px; font-weight: 900; color: ${color}; min-width: 54px; text-align: right;">${pctDisplay}</span>
                         </div>
                     </div>
@@ -1534,8 +1534,23 @@ $(document).ready(function () {
             let chartEl = $(`#trend-sec-chart-${idx}`);
             if (typeof chartEl.kendoChart !== 'function') return;
 
-            let barData = (sec.daily || []).map(dayObj => {
+            let maxExp = 0;
+            let liburPlotBands = [];
+            let barData = (sec.daily || []).map((dayObj, dIdx) => {
                 let val = dayObj.pct;
+                let filledVal = parseInt(dayObj.filled || 0, 10);
+                let expVal = parseInt(dayObj.expected || 0, 10);
+                if (val !== null && expVal > maxExp) maxExp = expVal;
+                if (val !== null && filledVal > maxExp) maxExp = filledVal;
+
+                if (val === null && !dayObj.is_future) {
+                    liburPlotBands.push({
+                        from: dIdx,
+                        to: dIdx + 1,
+                        color: 'rgba(148, 163, 184, 0.14)'
+                    });
+                }
+
                 let barColor = '#10b981';
                 if (val !== null) {
                     if (val > 30) barColor = '#ef4444';
@@ -1545,72 +1560,140 @@ $(document).ready(function () {
                 return {
                     day: String(dayObj.day),
                     value: val,
+                    lineVal: val !== null ? filledVal : null,
+                    filled: filledVal,
                     color: barColor,
-                    expected: dayObj.expected,
-                    overdue: dayObj.overdue,
+                    expected: expVal,
+                    overdue: parseInt(dayObj.overdue || 0, 10),
                     is_future: dayObj.is_future
                 };
             });
 
+            let itemAxisMax = Math.max(5, Math.ceil(maxExp * 1.28));
+
             chartEl.kendoChart({
                 theme: 'sass',
-                chartArea: { background: 'transparent', margin: { top: 26, right: 8, bottom: 2, left: 0 } },
+                chartArea: { background: 'transparent', margin: { top: 26, right: 12, bottom: 2, left: 0 } },
                 seriesDefaults: {
-                    type: 'column',
                     gap: 0.35,
                     spacing: 0.1
                 },
-                series: [{
-                    name: 'Inspection Activities (%)',
-                    data: barData,
-                    field: 'value',
-                    colorField: 'color',
-                    categoryField: 'day',
-                    border: { width: 0 },
-                    labels: {
-                        visible: true,
-                        position: 'outsideEnd',
-                        rotation: -90,
-                        background: 'transparent',
-                        color: '#e2e8f0',
-                        font: "9px 'Inter', sans-serif",
-                        padding: { bottom: 4 },
-                        template: "#= dataItem.value !== null && dataItem.value > 0 ? dataItem.value + '%' : '' #"
+                series: [
+                    {
+                        type: 'column',
+                        axis: 'pctAxis',
+                        name: 'Overdue (%)',
+                        data: barData,
+                        field: 'value',
+                        colorField: 'color',
+                        categoryField: 'day',
+                        border: { width: 0 },
+                        labels: {
+                            visible: true,
+                            position: 'outsideEnd',
+                            rotation: -90,
+                            background: 'transparent',
+                            color: '#e2e8f0',
+                            font: "9px 'Inter', sans-serif",
+                            padding: { bottom: 4 },
+                            template: "#= dataItem.value !== null && dataItem.value > 0 ? dataItem.value + '%' : '' #"
+                        }
+                    },
+                    {
+                        type: 'line',
+                        axis: 'itemAxis',
+                        name: 'Total Finish / Diinput',
+                        data: barData,
+                        field: 'lineVal',
+                        categoryField: 'day',
+                        color: '#38bdf8',
+                        width: 2.2,
+                        missingValues: 'gap',
+                        markers: {
+                            visible: true,
+                            size: 6,
+                            background: '#0f172a',
+                            border: { color: '#38bdf8', width: 2 }
+                        },
+                        labels: {
+                            visible: true,
+                            position: 'above',
+                            rotation: -90,
+                            color: '#38bdf8',
+                            background: 'transparent',
+                            border: { width: 0 },
+                            padding: 0,
+                            margin: { bottom: 6 },
+                            font: "bold 9px 'Inter', sans-serif",
+                            template: "#= dataItem.lineVal !== null ? dataItem.filled + '/' + dataItem.expected : '' #",
+                            visual: function (e) {
+                                let visual = e.createVisual();
+                                let d = e.dataItem;
+                                if (d && d.filled > 0 && d.value !== null && d.value > 0 && typeof kendo !== 'undefined' && kendo.geometry) {
+                                    let barVis = d.value / 115;
+                                    let lineVis = d.filled / itemAxisMax;
+                                    if (lineVis > 0.18 && barVis >= lineVis - 0.05 && barVis <= lineVis + 0.25) {
+                                        visual.transform(kendo.geometry.transform().translate(0, 36));
+                                    } else if (barVis < lineVis - 0.05 && (lineVis - barVis) <= 0.24) {
+                                        visual.transform(kendo.geometry.transform().translate(0, -16));
+                                    }
+                                }
+                                return visual;
+                            }
+                        }
                     }
-                }],
+                ],
                 categoryAxis: {
+                    axisCrossingValues: [0, 999],
+                    plotBands: liburPlotBands,
                     labels: { color: '#94a3b8', font: "10px 'Inter', sans-serif" },
                     majorGridLines: { visible: false },
                     line: { color: 'rgba(255,255,255,0.12)' }
                 },
-                valueAxis: {
-                    min: 0,
-                    max: 115,
-                    majorUnit: 25,
-                    labels: {
-                        color: '#94a3b8',
-                        font: "10px 'Inter', sans-serif",
-                        template: "#= value <= 100 ? value + '%' : '' #"
+                valueAxes: [
+                    {
+                        name: 'pctAxis',
+                        min: 0,
+                        max: 115,
+                        majorUnit: 25,
+                        labels: {
+                            color: '#94a3b8',
+                            font: "10px 'Inter', sans-serif",
+                            template: "#= value <= 100 ? value + '%' : '' #"
+                        },
+                        majorGridLines: { color: 'rgba(255,255,255,0.06)' },
+                        line: { visible: false }
                     },
-                    majorGridLines: { color: 'rgba(255,255,255,0.06)' },
-                    line: { visible: false }
-                },
+                    {
+                        name: 'itemAxis',
+                        min: 0,
+                        max: itemAxisMax,
+                        labels: {
+                            color: '#38bdf8',
+                            font: "10px 'Inter', sans-serif"
+                        },
+                        majorGridLines: { visible: false },
+                        line: { visible: false }
+                    }
+                ],
                 legend: { visible: false },
                 tooltip: {
                     visible: true,
+                    shared: true,
                     background: '#0f172a',
                     border: { color: '#6366f1', width: 1 },
                     color: '#f8fafc',
-                    template: function (e) {
-                        let d = e.dataItem;
-                        if (d.value === null) {
-                            return `Tgl ${d.day}: <strong>${d.is_future ? 'Belum masuk tanggal' : 'LIBUR'}</strong>`;
-                        }
-                        if (d.value === 0) {
-                            return `Tgl ${d.day}: <strong style="color:#34d399;">0% (DONE)</strong> (${d.overdue}/${d.expected} slot)`;
-                        }
-                        return `Tgl ${d.day}: <strong>${d.value}%</strong> (${d.overdue}/${d.expected} slot)`;
-                    }
+                    sharedTemplate:
+                        "# var d = (points && points.length > 0) ? points[0].dataItem : null; #" +
+                        "# if (d && d.value !== null) { #" +
+                        "<div style='text-align:left;line-height:1.5;'>" +
+                        "<div><strong>Tgl #= category #</strong></div>" +
+                        "<div>Overdue: <strong style='color:#= d.value === 0 ? \"rgb(52,211,153)\" : \"rgb(252,165,165)\" #;'>#= d.value #%#= d.value === 0 ? \" (DONE)\" : \"\" #</strong> (#= d.overdue #/#= d.expected # slot)</div>" +
+                        "<div>Completed: <strong style='color:rgb(56,189,248);'>#= d.filled #</strong> / #= d.expected # slot</div>" +
+                        "</div>" +
+                        "# } else { #" +
+                        "<div>Tgl #= category #: <strong>OFF / LIBUR</strong></div>" +
+                        "# } #"
                 }
             });
         });

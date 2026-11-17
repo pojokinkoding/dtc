@@ -2087,9 +2087,6 @@ function renderBulkAllModelsForm(models, timeLabels) {
                                 <i class="fa-regular fa-circle-dot" style="font-size:10px; color: #60a5fa;"></i> ${cp.checkpoint_name}
                             </div>
                             ${specHtml}
-                            <button type="button" class="btn-reset-row-null" title="Kosongkan/Reset seluruh slot jam sampel checkpoint ini ke NULL" style="padding: 3px 8px; font-size: 9.5px; font-weight: 700; border-radius: 4px; border: 1px solid rgba(239,68,68,0.4); background: rgba(239,68,68,0.15); color: #f87171; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: all 0.2s;">
-                                <i class="fa-solid fa-rotate-left" style="font-size: 9px;"></i> Reset Checkpoint (NULL)
-                            </button>
                         </td>
                     `;
 
@@ -2166,9 +2163,6 @@ function renderBulkAllModelsForm(models, timeLabels) {
                                                data-lsl="${lslAttr}" data-usl="${uslAttr}" data-target="${targetAttr}" data-orig="${slotVal}" 
                                                value="${slotVal}" placeholder="-" ${isQuantOos ? 'title="OUT OF SPEC (Di luar batas LSL/USL)"' : ''}
                                                style="width: 100%; max-width: 70px; padding: 5px 3px; border-radius: 5px; border: ${inputBorder}; background: ${inputBg}; color: ${inputColor}; ${inputShadow} font-size: 11px; font-weight: 700; text-align: center;">
-                                        <button type="button" class="btn-quant-sample-reset" title="Reset sample jam ${lbl} ke NULL" style="padding: 3px 4px; font-size: 9px; font-weight: 700; border-radius: 4px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05); color: #f87171; cursor: pointer; display: ${isFilled ? 'inline-flex' : 'none'}; align-items: center; justify-content: center;">
-                                            <i class="fa-solid fa-xmark" style="font-size: 8px;"></i>
-                                        </button>
                                     </div>
                                 `;
                             }
@@ -2210,7 +2204,6 @@ function renderBulkAllModelsForm(models, timeLabels) {
                             } else {
                                 let okDisplay = isNg ? 'display: none;' : 'display: inline-flex;';
                                 let ngDisplay = isOk ? 'display: none;' : 'display: inline-flex;';
-                                let resetDisplay = (isOk || isNg) ? 'display: inline-flex;' : 'display: none;';
 
                                 html += `
                                     <div class="btn-group-mini-qual" style="display: flex; gap: 2px; justify-content: center; align-items: center;">
@@ -2218,10 +2211,6 @@ function renderBulkAllModelsForm(models, timeLabels) {
                                                 style="padding: 3px 6px; font-size: 9px; font-weight: 700; border-radius: 4px; border: 1px solid rgba(16,185,129,0.4); background: ${isOk ? '#10b981' : 'rgba(16,185,129,0.15)'}; color: ${isOk ? '#ffffff' : '#34d399'}; cursor: pointer; ${okDisplay}">OK</button>
                                         <button type="button" class="btn-mini-qual btn-mini-ng ${isNg ? 'active-ng' : ''}" data-val="NG" 
                                                 style="padding: 3px 6px; font-size: 9px; font-weight: 700; border-radius: 4px; border: 1px solid rgba(239,68,68,0.4); background: ${isNg ? '#ef4444' : 'rgba(239,68,68,0.15)'}; color: ${isNg ? '#ffffff' : '#f87171'}; cursor: pointer; ${ngDisplay}">NG</button>
-                                        <button type="button" class="btn-mini-qual-reset" title="Reset sample jam ${lbl} ke NULL" 
-                                                style="padding: 3px 4px; font-size: 9px; font-weight: 700; border-radius: 4px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05); color: #f87171; cursor: pointer; ${resetDisplay} align-items: center; justify-content: center;">
-                                            <i class="fa-solid fa-xmark" style="font-size: 9px;"></i>
-                                        </button>
                                         <input type="hidden" class="bulk-sample-qual-input" data-model="${m.model_name}" data-line="${m.line_name}" data-section="${m.section_name}" data-param="${p.parameter_id}" data-cp="${cp.checkpoint_id}" data-slot="${lbl}" data-orig="${slotVal}" value="${slotVal}">
                                     </div>
                                 `;

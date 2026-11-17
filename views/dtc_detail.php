@@ -310,6 +310,9 @@ if ($param_id > 0) {
                 <a href="Script/php/dtc/c_missing_data_monthly_report.php?format=pdf&month=<?= urlencode($month) ?>&param_id=<?= intval($param_id) ?><?= $checkpoint_id > 0 ? '&checkpoint_id=' . $checkpoint_id : '' ?>" target="_blank" title="Print atau Simpan Laporan DTC sebagai PDF" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: 1px solid rgba(239, 68, 68, 0.5); padding: 4px 14px; border-radius: 6px; font-size: 12px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(239,68,68,0.4); transition: all 0.2s ease;">
                     <i class="fa-solid fa-print"></i> Print / Save PDF
                 </a>
+                <a href="Script/php/dtc/c_missing_data_monthly_report.php?format=excel&month=<?= urlencode($month) ?>&param_id=<?= intval($param_id) ?><?= $checkpoint_id > 0 ? '&checkpoint_id=' . $checkpoint_id : '' ?>" target="_blank" title="Export Laporan DTC ke Excel (.xls)" style="background: linear-gradient(135deg, #10b981, #047857); color: white; border: 1px solid rgba(52, 211, 153, 0.5); padding: 4px 14px; border-radius: 6px; font-size: 12px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(16,185,129,0.35); transition: all 0.2s ease;">
+                    <i class="fa-solid fa-file-excel"></i> Export to Excel
+                </a>
             </div>
         </div>
         <div class="header-grid" style="grid-template-columns: 1fr 1.2fr 1fr <?= $headerData['measuring_item'] === 'Quantitative' ? '1.5fr ' : '' ?>auto; gap: 15px;">
@@ -647,10 +650,7 @@ if ($param_id > 0) {
                                 <label id="label_sample_<?= $idx+1 ?>" style="font-size: 10px; color: var(--text-muted); text-align: center; width: 100%;"><?= htmlspecialchars($label) ?></label>
                             </div>
                             <div style="position: relative;">
-                                <input type="number" step="any" name="sample_<?= $idx+1 ?>" id="input_sample_<?= $idx+1 ?>" class="sample-input" style="width: 100%; text-align: center; padding: 6px 18px 6px 4px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 0 5px rgba(255,255,255,0.2); background: rgba(15,23,42,0.5); color: white; transition: all 0.3s; font-size: 12px;" placeholder="S<?= $idx+1 ?>">
-                                <button type="button" class="btn-clear-sample" data-sample="<?= $idx+1 ?>" title="Reset sample ke NULL" style="position: absolute; right: 3px; top: 50%; transform: translateY(-50%); background: transparent; border: none; color: #ef4444; font-size: 11px; cursor: pointer; padding: 2px; opacity: 0.8; display: none; transition: opacity 0.2s;">
-                                    <i class="fa-solid fa-xmark"></i>
-                                </button>
+                                <input type="number" step="any" name="sample_<?= $idx+1 ?>" id="input_sample_<?= $idx+1 ?>" class="sample-input" style="width: 100%; text-align: center; padding: 6px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 0 5px rgba(255,255,255,0.2); background: rgba(15,23,42,0.5); color: white; transition: all 0.3s; font-size: 12px;" placeholder="S<?= $idx+1 ?>">
                             </div>
                         </div>
                         <?php endforeach; ?>

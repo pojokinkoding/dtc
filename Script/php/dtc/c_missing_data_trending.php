@@ -300,6 +300,7 @@ try {
                 'is_off' => $isOffDay,
                 'expected' => $exp,
                 'overdue' => $ovd,
+                'filled' => $filled,
                 'pct' => $pct
             ];
         }
